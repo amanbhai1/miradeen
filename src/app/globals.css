@@ -4723,3 +4723,208 @@ select.input-gold-glow:focus {
   background: #C9A96E;
   color: white;
 }
+
+/* ========================================
+   PHASE 13: Micro-Interactions & Refinements
+   ======================================== */
+
+/* Magnetic Button Effect */
+.magnetic-btn {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Subtle Noise Texture for backgrounds */
+.noise-bg {
+  position: relative;
+}
+.noise-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Text Underline Animation */
+.text-underline-anim {
+  position: relative;
+  display: inline-block;
+}
+.text-underline-anim::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, #C9A96E, #D4B87A);
+  transition: width 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.text-underline-anim:hover::after {
+  width: 100%;
+}
+
+/* Smooth Image Reveal */
+.img-reveal {
+  position: relative;
+  overflow: hidden;
+}
+.img-reveal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(201, 169, 110, 0.1);
+  transform: scaleX(1);
+  transform-origin: right;
+  transition: transform 0.6s cubic-bezier(0.77, 0, 0.175, 1);
+}
+.img-reveal:hover::after,
+.img-reveal.revealed::after {
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* Luxury Separator Variants */
+.separator-wave {
+  height: 2px;
+  background: repeating-linear-gradient(90deg, transparent, transparent 4px, #C9A96E 4px, #C9A96E 8px);
+  opacity: 0.3;
+}
+.separator-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.separator-dots::before,
+.separator-dots::after {
+  content: '';
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #C9A96E, transparent);
+}
+.separator-dots span {
+  width: 4px;
+  height: 4px;
+  background: #C9A96E;
+  border-radius: 50%;
+  transform: rotate(45deg);
+}
+
+/* Button Shine Sweep */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+.btn-shine:hover::before {
+  left: 100%;
+}
+
+/* Animated Counter */
+.counter-animate {
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+.counter-animate.bump {
+  animation: counterBump 0.3s ease;
+}
+@keyframes counterBump {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); color: #C9A96E; }
+}
+
+/* Focus Ring Luxury */
+.focus-ring-gold:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #C9A96E, 0 0 0 4px rgba(201, 169, 110, 0.2);
+  border-radius: inherit;
+}
+
+/* Skeleton Shimmer Gold */
+.skeleton-gold {
+  background: linear-gradient(90deg, rgba(201,169,110,0.05) 25%, rgba(201,169,110,0.15) 50%, rgba(201,169,110,0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmerGold 1.5s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmerGold {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Card Hover Lift with Shadow */
+.card-hover-lift {
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.35s ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px -8px rgba(201, 169, 110, 0.2);
+}
+.dark .card-hover-lift:hover {
+  box-shadow: 0 12px 40px -8px rgba(201, 169, 110, 0.12);
+}
+
+/* Text Gradient Fade */
+.text-gradient-fade {
+  background: linear-gradient(135deg, #C9A96E 0%, #E8D5B5 40%, #C9A96E 80%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Badge Glow */
+.badge-glow {
+  animation: badgeGlow 2s ease-in-out infinite alternate;
+}
+@keyframes badgeGlow {
+  from { box-shadow: 0 0 4px rgba(201, 169, 110, 0.3); }
+  to { box-shadow: 0 0 12px rgba(201, 169, 110, 0.5); }
+}
+
+/* Ripple Effect */
+.ripple-p13 {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-p13::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(201, 169, 110, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s, opacity 0.6s;
+  opacity: 0;
+}
+.ripple-p13:active::after {
+  width: 300px;
+  height: 300px;
+  opacity: 1;
+  transition: 0s;
+}
+
+/* Scroll Progress Top Bar */
+.scroll-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #C9A96E, #E8D5B5, #C9A96E);
+  z-index: 9999;
+  transition: width 0.1s linear;
+}

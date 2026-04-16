@@ -1803,3 +1803,295 @@ Task: Enhance Styling & Add New Features (Phase 12)
 10. **Currency conversion**: Multi-currency display
 11. **Analytics integration**: Google Analytics / Plausible
 12. **Accessibility audit**: WCAG 2.1 AA compliance
+
+---
+Task ID: 13-b
+Agent: Phase 13 Development Team
+Task: Phase 13 CSS Animations + CheckoutPage Enhancement + Recently Viewed API
+
+### QA Assessment
+- ESLint: 0 new errors introduced (pre-existing AdminPages.tsx error unrelated to changes)
+- All modified files lint clean: CheckoutPage.tsx, recently-viewed/route.ts
+- Dev server compiles successfully with Turbopack ✅
+
+### TASK 1: Phase 13 CSS Animations (~160 lines)
+- **File modified**: `src/app/globals.css` — APPENDED ~160 lines at end of file (line 4726+)
+- **Section header**: `PHASE 13: Micro-Interactions & Refinements`
+
+#### 13 CSS Utility Classes Added:
+1. `.magnetic-btn` — Magnetic button hover transform
+2. `.noise-bg` — Subtle noise texture overlay for backgrounds
+3. `.text-underline-anim` — Animated gold underline on hover
+4. `.img-reveal` — Smooth image reveal with scaleX transition
+5. `.separator-wave` — Repeating wave pattern gold separator
+6. `.separator-dots` — Diamond-shaped dot separator
+7. `.btn-shine` — White shine sweep on hover
+8. `.counter-animate` / `.bump` — Animated counter bump with gold color
+9. `.focus-ring-gold` — Luxury gold focus-visible ring with box-shadow
+10. `.skeleton-gold` — Gold-tinted skeleton shimmer animation
+11. `.card-hover-lift` — Lift + gold shadow on hover (+ dark mode)
+12. `.text-gradient-fade` — Multi-stop gold gradient text
+13. `.badge-glow` — Pulsing gold glow animation on badges
+14. `.ripple-p13` — Ripple effect on click (named to avoid conflict with Phase 5 `.ripple`)
+15. `.scroll-progress-bar` — Fixed top scroll progress indicator
+
+### TASK 2: CheckoutPage Enhancement
+- **File modified**: `src/components/pages/CheckoutPage.tsx` — Enhanced payment section, coupon UX, security badges
+
+#### 2.1 Enhanced Payment Methods (4 visual cards replacing PayPal/COD)
+- **Credit / Debit Card**: Dark gradient icon card with CreditCard icon, Visa/Mastercard/RuPay description
+- **UPI**: Purple gradient icon card with Smartphone icon, Google Pay/PhonePe/Paytm/BHIM description
+- **Net Banking**: Blue gradient icon card with Landmark icon, all major Indian banks description
+- **Cash on Delivery**: Muted card with Banknote icon (existing, restyled with `rounded-lg`)
+
+#### 2.2 Coupon Input Enhancement
+- **Loading state**: `Loader2` spinner replaces "Apply" text during validation
+- **Async handler**: `handleApplyCoupon` now simulates API call with 800ms delay
+- **New state**: `couponLoading` boolean added
+- **Apply button**: Disabled during loading, `min-w-[64px]` prevents layout shift, added `btn-shine` sweep effect
+- **Success animation**: Applied coupon card now has spring-animated checkmark icon (`motion.div` with `type: 'spring', stiffness: 400`)
+- **Success card entrance**: Fade + scale + y-translate entrance animation
+
+#### 2.3 Security Trust Badges (new section below payment)
+- 3-column grid below the existing security note
+- **SSL Secure**: Shield icon with gold gradient background, "256-bit encryption" subtitle
+- **PCI Compliant**: Lock icon, "Industry standard" subtitle
+- **Secure Payment**: CheckCircle2 icon, "100% safe" subtitle
+- Each badge: rounded-xl card with `bg-gradient-to-b from-gold/5 to-transparent`, gold border, centered layout
+- Animated entrance with Framer Motion (`initial={{ opacity: 0, y: 10 }}`, delay 0.2s)
+
+#### 2.4 Order Summary Styling
+- Added `shadow-luxury-md` class to Order Summary sidebar card for enhanced depth
+
+#### 2.5 Payment Method Label Update (Order Confirmation)
+- Dynamic payment method display now shows all 4 options:
+  - `credit-card` → "Credit / Debit Card"
+  - `upi` → "UPI"
+  - `net-banking` → "Net Banking"
+  - `cod` → "Cash on Delivery"
+
+#### New Imports Added
+- `Smartphone`, `Landmark`, `Loader2` from lucide-react
+
+### TASK 3: Recently Viewed Products API Enhancement
+- **File modified**: `src/app/api/recently-viewed/route.ts`
+- **New feature**: Public `productIds` query parameter support (no auth required)
+
+#### GET Endpoint — Dual Mode:
+1. **Authenticated mode** (existing): Requires `Authorization: Bearer` token, returns user's recently viewed from DB
+2. **Public mode** (new): Accepts `?productIds=id1,id2,id3` query param, returns product details for given IDs
+   - No authentication required
+   - Filters to `isActive: true` products only
+   - Preserves the order of requested IDs
+   - Returns `{ products: [...] }` array in same format as `/api/products`
+   - Returns empty array if no valid IDs provided
+
+#### POST Endpoint: Unchanged (still requires auth)
+
+### Files Modified/Created
+- `src/app/globals.css` — APPENDED: ~160 lines of Phase 13 CSS animations
+- `src/components/pages/CheckoutPage.tsx` — ENHANCED: Payment methods, coupon UX, security badges, order summary styling
+- `src/app/api/recently-viewed/route.ts` — ENHANCED: Added public productIds query param support
+
+
+---
+
+Task ID: 13-a
+Agent: Fullstack Developer
+Task: Add Admin Coupon Management UI to MIRADEEN Admin Panel
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- `bun run db:push`: Schema synced successfully ✅
+- Seed: 5 coupon codes seeded (MIRADEEN20, WELCOME15, FLAT500, SUMMER30, LUXURY10) ✅
+- Dev server compiles successfully ✅
+
+### Changes Made
+
+#### 1. Admin Coupons API (`src/app/api/admin/coupons/route.ts`) — NEW
+- **GET** `/api/admin/coupons` — List all coupons (with optional `?active=true` filter), ordered by `createdAt desc`
+- **POST** `/api/admin/coupons` — Create new coupon with validation (duplicate code check, required fields)
+- **PUT** `/api/admin/coupons` — Update coupon fields (code, discount, type, minOrder, maxUses, isActive, startsAt, expiresAt)
+- **DELETE** `/api/admin/coupons` — Delete coupon by ID
+
+#### 2. Prisma Schema Update (`prisma/schema.prisma`)
+- Added `startsAt DateTime?` field to Coupon model (for scheduling coupon activation)
+
+#### 3. Admin Panel — Coupons Tab (`src/components/pages/AdminPages.tsx`)
+- **AdminTab type**: Added `'coupons'` to the union type
+- **Sidebar**: Added "Coupons" item with `Ticket` icon between Messages and Settings
+- **Main content**: Added `{activeTab === 'coupons' && <CouponsTab token={token} />}`
+- **New imports**: `Ticket, Percent, Copy, RefreshCw` (lucide-react), `Switch`, `Dialog`, `AlertDialog` (shadcn/ui)
+
+#### 4. CouponsTab Component (~510 lines) — Full CRUD
+- **Coupon interface**: TypeScript interface with all fields including startsAt/expiresAt
+- **Status logic**: `getCouponStatus()` — Active, Expired, Scheduled, Disabled
+- **Status badges**: Color-coded (green/gray/blue/red) using dark-mode-aware classes
+- **Quick Stats**: 4 stat cards (Active count, Scheduled, Expired, Total usage)
+- **Search**: Filter coupons by code with clear button
+- **Grid layout**: 1/2/3 column responsive grid of coupon cards
+- **Each coupon card shows**:
+  - Code (monospace, gold hover) with copy-to-clipboard button
+  - Status badge (Active/Expired/Scheduled/Disabled)
+  - Toggle active button (green/red)
+  - Edit button
+  - Delete button (with AlertDialog confirmation)
+  - Large discount value display (gold text)
+  - Min order, usage count, max uses, date restrictions
+  - Usage progress bar (when maxUses > 0)
+- **Create/Edit Dialog** (shadcn Dialog):
+  - Coupon Code with auto-generate button (8-char alphanumeric)
+  - Discount Type selector (Percentage/Fixed)
+  - Discount Value input
+  - Min Order Amount
+  - Max Uses (0 = unlimited)
+  - Active toggle (shadcn Switch)
+  - Start Date / End Date (date inputs)
+  - Save/Cancel buttons with loading state (Loader2 spinner)
+  - Code disabled when editing (prevents changing existing codes)
+- **Delete confirmation**: AlertDialog with coupon code name, cancel/delete buttons
+- **Auto-generate code**: `generateCouponCode()` — 8 chars, uppercase + digits, no ambiguous chars (0/O/1/I)
+
+#### 5. Coupon Seed Data Updated (`prisma/seed.ts`)
+- MIRADEEN20: 20% off, no min order, 500 max uses, active
+- WELCOME15: 15% off, min ₹500, 1000 max uses, active
+- FLAT500: ₹500 off, min ₹2000, 2000 max uses, active
+- SUMMER30: 30% off, min ₹1000, 100 max uses, active
+- LUXURY10: 10% off, no min order, unlimited uses, active
+
+### Design Consistency
+- Uses luxury CSS classes: `heading-serif`, `text-gold`, `card-luxury`, `border-gold/30`
+- Gold accent colors for active states and primary actions
+- Dark mode support throughout (bg-green-950/30, text-green-300, etc.)
+- Responsive design: grid adapts from 1 to 3 columns
+- Framer Motion tab transitions inherited from parent component
+
+### Files Created/Modified
+- `src/app/api/admin/coupons/route.ts` — NEW: ~95 lines, admin CRUD API
+- `src/components/pages/AdminPages.tsx` — MODIFIED: Added CouponsTab (~510 lines), imports, tab registration
+- `prisma/schema.prisma` — MODIFIED: Added `startsAt DateTime?` to Coupon model
+- `prisma/seed.ts` — MODIFIED: Updated 5 coupon seed codes with new fields
+
+---
+Task ID: 13
+Agent: Phase 13 Development Review Team
+Task: Periodic review — QA, Admin Coupons, CSS animations, Checkout enhancement
+
+### QA Assessment (Phase 13)
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully with Turbopack ✅
+- All routes respond HTTP 200 ✅
+- Browser QA performed via agent-browser: Homepage renders with all sections (Collections, Why MIRADEEN, As Featured In, New Arrivals, Trending Now), Shop page loads, Product cards interactive ✅
+- No browser console errors ✅
+- Screenshots saved: qa-phase13-home.png, qa-phase13-shop.png, qa-phase13-product-detail.png
+
+### New Features (Phase 13)
+
+#### 1. Admin Coupon Management System (~510 lines)
+- **New API**: `/api/admin/coupons` — Full CRUD (GET/POST/PUT/DELETE) with admin JWT auth
+- **CouponsTab component**: Added to AdminPages.tsx with Ticket icon sidebar item
+- **Quick stats**: 4 cards showing Active, Scheduled, Expired, Total Usage counts
+- **Coupon cards**: Code (monospace + copy button), status badge (Active/Expired/Scheduled/Disabled), discount value, min order, usage progress bar, date restrictions
+- **Create/Edit dialog**: Code (with auto-generate button), type selector (percentage/fixed), discount value, min order, max uses, active toggle, start/end dates
+- **Delete confirmation**: AlertDialog with descriptive warning
+- **Quick toggle**: Activate/deactivate with single click on each card
+- **Search**: Filter coupons by code
+- **Schema update**: Added `startsAt DateTime?` field to Coupon model
+- **Seed data**: 5 coupons created — MIRADEEN20 (20%), WELCOME15 (15%), FLAT500 (₹500), SUMMER30 (30%), LUXURY10 (10%)
+
+#### 2. CheckoutPage Enhancement
+- **4 Payment Method Cards**: Credit/Debit Card (Visa/Mastercard/RuPay), UPI (Google Pay/PhonePe/Paytm/BHIM), Net Banking (major Indian banks), Cash on Delivery
+- **Coupon Enhancement**: Loading spinner, async simulated API call, spring-animated success checkmark, btn-shine sweep on Apply button
+- **Security Trust Badges**: 3-column grid — SSL Secure (256-bit), PCI Compliant, Secure Payment (100% safe)
+- **Order Summary**: Enhanced with shadow-luxury-md
+- **Confirmation Page**: Dynamic payment method label for all 4 options
+
+#### 3. Recently Viewed API Enhancement
+- **Public mode**: `GET /api/recently-viewed?productIds=id1,id2,id3` — no auth required
+- Returns `{ products: [...] }` matching products API format
+- Preserves ID ordering, filters inactive products
+- Existing authenticated mode preserved
+
+#### 4. Phase 13 CSS Animations (~160 lines appended)
+- `.magnetic-btn` — Magnetic button effect
+- `.noise-bg` — Subtle noise texture overlay for backgrounds
+- `.text-underline-anim` — Animated gold underline on hover
+- `.img-reveal` — Smooth image reveal with gold overlay
+- `.separator-wave` / `.separator-dots` — Luxury separator variants
+- `.btn-shine` — Button shine sweep effect on hover
+- `.counter-animate` / `.counterBump` — Animated number counter with scale bounce
+- `.focus-ring-gold` — Gold focus ring for accessibility
+- `.skeleton-gold` — Gold-tinted shimmer loading skeleton
+- `.card-hover-lift` — Card lift with gold shadow on hover + dark mode
+- `.text-gradient-fade` — Gold gradient text effect
+- `.badge-glow` — Animated badge glow pulse
+- `.ripple` — Ripple click effect
+- `.scroll-progress-bar` — Fixed scroll progress bar at top
+
+### Files Created/Modified
+- `src/app/api/admin/coupons/route.ts` — NEW: ~120 lines, CRUD API
+- `src/components/pages/AdminPages.tsx` — MODIFIED: +510 lines, CouponsTab + dialog + search + CRUD
+- `src/components/pages/CheckoutPage.tsx` — MODIFIED: Payment cards, coupon enhancement, trust badges
+- `src/app/api/recently-viewed/route.ts` — MODIFIED: Added public mode
+- `src/app/globals.css` — APPENDED: ~160 lines Phase 13 CSS animations
+- `prisma/schema.prisma` — MODIFIED: Added startsAt to Coupon model
+- `prisma/seed.ts` — MODIFIED: 5 seed coupons
+
+---
+
+## Current Project Status Assessment (Phase 13)
+
+### Overall Health: EXCELLENT
+- **Code Quality**: ESLint 0 errors, 0 warnings ✅
+- **Compilation**: All 19 pages compile successfully with Turbopack ✅
+- **Runtime**: All routes respond HTTP 200 ✅
+- **Features**: 65+ features across 19 pages ✅
+- **Design System**: 4,885+ lines of luxury CSS utilities across 13 phases ✅
+- **API Routes**: 14 (including new admin/coupons) ✅
+
+### Feature Inventory (Updated)
+| Category | Count | Details |
+|----------|-------|---------|
+| Pages | 19 | Home, Shop, Product, Cart, Checkout, Auth, About, Contact, Wishlist, Profile, Orders, Order Tracking, Admin Dashboard, Lookbook, Style Quiz, Gift Guide, Collections, Sale, Blog |
+| Admin Tabs | 7 | Dashboard, Products, Orders, Users, Messages, **Coupons** ✨, Settings |
+| Shared Components | 16 | Navbar, Footer, CartDrawer, SearchOverlay, WhatsAppButton, QuickViewModal, CompareDrawer, SizeGuideModal, ImageLightbox, BreadcrumbNav, BackToTopButton, RecentlyViewedSection, ThemeProvider, ErrorBoundary, NewsletterPopup, NotificationToast |
+| API Routes | 14 | Products, Auth, Orders, Reviews, Contact, Newsletter, Coupons, Wishlist, Size Guide, Recently Viewed, Admin Export, Admin (products/orders/users/messages/settings/stats/coupons) |
+| CSS Lines | 4,885+ | 13 phases of luxury animations, hover effects, micro-interactions |
+| Database Tables | 11 | Users, Products, Categories, Orders, OrderItems, Reviews, Wishlists, ContactMessages, Banners, Coupons, SiteSettings |
+| Total Features | 65+ | See Phase 1-13 work logs |
+
+### Key Changes This Phase
+1. ✅ Admin Coupon Management — Full CRUD with create/edit/delete dialog, search, status badges, seed data
+2. ✅ CheckoutPage Enhancement — 4 payment method cards, coupon loading state, security trust badges
+3. ✅ Phase 13 CSS — 15 new micro-interaction classes (noise, ripple, shine, underline, reveal, etc.)
+4. ✅ Recently Viewed API — Public productIds endpoint
+
+### Unresolved Issues / Risks
+1. Memory constraints: Next.js + Chrome compete for ~8GB RAM
+2. PayPal integration: Placeholder payment flow
+3. Product images: Using Unsplash URLs
+4. Email service: Toast-based only
+5. Forgot Password: Placeholder link
+6. Admin image uploads: No file upload
+7. Social login: Visual buttons only
+8. Profile settings: Change Password visual-only
+9. Address management: Forms visual-only
+
+### Priority Recommendations for Next Phase
+#### High Priority
+1. Admin coupon usage tracking in dashboard
+2. Email service (SendGrid/Resend)
+3. Forgot Password flow
+4. Address CRUD API + persistence
+
+#### Medium Priority
+5. Real PayPal integration
+6. Performance optimization (Image component, code splitting)
+7. Mobile responsiveness audit
+8. PWA support
+
+#### Low Priority
+9. Internationalization (EN/HI)
+10. Currency conversion
+11. Analytics integration
+12. Accessibility audit (WCAG 2.1 AA)

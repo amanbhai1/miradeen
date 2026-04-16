@@ -344,10 +344,11 @@ async function seed() {
 
   // Create coupons
   const coupons = [
-    { code: 'WELCOME10', discount: 10, type: 'percentage', minOrder: 2000, maxUses: 1000 },
-    { code: 'MIRADEEN20', discount: 20, type: 'percentage', minOrder: 5000, maxUses: 500 },
-    { code: 'FLAT500', discount: 500, type: 'fixed', minOrder: 3000, maxUses: 2000 },
-    { code: 'LUXURY30', discount: 30, type: 'percentage', minOrder: 10000, maxUses: 100 },
+    { code: 'MIRADEEN20', discount: 20, type: 'percentage', minOrder: null, maxUses: 500, isActive: true },
+    { code: 'WELCOME15', discount: 15, type: 'percentage', minOrder: 500, maxUses: 1000, isActive: true },
+    { code: 'FLAT500', discount: 500, type: 'fixed', minOrder: 2000, maxUses: 2000, isActive: true },
+    { code: 'SUMMER30', discount: 30, type: 'percentage', minOrder: 1000, maxUses: 100, isActive: true },
+    { code: 'LUXURY10', discount: 10, type: 'percentage', minOrder: null, maxUses: null, isActive: true },
   ];
 
   for (const coupon of coupons) {
@@ -481,7 +482,7 @@ async function seed() {
   console.log('\n🎉 MIRADEEN database seeded successfully!');
   console.log('\n👤 Admin Login: admin@miradeen.com / admin123');
   console.log('👤 Demo User: demo@miradeen.com / user123');
-  console.log('\n🎟️ Coupon Codes: WELCOME10, MIRADEEN20, FLAT500, LUXURY30');
+  console.log('\n🎟️ Coupon Codes: MIRADEEN20, WELCOME15, FLAT500, SUMMER30, LUXURY10');
 }
 
 seed()

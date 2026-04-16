@@ -10,15 +10,41 @@ function getAuthPayload(request: NextRequest): string | null {
   return payload?.userId ?? null;
 }
 
-// GET: Return recently viewed products (requires auth)
+// GET: Return recently viewed products
+// Supports two modes:
+//   1. Authenticated: Returns user's recently viewed from DB (with `limit` query)
+//   2. Public: Accepts `productIds` comma-separated query param to fetch product details by IDs
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+
+    // Public mode: fetch products by IDs (no auth required)
+    const productIdsParam = searchParams.get('productIds');
+    if (productIdsParam) {
+      const ids = productIdsParam.split(',').map((id) => id.trim()).filter(Boolean);
+      if (ids.length === 0) {
+        return NextResponse.json({ products: [] });
+      }
+
+      const products = await db.product.findMany({
+        where: { id: { in: ids }, isActive: true },
+        include: { category: true },
+      });
+
+      // Preserve the order from the requested IDs
+      const ordered = ids
+        .map((id) => products.find((p) => p.id === id))
+        .filter(Boolean);
+
+      return NextResponse.json({ products: ordered });
+    }
+
+    // Authenticated mode: return user's recently viewed from DB
     const userId = getAuthPayload(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
 
     const recentlyViewed = await db.recentlyViewed.findMany({

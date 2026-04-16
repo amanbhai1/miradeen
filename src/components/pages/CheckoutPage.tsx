@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Lock, Check, ShoppingBag, AlertCircle, ChevronRight, ChevronLeft, Package, MapPin, CheckCircle2, Gift, Sparkles, Shield, Truck, RotateCcw, ShoppingCart, Banknote, Timer, Heart } from 'lucide-react';
+import { CreditCard, Lock, Check, ShoppingBag, AlertCircle, ChevronRight, ChevronLeft, Package, MapPin, CheckCircle2, Gift, Sparkles, Shield, Truck, RotateCcw, ShoppingCart, Banknote, Timer, Heart, Smartphone, Landmark, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -74,7 +74,8 @@ export default function CheckoutPage() {
   const [couponInput, setCouponInput] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'cod'>('paypal');
+  const [paymentMethod, setPaymentMethod] = useState<'credit-card' | 'upi' | 'net-banking' | 'cod'>('credit-card');
+  const [couponLoading, setCouponLoading] = useState(false);
   const [[page, direction], setPage] = useState([2, 0]);
 
   // Gift wrap state
@@ -180,9 +181,14 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
     setCouponError('');
+    // Simulate API call for realistic UX
+    await new Promise(resolve => setTimeout(resolve, 800));
     const success = applyCoupon(couponInput);
+    setCouponLoading(false);
     if (success) {
       setCouponApplied(true);
       toast({ title: 'Coupon applied!', description: `Discount of ₹${Math.round(discount).toLocaleString()} has been applied.` });
@@ -388,7 +394,9 @@ export default function CheckoutPage() {
                   <CreditCard className="h-4 w-4 text-gold mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Payment Method</p>
-                    <p className="text-sm font-medium">{paymentMethod === 'paypal' ? 'PayPal' : 'Cash on Delivery'}</p>
+                    <p className="text-sm font-medium">
+                  {paymentMethod === 'credit-card' ? 'Credit / Debit Card' : paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'net-banking' ? 'Net Banking' : 'Cash on Delivery'}
+                </p>
                   </div>
                 </div>
               </div>
@@ -789,25 +797,74 @@ export default function CheckoutPage() {
                     <p className="text-sm text-muted-foreground mb-6">Choose your preferred payment method</p>
 
                     {/* Payment Method Selection */}
-                    <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'paypal' | 'cod')} className="space-y-3 mb-6">
-                      {/* PayPal */}
+                    <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'credit-card' | 'upi' | 'net-banking' | 'cod')} className="space-y-3 mb-6">
+
+                      {/* Credit / Debit Card */}
                       <label
-                        htmlFor="paypal"
+                        htmlFor="credit-card"
                         className={`flex items-center gap-4 p-4 md:p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
-                          paymentMethod === 'paypal'
+                          paymentMethod === 'credit-card'
                             ? 'border-gold bg-gold/5 shadow-md shadow-gold/10'
                             : 'border-border hover:border-gold/40 hover:bg-muted/20'
                         }`}
                       >
-                        <RadioGroupItem value="paypal" id="paypal" className="border-gold data-[state=checked]:border-gold data-[state=checked]:bg-gold" />
-                        <div className="w-12 h-8 rounded bg-[#0070ba] flex items-center justify-center shrink-0">
-                          <span className="text-white text-xs font-bold tracking-wider">Pay</span>
+                        <RadioGroupItem value="credit-card" id="credit-card" className="border-gold data-[state=checked]:border-gold data-[state=checked]:bg-gold" />
+                        <div className="w-12 h-8 rounded-lg bg-gradient-to-br from-charcoal to-[#1a1a1a] flex items-center justify-center shrink-0">
+                          <CreditCard className="h-5 w-5 text-gold" />
                         </div>
                         <div className="flex-1">
-                          <p className="font-medium text-sm">PayPal</p>
-                          <p className="text-xs text-muted-foreground">Secure payment via PayPal — you&apos;ll be redirected</p>
+                          <p className="font-medium text-sm">Credit / Debit Card</p>
+                          <p className="text-xs text-muted-foreground">Visa, Mastercard, RuPay accepted</p>
                         </div>
-                        {paymentMethod === 'paypal' && (
+                        {paymentMethod === 'credit-card' && (
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                            <CheckCircle2 className="h-5 w-5 text-gold" />
+                          </motion.div>
+                        )}
+                      </label>
+
+                      {/* UPI */}
+                      <label
+                        htmlFor="upi"
+                        className={`flex items-center gap-4 p-4 md:p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                          paymentMethod === 'upi'
+                            ? 'border-gold bg-gold/5 shadow-md shadow-gold/10'
+                            : 'border-border hover:border-gold/40 hover:bg-muted/20'
+                        }`}
+                      >
+                        <RadioGroupItem value="upi" id="upi" className="border-gold data-[state=checked]:border-gold data-[state=checked]:bg-gold" />
+                        <div className="w-12 h-8 rounded-lg bg-gradient-to-br from-[#5B2F8F] to-[#8B5CF6] flex items-center justify-center shrink-0">
+                          <Smartphone className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">UPI</p>
+                          <p className="text-xs text-muted-foreground">Google Pay, PhonePe, Paytm, BHIM</p>
+                        </div>
+                        {paymentMethod === 'upi' && (
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                            <CheckCircle2 className="h-5 w-5 text-gold" />
+                          </motion.div>
+                        )}
+                      </label>
+
+                      {/* Net Banking */}
+                      <label
+                        htmlFor="net-banking"
+                        className={`flex items-center gap-4 p-4 md:p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                          paymentMethod === 'net-banking'
+                            ? 'border-gold bg-gold/5 shadow-md shadow-gold/10'
+                            : 'border-border hover:border-gold/40 hover:bg-muted/20'
+                        }`}
+                      >
+                        <RadioGroupItem value="net-banking" id="net-banking" className="border-gold data-[state=checked]:border-gold data-[state=checked]:bg-gold" />
+                        <div className="w-12 h-8 rounded-lg bg-gradient-to-br from-[#003366] to-[#0066CC] flex items-center justify-center shrink-0">
+                          <Landmark className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">Net Banking</p>
+                          <p className="text-xs text-muted-foreground">All major Indian banks supported</p>
+                        </div>
+                        {paymentMethod === 'net-banking' && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
                             <CheckCircle2 className="h-5 w-5 text-gold" />
                           </motion.div>
@@ -824,7 +881,7 @@ export default function CheckoutPage() {
                         }`}
                       >
                         <RadioGroupItem value="cod" id="cod" className="border-gold data-[state=checked]:border-gold data-[state=checked]:bg-gold" />
-                        <div className="w-12 h-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <div className="w-12 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                           <Banknote className="h-5 w-5 text-foreground" />
                         </div>
                         <div className="flex-1">
@@ -870,6 +927,28 @@ export default function CheckoutPage() {
                       <Lock className="h-3.5 w-3.5 text-green-600 shrink-0" />
                       <span>Your payment information is encrypted and secure. We never store your payment details.</span>
                     </div>
+
+                    {/* Security Trust Badges */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="mt-4 grid grid-cols-3 gap-3"
+                    >
+                      {[
+                        { icon: Shield, label: 'SSL Secure', sublabel: '256-bit encryption' },
+                        { icon: Lock, label: 'PCI Compliant', sublabel: 'Industry standard' },
+                        { icon: CheckCircle2, label: 'Secure Payment', sublabel: '100% safe' },
+                      ].map(({ icon: BadgeIcon, label, sublabel }) => (
+                        <div key={label} className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-gradient-to-b from-gold/5 to-transparent border border-gold/10">
+                          <div className="w-9 h-9 rounded-full bg-gold/10 flex items-center justify-center">
+                            <BadgeIcon className="h-4 w-4 text-gold" />
+                          </div>
+                          <p className="text-[10px] font-semibold text-foreground leading-tight text-center">{label}</p>
+                          <p className="text-[8px] text-muted-foreground leading-tight text-center">{sublabel}</p>
+                        </div>
+                      ))}
+                    </motion.div>
                   </div>
 
                   <div className="flex gap-3 mt-6">
@@ -957,7 +1036,7 @@ export default function CheckoutPage() {
 
           {/* ─── Order Summary Sidebar ─── */}
           <div className="lg:sticky lg:top-32 self-start">
-            <div className="card-luxury p-6 rounded-xl">
+            <div className="card-luxury shadow-luxury-md p-6 rounded-xl">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="heading-serif text-lg font-bold">Order Summary</h3>
                 <Badge variant="outline" className="text-[10px] text-gold border-gold/30">{getCartCount()} items</Badge>
@@ -991,12 +1070,18 @@ export default function CheckoutPage() {
               <div className="mb-4">
                 <p className="text-xs tracking-wider uppercase text-muted-foreground mb-2">Coupon Code</p>
                 {couponApplied && couponCode ? (
-                  <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="flex items-center gap-2 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2.5"
+                  >
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400 }}>
+                      <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                    </motion.div>
                     <span className="text-xs font-medium text-green-700 dark:text-green-400 flex-1">{couponCode}</span>
                     <span className="text-xs font-semibold text-green-700 dark:text-green-400">-₹{discount.toLocaleString()}</span>
                     <button onClick={handleRemoveCoupon} className="text-[10px] text-muted-foreground hover:text-destructive transition-colors ml-1">Remove</button>
-                  </div>
+                  </motion.div>
                 ) : (
                   <div className="flex gap-2">
                     <Input
@@ -1010,10 +1095,14 @@ export default function CheckoutPage() {
                       variant="outline"
                       size="sm"
                       onClick={handleApplyCoupon}
-                      disabled={!couponInput.trim()}
-                      className="h-9 text-xs hover:border-gold hover:text-gold transition-colors shrink-0"
+                      disabled={!couponInput.trim() || couponLoading}
+                      className="h-9 text-xs hover:border-gold hover:text-gold transition-all duration-300 shrink-0 btn-shine min-w-[64px]"
                     >
-                      Apply
+                      {couponLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        'Apply'
+                      )}
                     </Button>
                   </div>
                 )}

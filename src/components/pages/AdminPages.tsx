@@ -8,7 +8,7 @@ import {
   ChevronLeft, Search, Edit, Trash2, Plus, X, Save,
   ArrowUpRight, ArrowDownRight, Star, Package, Calendar, Clock, Trophy,
   ShoppingCart, Filter, UserCheck, ToggleLeft, ToggleRight, Sparkles, Crown, Mail,
-  Download, FileJson, FileSpreadsheet, Loader2, CheckCircle2
+  Download, FileJson, FileSpreadsheet, Loader2, CheckCircle2, Ticket, Percent, Copy, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +18,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/hooks/use-toast';
 import type { Product, Order, User as UserType, ContactMessage } from '@/types';
 import { parseJsonField } from '@/types';
 import { exportData, type ExportDataType, type ExportFormatType } from '@/lib/export';
 
-type AdminTab = 'dashboard' | 'products' | 'orders' | 'users' | 'messages' | 'settings';
+type AdminTab = 'dashboard' | 'products' | 'orders' | 'users' | 'messages' | 'coupons' | 'settings';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +88,7 @@ export default function AdminDashboard() {
     { id: 'orders', label: 'Orders', icon: ShoppingBag },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'coupons', label: 'Coupons', icon: Ticket },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -131,6 +135,7 @@ export default function AdminDashboard() {
               {activeTab === 'orders' && <OrdersTab token={token} />}
               {activeTab === 'users' && <UsersTab token={token} setActiveTab={setActiveTab} />}
               {activeTab === 'messages' && <MessagesTab token={token} />}
+              {activeTab === 'coupons' && <CouponsTab token={token} />}
               {activeTab === 'settings' && <SettingsTab token={token} />}
             </motion.div>
           </AnimatePresence>
@@ -854,6 +859,518 @@ function MessagesTab({ token }: { token: string | null }) {
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Coupons Tab ───────────────────────────────────────────────────────────────
+
+interface Coupon {
+  id: string;
+  code: string;
+  discount: number;
+  type: string;
+  minOrder: number | null;
+  maxUses: number | null;
+  usedCount: number;
+  isActive: boolean;
+  startsAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function getCouponStatus(coupon: Coupon): string {
+  const now = new Date();
+  if (coupon.expiresAt && new Date(coupon.expiresAt) < now) return 'expired';
+  if (coupon.startsAt && new Date(coupon.startsAt) > now) return 'scheduled';
+  if (!coupon.isActive) return 'disabled';
+  return 'active';
+}
+
+function getCouponStatusBadge(status: string) {
+  const map: Record<string, string> = {
+    active: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700',
+    expired: 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-600',
+    scheduled: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700',
+    disabled: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700',
+  };
+  return map[status] || 'bg-muted text-muted-foreground border-border';
+}
+
+function generateCouponCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function CouponsTab({ token }: { token: string | null }) {
+  const { toast } = useToast();
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Form state
+  const [form, setForm] = useState({
+    code: '',
+    type: 'percentage',
+    discount: '',
+    minOrder: '',
+    maxUses: '',
+    isActive: true,
+    startsAt: '',
+    expiresAt: '',
+  });
+
+  const fetchCoupons = () => {
+    fetch('/api/admin/coupons', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(data => { setCoupons(data.coupons || []); setLoading(false); }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchCoupons(); }, [token]);
+
+  const resetForm = () => {
+    setForm({ code: '', type: 'percentage', discount: '', minOrder: '', maxUses: '', isActive: true, startsAt: '', expiresAt: '' });
+    setEditingCoupon(null);
+  };
+
+  const openCreateDialog = () => {
+    resetForm();
+    setShowDialog(true);
+  };
+
+  const openEditDialog = (coupon: Coupon) => {
+    setEditingCoupon(coupon);
+    setForm({
+      code: coupon.code,
+      type: coupon.type,
+      discount: String(coupon.discount),
+      minOrder: coupon.minOrder ? String(coupon.minOrder) : '',
+      maxUses: coupon.maxUses ? String(coupon.maxUses) : '',
+      isActive: coupon.isActive,
+      startsAt: coupon.startsAt ? coupon.startsAt.split('T')[0] : '',
+      expiresAt: coupon.expiresAt ? coupon.expiresAt.split('T')[0] : '',
+    });
+    setShowDialog(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.code.trim() || !form.discount) {
+      toast({ title: 'Please fill in code and discount', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (editingCoupon) {
+        const res = await fetch('/api/admin/coupons', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: editingCoupon.id, ...form }),
+        });
+        if (!res.ok) throw new Error();
+        toast({ title: 'Coupon updated!' });
+      } else {
+        const res = await fetch('/api/admin/coupons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed');
+        }
+        toast({ title: 'Coupon created!' });
+      }
+      setShowDialog(false);
+      resetForm();
+      fetchCoupons();
+    } catch (err: any) {
+      toast({ title: err.message || 'Failed to save coupon', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (coupon: Coupon) => {
+    try {
+      const res = await fetch('/api/admin/coupons', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: coupon.id }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: 'Coupon deleted' });
+      fetchCoupons();
+    } catch {
+      toast({ title: 'Failed to delete coupon', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleActive = async (coupon: Coupon) => {
+    try {
+      const res = await fetch('/api/admin/coupons', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: coupon.id, isActive: !coupon.isActive }),
+      });
+      if (res.ok) {
+        setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, isActive: !coupon.isActive } : c));
+        toast({ title: `Coupon ${!coupon.isActive ? 'activated' : 'deactivated'}` });
+      }
+    } catch {
+      toast({ title: 'Failed to update coupon', variant: 'destructive' });
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast({ title: 'Code copied!', description: `${code} copied to clipboard` });
+  };
+
+  if (loading) return <AdminSkeleton rows={3} height="h-28" />;
+
+  const filteredCoupons = coupons.filter(c =>
+    c.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Stats
+  const activeCount = coupons.filter(c => getCouponStatus(c) === 'active').length;
+  const totalUsage = coupons.reduce((sum, c) => sum + c.usedCount, 0);
+
+  const inputCls = 'mt-1 transition-colors duration-200 focus:ring-2 focus:ring-gold/30';
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="heading-serif text-2xl font-bold">Coupons</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{coupons.length} total coupons &middot; {activeCount} active &middot; {totalUsage} total uses</p>
+        </div>
+        <Button onClick={openCreateDialog} size="sm" className="bg-gold text-background hover:bg-gold-dark transition-all duration-200 hover:shadow-md">
+          <Plus className="mr-1 h-4 w-4" /> Create Coupon
+        </Button>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-green-50 dark:bg-green-950/30"><Ticket className="h-4 w-4 text-green-600" /></div>
+            <div><p className="text-lg font-bold">{activeCount}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Active</p></div>
+          </CardContent>
+        </Card>
+        <Card className="transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30"><Calendar className="h-4 w-4 text-blue-600" /></div>
+            <div><p className="text-lg font-bold">{coupons.filter(c => getCouponStatus(c) === 'scheduled').length}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Scheduled</p></div>
+          </CardContent>
+        </Card>
+        <Card className="transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/30"><CheckCircle2 className="h-4 w-4 text-gray-500" /></div>
+            <div><p className="text-lg font-bold">{coupons.filter(c => getCouponStatus(c) === 'expired').length}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Expired</p></div>
+          </CardContent>
+        </Card>
+        <Card className="transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30"><Percent className="h-4 w-4 text-gold" /></div>
+            <div><p className="text-lg font-bold">{totalUsage}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Uses</p></div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search coupons by code..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 transition-all duration-200 focus:ring-2 focus:ring-gold/30 border-border"
+        />
+        {searchQuery && (
+          <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs h-6 p-0">
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+
+      {/* Coupon Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filteredCoupons.length === 0 && (
+          <Card className="md:col-span-2 xl:col-span-3">
+            <CardContent className="p-8 text-center">
+              <Ticket className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No coupons found{searchQuery ? ` matching "${searchQuery}"` : ''}</p>
+              <Button onClick={openCreateDialog} variant="outline" size="sm" className="mt-3 border-gold/30 text-gold hover:bg-gold/5">
+                <Plus className="mr-1 h-3.5 w-3.5" /> Create your first coupon
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        {filteredCoupons.map(coupon => {
+          const status = getCouponStatus(coupon);
+          return (
+            <Card key={coupon.id} className={`group transition-all duration-300 hover:shadow-lg ${status === 'active' ? 'border-gold/30 hover:border-gold/50' : ''}`}>
+              <CardContent className="card-luxury p-4">
+                {/* Top Row: Code + Status */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded-md ${status === 'active' ? 'bg-gold/10' : 'bg-muted'}`}>
+                      <Ticket className={`h-4 w-4 ${status === 'active' ? 'text-gold' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-sm font-mono tracking-wider group-hover:text-gold transition-colors duration-200">{coupon.code}</span>
+                        <button onClick={() => handleCopyCode(coupon.code)} className="p-0.5 text-muted-foreground hover:text-gold transition-colors duration-200" title="Copy code">
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <Badge variant="outline" className={`text-[9px] border px-1.5 py-0 mt-0.5 ${getCouponStatusBadge(status)}`}>
+                        {status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleToggleActive(coupon)} className={`p-1.5 rounded-md transition-all duration-200 ${coupon.isActive ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400'}`} title={coupon.isActive ? 'Deactivate' : 'Activate'}>
+                      {coupon.isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                    </button>
+                    <button onClick={() => openEditDialog(coupon)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold transition-all duration-200" title="Edit">
+                      <Edit className="h-3.5 w-3.5" />
+                    </button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition-all duration-200" title="Delete">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Coupon</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete <span className="font-bold font-mono">{coupon.code}</span>? This action cannot be undone. Customers using this coupon code will no longer receive the discount.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(coupon)} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+
+                {/* Discount Value */}
+                <div className="bg-muted/50 rounded-lg p-3 mb-3">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-gold">{coupon.type === 'percentage' ? coupon.discount : formatCurrency(coupon.discount)}</span>
+                    <span className="text-xs text-muted-foreground">{coupon.type === 'percentage' ? '% OFF' : 'OFF'}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {coupon.type === 'percentage' ? 'Percentage discount' : 'Fixed amount discount'}
+                  </p>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {coupon.minOrder && (
+                    <div className="flex items-center gap-1.5">
+                      <DollarSign className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">Min:</span>
+                      <span className="font-medium">{formatCurrency(coupon.minOrder)}</span>
+                    </div>
+                  )}
+                  {!coupon.minOrder && (
+                    <div className="flex items-center gap-1.5">
+                      <DollarSign className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">No min order</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <ShoppingCart className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Used:</span>
+                    <span className="font-medium">{coupon.usedCount}{coupon.maxUses ? `/${coupon.maxUses}` : ''}</span>
+                  </div>
+                  {coupon.maxUses && (
+                    <div className="flex items-center gap-1.5">
+                      <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">Limit:</span>
+                      <span className="font-medium">{coupon.maxUses}</span>
+                    </div>
+                  )}
+                  {!coupon.maxUses && (
+                    <div className="flex items-center gap-1.5">
+                      <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">Unlimited uses</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dates */}
+                <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {coupon.startsAt && (
+                    <span>Starts: {new Date(coupon.startsAt).toLocaleDateString()}</span>
+                  )}
+                  {coupon.expiresAt && (
+                    <>
+                      {coupon.startsAt && <span>&middot;</span>}
+                      <span>Expires: {new Date(coupon.expiresAt).toLocaleDateString()}</span>
+                    </>
+                  )}
+                  {!coupon.startsAt && !coupon.expiresAt && <span>No date restrictions</span>}
+                </div>
+
+                {/* Usage Progress Bar */}
+                {coupon.maxUses && coupon.maxUses > 0 && (
+                  <div className="mt-2">
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${coupon.usedCount >= coupon.maxUses ? 'bg-red-500' : 'bg-gold'}`}
+                        style={{ width: `${Math.min((coupon.usedCount / coupon.maxUses) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">{Math.round((coupon.usedCount / coupon.maxUses) * 100)}% used</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showDialog} onOpenChange={(open) => { if (!open) { setShowDialog(false); resetForm(); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="heading-serif text-lg">{editingCoupon ? 'Edit Coupon' : 'Create Coupon'}</DialogTitle>
+            <DialogDescription>
+              {editingCoupon ? `Editing ${editingCoupon.code}` : 'Create a new discount coupon for your customers'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            {/* Code */}
+            <div>
+              <Label>Coupon Code</Label>
+              <div className="flex gap-1 mt-1">
+                <Input
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                  placeholder="e.g., SUMMER30"
+                  className={`${inputCls} font-mono uppercase tracking-wider`}
+                  disabled={!!editingCoupon}
+                />
+                {!editingCoupon && (
+                  <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, code: generateCouponCode() })} className="shrink-0 hover:bg-gold/10 hover:text-gold hover:border-gold/30 transition-colors duration-200" title="Auto-generate">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Type */}
+            <div>
+              <Label>Discount Type</Label>
+              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                <SelectTrigger className={`mt-1 ${inputCls.replace('mt-1 ', '')}`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">
+                    <span className="flex items-center gap-2"><Percent className="h-3.5 w-3.5" /> Percentage (%)</span>
+                  </SelectItem>
+                  <SelectItem value="fixed">
+                    <span className="flex items-center gap-2"><DollarSign className="h-3.5 w-3.5" /> Fixed Amount (₹)</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Discount Value */}
+            <div>
+              <Label>Discount Value {form.type === 'percentage' ? '(%)' : '(₹)'}</Label>
+              <Input
+                type="number"
+                value={form.discount}
+                onChange={(e) => setForm({ ...form, discount: e.target.value })}
+                placeholder={form.type === 'percentage' ? 'e.g., 20' : 'e.g., 500'}
+                className={inputCls}
+                min={0}
+                max={form.type === 'percentage' ? 100 : undefined}
+              />
+            </div>
+
+            {/* Min Order */}
+            <div>
+              <Label>Min Order Amount (₹)</Label>
+              <Input
+                type="number"
+                value={form.minOrder}
+                onChange={(e) => setForm({ ...form, minOrder: e.target.value })}
+                placeholder="0 = no minimum"
+                className={inputCls}
+                min={0}
+              />
+            </div>
+
+            {/* Max Uses */}
+            <div>
+              <Label>Max Uses</Label>
+              <Input
+                type="number"
+                value={form.maxUses}
+                onChange={(e) => setForm({ ...form, maxUses: e.target.value })}
+                placeholder="0 = unlimited"
+                className={inputCls}
+                min={0}
+              />
+            </div>
+
+            {/* Active Toggle */}
+            <div className="flex items-center gap-3 pt-5">
+              <Switch checked={form.isActive} onCheckedChange={(checked) => setForm({ ...form, isActive: checked })} />
+              <Label className="text-sm font-medium cursor-pointer" onClick={() => setForm({ ...form, isActive: !form.isActive })}>
+                Active
+              </Label>
+            </div>
+
+            {/* Start Date */}
+            <div>
+              <Label>Start Date</Label>
+              <Input
+                type="date"
+                value={form.startsAt}
+                onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+
+            {/* End Date */}
+            <div>
+              <Label>End Date</Label>
+              <Input
+                type="date"
+                value={form.expiresAt}
+                onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowDialog(false); resetForm(); }} className="transition-colors duration-200">Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-gold text-background hover:bg-gold-dark transition-all duration-200 hover:shadow-md">
+              {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              {editingCoupon ? <><Save className="mr-1 h-4 w-4" /> Update</> : <><Plus className="mr-1 h-4 w-4" /> Create</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
