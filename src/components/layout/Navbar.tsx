@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import Link from 'next/link';
 import {
   Search, ShoppingBag, Heart, User, Menu, X, Sun, Moon,
-  ChevronDown, LogOut, Shield, Package, Settings
+  ChevronDown, LogOut, Shield, Package, Settings, MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +19,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useStore } from '@/store/useStore';
 
+const announcements = [
+  'Complimentary Shipping on Orders Over ₹2,000',
+  'New Collection 2024 — Now Live',
+  'Use Code MIRADEEN20 for 20% Off',
+  'Free Returns Within 30 Days',
+];
+
 export default function Navbar() {
   const {
     currentPage, navigate, isAuthenticated, isAdmin, user,
@@ -29,12 +35,26 @@ export default function Navbar() {
   const { theme, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [announcementVisible, setAnnouncementVisible] = useState(true);
   const cartCount = getCartCount();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Announcement carousel
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnnouncementVisible(false);
+      setTimeout(() => {
+        setAnnouncementIndex((prev) => (prev + 1) % announcements.length);
+        setAnnouncementVisible(true);
+      }, 500);
+    }, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const navLinks = [
@@ -64,9 +84,24 @@ export default function Navbar() {
             : 'bg-transparent'
         }`}
       >
-        {/* Top announcement bar */}
-        <div className="bg-foreground text-primary-foreground text-center py-1.5 text-xs tracking-[0.2em] uppercase">
-          Complimentary Shipping on Orders Over ₹2,000
+        {/* Animated announcement bar */}
+        <div className="bg-foreground text-primary-foreground overflow-hidden">
+          <div className="h-8 flex items-center justify-center relative">
+            <AnimatePresence mode="wait">
+              {announcementVisible && (
+                <motion.p
+                  key={announcementIndex}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -20, opacity: 0 }}
+                  transition={{ duration: 0.4, ease: 'easeInOut' }}
+                  className="text-[11px] tracking-[0.2em] uppercase absolute"
+                >
+                  {announcements[announcementIndex]}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -75,7 +110,7 @@ export default function Navbar() {
             <div className="md:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="hover:text-gold">
+                  <Button variant="ghost" size="icon" className="hover:text-gold transition-colors">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
@@ -85,7 +120,7 @@ export default function Navbar() {
                     <div className="p-6 border-b border-border">
                       <button
                         onClick={() => { navigate('home'); setMobileMenuOpen(false); }}
-                        className="heading-serif text-2xl font-bold tracking-wider"
+                        className="heading-serif text-2xl font-bold tracking-wider hover:text-gold transition-colors"
                       >
                         MIRADEEN
                       </button>
@@ -95,21 +130,36 @@ export default function Navbar() {
                         <button
                           key={link.page}
                           onClick={() => { navigate(link.page); setMobileMenuOpen(false); }}
-                          className={`w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold ${
-                            currentPage === link.page ? 'text-gold font-medium' : ''
+                          className={`w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 ${
+                            currentPage === link.page ? 'text-gold font-medium bg-gold/5' : ''
                           }`}
                         >
                           {link.label}
                         </button>
                       ))}
                       <div className="divider-gold mx-6 my-4" />
+                      <button
+                        onClick={() => { navigate('orders'); setMobileMenuOpen(false); }}
+                        className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-2"
+                      >
+                        <Package className="h-4 w-4" /> My Orders
+                      </button>
+                      <button
+                        onClick={() => { navigate('order-tracking'); setMobileMenuOpen(false); }}
+                        className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-2"
+                      >
+                        <MapPin className="h-4 w-4" /> Track Order
+                      </button>
                       {isAdmin && (
-                        <button
-                          onClick={() => { navigate('admin-dashboard'); setMobileMenuOpen(false); }}
-                          className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold flex items-center gap-2"
-                        >
-                          <Shield className="h-4 w-4" /> Admin Panel
-                        </button>
+                        <>
+                          <div className="divider-gold mx-6 my-4" />
+                          <button
+                            onClick={() => { navigate('admin-dashboard'); setMobileMenuOpen(false); }}
+                            className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-2"
+                          >
+                            <Shield className="h-4 w-4" /> Admin Panel
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -120,7 +170,7 @@ export default function Navbar() {
             {/* Logo */}
             <button
               onClick={() => navigate('home')}
-              className="heading-serif text-xl md:text-2xl font-bold tracking-[0.15em] hover:opacity-80 transition-opacity"
+              className="heading-serif text-xl md:text-2xl font-bold tracking-[0.15em] hover:text-gold transition-colors"
             >
               MIRADEEN
             </button>
@@ -171,7 +221,7 @@ export default function Navbar() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setSearchOpen(!searchOpen)}
-                className="hover:text-gold"
+                className="hover:text-gold transition-colors"
               >
                 {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
               </Button>
@@ -181,7 +231,7 @@ export default function Navbar() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="hover:text-gold hidden sm:flex"
+                className="hover:text-gold transition-colors hidden sm:flex"
               >
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
@@ -191,7 +241,7 @@ export default function Navbar() {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('wishlist')}
-                className="hover:text-gold relative"
+                className="hover:text-gold transition-colors relative"
               >
                 <Heart className="h-5 w-5" />
                 {wishlistIds.length > 0 && (
@@ -206,7 +256,7 @@ export default function Navbar() {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('cart')}
-                className="hover:text-gold relative"
+                className="hover:text-gold transition-colors relative"
               >
                 <ShoppingBag className="h-5 w-5" />
                 {cartCount > 0 && (
@@ -226,7 +276,7 @@ export default function Navbar() {
               {isAuthenticated && user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="hover:text-gold">
+                    <Button variant="ghost" size="icon" className="hover:text-gold transition-colors">
                       <User className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -242,10 +292,16 @@ export default function Navbar() {
                     <DropdownMenuItem onClick={() => navigate('orders')}>
                       <Package className="mr-2 h-4 w-4" /> My Orders
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('order-tracking')}>
+                      <MapPin className="mr-2 h-4 w-4" /> Track Order
+                    </DropdownMenuItem>
                     {isAdmin && (
-                      <DropdownMenuItem onClick={() => navigate('admin-dashboard')}>
-                        <Shield className="mr-2 h-4 w-4" /> Admin Panel
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => navigate('admin-dashboard')}>
+                          <Shield className="mr-2 h-4 w-4" /> Admin Panel
+                        </DropdownMenuItem>
+                      </>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="text-destructive">
@@ -258,7 +314,7 @@ export default function Navbar() {
                   variant="ghost"
                   size="icon"
                   onClick={() => navigate('auth')}
-                  className="hover:text-gold"
+                  className="hover:text-gold transition-colors"
                 >
                   <User className="h-5 w-5" />
                 </Button>
@@ -268,7 +324,7 @@ export default function Navbar() {
         </nav>
       </motion.header>
       {/* Spacer for fixed navbar */}
-      <div className="h-[calc(2.5rem+4rem)] md:h-[calc(2.5rem+5rem)]" />
+      <div className="h-[calc(2rem+4rem)] md:h-[calc(2rem+5rem)]" />
     </>
   );
 }

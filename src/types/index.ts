@@ -73,6 +73,7 @@ export interface Order {
   shippingState: string;
   shippingZip: string;
   shippingCountry: string;
+  trackingNumber?: string;
   notes?: string;
   createdAt: string;
 }
@@ -179,6 +180,7 @@ export type PageType =
   | 'auth'
   | 'profile'
   | 'orders'
+  | 'order-tracking'
   | 'admin-dashboard'
   | 'admin-products'
   | 'admin-orders'

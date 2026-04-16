@@ -42,6 +42,25 @@ interface StoreState {
   setWishlist: (ids: string[]) => void;
   isInWishlist: (productId: string) => boolean;
 
+  // Recently Viewed
+  recentlyViewedIds: string[];
+  addRecentlyViewed: (productId: string) => void;
+
+  // Compare
+  compareIds: string[];
+  toggleCompare: (productId: string) => void;
+  clearCompare: () => void;
+  isInCompare: (productId: string) => boolean;
+
+  // Notify Me
+  notifyProducts: string[];
+  toggleNotify: (productId: string) => void;
+  isNotifying: (productId: string) => boolean;
+
+  // Quick View
+  quickViewProductId: string | null;
+  setQuickViewProductId: (id: string | null) => void;
+
   // UI
   isMobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
@@ -53,6 +72,7 @@ const COUPONS: Record<string, { discount: number; type: 'percentage' | 'fixed' }
   'WELCOME10': { discount: 10, type: 'percentage' },
   'MIRADEEN20': { discount: 20, type: 'percentage' },
   'FLAT500': { discount: 500, type: 'fixed' },
+  'LUXURY30': { discount: 30, type: 'percentage' },
 };
 
 export const useStore = create<StoreState>()(
@@ -72,6 +92,9 @@ export const useStore = create<StoreState>()(
           selectedProductId: productId || null,
         }));
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (productId) {
+          get().addRecentlyViewed(productId);
+        }
       },
 
       setSearchQuery: (query: string) => set({ searchQuery: query }),
@@ -174,7 +197,7 @@ export const useStore = create<StoreState>()(
 
       setToken: (token: string | null) => set({ token }),
       logout: () => {
-        set({ user: null, token: null, isAuthenticated: false, isAdmin: false, cart: [], wishlistIds: [] });
+        set({ user: null, token: null, isAuthenticated: false, isAdmin: false, cart: [], wishlistIds: [], recentlyViewedIds: [], compareIds: [], notifyProducts: [] });
         if (typeof window !== 'undefined') localStorage.removeItem('miradeen-token');
       },
 
@@ -189,6 +212,44 @@ export const useStore = create<StoreState>()(
       },
       setWishlist: (ids: string[]) => set({ wishlistIds: ids }),
       isInWishlist: (productId: string) => get().wishlistIds.includes(productId),
+
+      // Recently Viewed
+      recentlyViewedIds: [],
+      addRecentlyViewed: (productId: string) => {
+        set((state) => {
+          const filtered = state.recentlyViewedIds.filter((id) => id !== productId);
+          return { recentlyViewedIds: [productId, ...filtered].slice(0, 10) };
+        });
+      },
+
+      // Compare
+      compareIds: [],
+      toggleCompare: (productId: string) => {
+        set((state) => {
+          if (state.compareIds.includes(productId)) {
+            return { compareIds: state.compareIds.filter((id) => id !== productId) };
+          }
+          if (state.compareIds.length >= 3) return state;
+          return { compareIds: [...state.compareIds, productId] };
+        });
+      },
+      clearCompare: () => set({ compareIds: [] }),
+      isInCompare: (productId: string) => get().compareIds.includes(productId),
+
+      // Notify Me
+      notifyProducts: [],
+      toggleNotify: (productId: string) => {
+        set((state) => ({
+          notifyProducts: state.notifyProducts.includes(productId)
+            ? state.notifyProducts.filter((id) => id !== productId)
+            : [...state.notifyProducts, productId],
+        }));
+      },
+      isNotifying: (productId: string) => get().notifyProducts.includes(productId),
+
+      // Quick View
+      quickViewProductId: null,
+      setQuickViewProductId: (id: string | null) => set({ quickViewProductId: id }),
 
       // UI
       isMobileMenuOpen: false,
@@ -205,6 +266,9 @@ export const useStore = create<StoreState>()(
         isAuthenticated: state.isAuthenticated,
         isAdmin: state.isAdmin,
         wishlistIds: state.wishlistIds,
+        recentlyViewedIds: state.recentlyViewedIds,
+        compareIds: state.compareIds,
+        notifyProducts: state.notifyProducts,
       }),
     }
   )

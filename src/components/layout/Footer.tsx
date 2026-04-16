@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Instagram, Facebook, Twitter, Mail, Phone, MessageCircle, MapPin, ArrowUp } from 'lucide-react';
+import { Instagram, Facebook, Twitter, Mail, Phone, MessageCircle, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/store/useStore';
+import BackToTopButton from '@/components/shared/BackToTopButton';
 
 export default function Footer() {
   const { navigate } = useStore();
@@ -20,8 +21,6 @@ export default function Footer() {
       setTimeout(() => setSubscribed(false), 3000);
     }
   };
-
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
     <footer className="bg-foreground text-primary-foreground mt-auto">
@@ -39,12 +38,16 @@ export default function Footer() {
                 placeholder="Your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/40 h-12 w-full md:w-72"
+                className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/40 h-12 w-full md:w-72 focus:border-gold"
                 required
               />
               <Button
                 type="submit"
-                className="bg-gold text-background hover:bg-gold-dark h-12 px-6 tracking-wider uppercase text-xs font-semibold whitespace-nowrap"
+                className={`h-12 px-6 tracking-wider uppercase text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
+                  subscribed
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gold text-background hover:bg-gold-dark'
+                }`}
               >
                 {subscribed ? 'Subscribed ✓' : 'Subscribe'}
               </Button>
@@ -58,7 +61,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Brand */}
           <div>
-            <button onClick={() => navigate('home')} className="heading-serif text-2xl font-bold tracking-[0.15em] mb-4 block">
+            <button onClick={() => navigate('home')} className="heading-serif text-2xl font-bold tracking-[0.15em] mb-4 block hover:text-gold transition-colors">
               MIRADEEN
             </button>
             <p className="text-primary-foreground/50 text-sm leading-relaxed mb-6">
@@ -69,7 +72,7 @@ export default function Footer() {
                 <a
                   key={i}
                   href="#"
-                  className="w-10 h-10 rounded-full border border-primary-foreground/20 flex items-center justify-center hover:border-gold hover:text-gold transition-colors"
+                  className="w-10 h-10 rounded-full border border-primary-foreground/20 flex items-center justify-center hover:border-gold hover:text-gold hover:bg-gold/10 transition-all duration-300"
                 >
                   <Icon className="h-4 w-4" />
                 </a>
@@ -90,8 +93,8 @@ export default function Footer() {
               ].map((link) => (
                 <li key={link.label}>
                   <button
-                    onClick={() => navigate(link.page as any)}
-                    className="text-sm text-primary-foreground/50 hover:text-gold transition-colors"
+                    onClick={() => navigate(link.page as 'shop' | 'about' | 'contact')}
+                    className="text-sm text-primary-foreground/50 hover:text-gold hover:pl-1 transition-all duration-200"
                   >
                     {link.label}
                   </button>
@@ -104,11 +107,21 @@ export default function Footer() {
           <div>
             <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-5 text-gold">Customer Service</h4>
             <ul className="space-y-3">
-              {['Shipping & Delivery', 'Returns & Exchanges', 'FAQ', 'Size Guide', 'Privacy Policy', 'Terms of Service'].map((item) => (
-                <li key={item}>
-                  <span className="text-sm text-primary-foreground/50 hover:text-gold transition-colors cursor-pointer">
-                    {item}
-                  </span>
+              {[
+                { label: 'Track Order', page: 'order-tracking' },
+                { label: 'Shipping & Delivery', page: 'contact' },
+                { label: 'Returns & Exchanges', page: 'contact' },
+                { label: 'FAQ', page: 'contact' },
+                { label: 'Privacy Policy', page: 'about' },
+                { label: 'Terms of Service', page: 'about' },
+              ].map((item) => (
+                <li key={item.label}>
+                  <button
+                    onClick={() => navigate(item.page as 'contact' | 'about' | 'order-tracking')}
+                    className="text-sm text-primary-foreground/50 hover:text-gold hover:pl-1 transition-all duration-200"
+                  >
+                    {item.label}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -118,24 +131,18 @@ export default function Footer() {
           <div>
             <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-5 text-gold">Contact Us</h4>
             <ul className="space-y-4">
-              <li className="flex items-start gap-3">
-                <Mail className="h-4 w-4 text-gold mt-0.5 shrink-0" />
-                <a href="mailto:merajkhan6188@gmail.com" className="text-sm text-primary-foreground/50 hover:text-gold transition-colors">
-                  merajkhan6188@gmail.com
-                </a>
-              </li>
-              <li className="flex items-start gap-3">
-                <Phone className="h-4 w-4 text-gold mt-0.5 shrink-0" />
-                <a href="tel:9319084050" className="text-sm text-primary-foreground/50 hover:text-gold transition-colors">
-                  +91 9319084050
-                </a>
-              </li>
-              <li className="flex items-start gap-3">
-                <MessageCircle className="h-4 w-4 text-gold mt-0.5 shrink-0" />
-                <a href="https://wa.me/7683041486" className="text-sm text-primary-foreground/50 hover:text-gold transition-colors">
-                  +91 7683041486
-                </a>
-              </li>
+              {[
+                { icon: Mail, href: 'mailto:merajkhan6188@gmail.com', value: 'merajkhan6188@gmail.com' },
+                { icon: Phone, href: 'tel:9319084050', value: '+91 9319084050' },
+                { icon: MessageCircle, href: 'https://wa.me/7683041486', value: '+91 7683041486' },
+              ].map(({ icon: Icon, href, value }) => (
+                <li key={value} className="flex items-start gap-3">
+                  <Icon className="h-4 w-4 text-gold mt-0.5 shrink-0" />
+                  <a href={href} className="text-sm text-primary-foreground/50 hover:text-gold transition-colors">
+                    {value}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -160,15 +167,7 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Scroll to top */}
-      <motion.button
-        onClick={scrollToTop}
-        className="fixed bottom-6 right-6 w-10 h-10 bg-gold text-background rounded-full flex items-center justify-center shadow-lg hover:bg-gold-dark transition-colors z-40"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <ArrowUp className="h-4 w-4" />
-      </motion.button>
+      <BackToTopButton />
     </footer>
   );
 }

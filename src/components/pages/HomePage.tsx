@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import {
   Star, Heart, ShoppingBag, ArrowRight, ChevronLeft, ChevronRight,
-  Truck, Shield, RefreshCw, Headphones, Instagram, Send, Loader2, Sparkles
+  Truck, Shield, RefreshCw, Headphones, Instagram, Send, Loader2, Sparkles,
+  Eye, GitCompareArrows
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useStore } from '@/store/useStore';
 import type { Product } from '@/types';
 import { parseJsonField } from '@/types';
@@ -29,8 +30,78 @@ function AnimatedSection({ children, className = '', delay = 0 }: { children: Re
   );
 }
 
+function ProductCard({ product, index }: { product: Product; index: number }) {
+  const { navigate, addToCart, toggleWishlist, wishlistIds, setQuickViewProductId, toggleCompare, compareIds } = useStore();
+  const images = parseJsonField<string>(product.images);
+  return (
+    <AnimatedSection delay={index * 0.08}>
+      <div className="product-card group cursor-pointer bg-background dark:bg-card rounded-lg overflow-hidden border border-border" onClick={() => navigate('product', product.id)}>
+        <div className="relative aspect-[3/4] img-zoom">
+          <img
+            src={images[0] || '/placeholder.jpg'}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {product.isNewArrival && <Badge className="bg-gold text-background text-[9px] px-1.5 py-0">New</Badge>}
+            {product.isBestseller && <Badge className="bg-foreground text-primary-foreground text-[9px] px-1.5 py-0">Bestseller</Badge>}
+          </div>
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
+              className="w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
+            >
+              <Heart className={`h-4 w-4 ${wishlistIds.includes(product.id) ? 'fill-red-500 text-red-500' : ''}`} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleCompare(product.id); }}
+              className={`w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center transition-colors ${compareIds.includes(product.id) ? 'bg-gold text-background' : 'hover:bg-gold hover:text-background'}`}
+            >
+              <GitCompareArrows className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-1">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuickViewProductId(product.id);
+              }}
+              size="sm"
+              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
+            >
+              <Eye className="h-3 w-3 mr-0.5" /> Quick View
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                const sizes = parseJsonField<string>(product.sizes);
+                addToCart(product, 1, sizes[0]);
+              }}
+              size="sm"
+              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
+            >
+              <ShoppingBag className="h-3 w-3 mr-0.5" /> Add to Cart
+            </Button>
+          </div>
+        </div>
+        <div className="p-3">
+          <p className="text-[10px] text-muted-foreground tracking-wider uppercase mb-1">{product.category?.name}</p>
+          <h3 className="text-sm font-medium truncate group-hover:text-gold transition-colors">{product.name}</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-sm font-semibold">₹{product.price.toLocaleString()}</span>
+            {product.comparePrice && (
+              <span className="text-xs text-muted-foreground line-through">₹{product.comparePrice.toLocaleString()}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </AnimatedSection>
+  );
+}
+
 export default function HomePage() {
-  const { navigate, addToCart, toggleWishlist, wishlistIds } = useStore();
+  const { navigate } = useStore();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
@@ -208,8 +279,10 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {features.map((feature, i) => (
               <AnimatedSection key={feature.title} delay={i * 0.1}>
-                <div className="flex items-center gap-3">
-                  <feature.icon className="h-5 w-5 text-gold shrink-0" />
+                <div className="flex items-center gap-3 group">
+                  <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center group-hover:bg-gold/20 transition-colors">
+                    <feature.icon className="h-5 w-5 text-gold" />
+                  </div>
                   <div>
                     <p className="text-xs font-semibold tracking-wider uppercase">{feature.title}</p>
                     <p className="text-[10px] text-muted-foreground">{feature.desc}</p>
@@ -262,63 +335,30 @@ export default function HomePage() {
             <div className="divider-gold w-20 mx-auto" />
           </AnimatedSection>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {products.slice(0, 8).map((product, i) => {
-              const images = parseJsonField<string>(product.images);
-              return (
-                <AnimatedSection key={product.id} delay={i * 0.08}>
-                  <div className="product-card group cursor-pointer bg-background dark:bg-card rounded-lg overflow-hidden" onClick={() => navigate('product', product.id)}>
-                    <div className="relative aspect-[3/4] img-zoom">
-                      <img
-                        src={images[0] || '/placeholder.jpg'}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                      <div className="absolute top-2 left-2 flex flex-col gap-1">
-                        {product.isNewArrival && <Badge className="bg-gold text-background text-[9px] px-1.5 py-0">New</Badge>}
-                        {product.isBestseller && <Badge className="bg-foreground text-primary-foreground text-[9px] px-1.5 py-0">Bestseller</Badge>}
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
-                        className="absolute top-2 right-2 w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
-                      >
-                        <Heart className={`h-4 w-4 ${wishlistIds.includes(product.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                      </button>
-                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const sizes = parseJsonField<string>(product.sizes);
-                            addToCart(product, 1, sizes[0]);
-                          }}
-                          className="w-full bg-white text-foreground hover:bg-gold hover:text-background text-xs tracking-wider uppercase h-9"
-                        >
-                          Add to Cart
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-[10px] text-muted-foreground tracking-wider uppercase mb-1">{product.category?.name}</p>
-                      <h3 className="text-sm font-medium truncate group-hover:text-gold transition-colors">{product.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm font-semibold">₹{product.price.toLocaleString()}</span>
-                        {product.comparePrice && (
-                          <span className="text-xs text-muted-foreground line-through">₹{product.comparePrice.toLocaleString()}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </AnimatedSection>
-              );
-            })}
-          </div>
+          {products.length === 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-[3/4] w-full rounded-lg" />
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {products.slice(0, 8).map((product, i) => (
+                <ProductCard key={product.id} product={product} index={i} />
+              ))}
+            </div>
+          )}
 
           <AnimatedSection className="text-center mt-12" delay={0.4}>
             <Button
               onClick={() => navigate('shop')}
               variant="outline"
-              className="border-foreground hover:bg-foreground hover:text-background tracking-[0.15em] uppercase text-xs px-8 py-3"
+              className="border-foreground hover:bg-foreground hover:text-background tracking-[0.15em] uppercase text-xs px-8 py-3 transition-all duration-300"
             >
               View All Products <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

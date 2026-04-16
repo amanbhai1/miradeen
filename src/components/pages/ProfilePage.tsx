@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Package, LogOut, Settings, ChevronRight } from 'lucide-react';
+import { User, Package, LogOut, Settings, MapPin, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,7 @@ export default function ProfilePage() {
     fetch('/api/orders', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(data => { setOrders(data.orders || []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, navigate]);
 
   if (!isAuthenticated || !user) return null;
 
@@ -51,12 +51,15 @@ export default function ProfilePage() {
               <h3 className="font-semibold">{user.name}</h3>
               <p className="text-xs text-muted-foreground">{user.email}</p>
               <Badge variant="outline" className="mt-2 text-[10px]">{user.role}</Badge>
-              <div className="mt-4 pt-4 border-t border-border space-y-2">
-                <Button variant="ghost" className="w-full justify-start text-sm" onClick={() => navigate('orders')}>
+              <div className="mt-4 pt-4 border-t border-border space-y-1">
+                <Button variant="ghost" className="w-full justify-start text-sm hover:text-gold transition-colors" onClick={() => navigate('orders')}>
                   <Package className="mr-2 h-4 w-4" /> My Orders
                 </Button>
+                <Button variant="ghost" className="w-full justify-start text-sm hover:text-gold transition-colors" onClick={() => navigate('order-tracking')}>
+                  <MapPin className="mr-2 h-4 w-4" /> Track Order
+                </Button>
                 {isAdmin && (
-                  <Button variant="ghost" className="w-full justify-start text-sm text-gold" onClick={() => navigate('admin-dashboard')}>
+                  <Button variant="ghost" className="w-full justify-start text-sm text-gold hover:bg-gold/5 transition-colors" onClick={() => navigate('admin-dashboard')}>
                     <Settings className="mr-2 h-4 w-4" /> Admin Panel
                   </Button>
                 )}
@@ -68,8 +71,8 @@ export default function ProfilePage() {
           <div className="lg:col-span-3">
             <Tabs defaultValue="profile">
               <TabsList className="w-full justify-start border-b bg-transparent rounded-none h-auto p-0 mb-6">
-                <TabsTrigger value="profile" className="px-4 py-2 rounded-none border-b-2 border-transparent data-[state=active]:border-gold data-[state=active]:bg-transparent">Profile</TabsTrigger>
-                <TabsTrigger value="orders" className="px-4 py-2 rounded-none border-b-2 border-transparent data-[state=active]:border-gold data-[state=active]:bg-transparent">Orders ({orders.length})</TabsTrigger>
+                <TabsTrigger value="profile" className="px-4 py-2 rounded-none border-b-2 border-transparent data-[state=active]:border-gold data-[state=active]:bg-transparent hover:text-gold transition-colors">Profile</TabsTrigger>
+                <TabsTrigger value="orders" className="px-4 py-2 rounded-none border-b-2 border-transparent data-[state=active]:border-gold data-[state=active]:bg-transparent hover:text-gold transition-colors">Orders ({orders.length})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="profile">
@@ -85,7 +88,12 @@ export default function ProfilePage() {
 
               <TabsContent value="orders">
                 {loading ? (
-                  <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />)}</div>
+                  <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-2 p-4 border border-border rounded-lg">
+                      <div className="flex justify-between"><div className="h-4 w-32 bg-muted animate-pulse rounded" /><div className="h-6 w-16 bg-muted animate-pulse rounded" /></div>
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                    </div>
+                  ))}</div>
                 ) : orders.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
@@ -95,7 +103,7 @@ export default function ProfilePage() {
                 ) : (
                   <div className="space-y-4">
                     {orders.map((order) => (
-                      <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="border border-border rounded-lg p-4 md:p-6 bg-card">
+                      <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="border border-border rounded-lg p-4 md:p-6 bg-card hover:shadow-md transition-shadow">
                         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                           <div>
                             <p className="font-semibold text-sm">{order.orderNumber}</p>
@@ -117,7 +125,12 @@ export default function ProfilePage() {
                         <div className="divider-gold mb-3" />
                         <div className="flex justify-between items-center">
                           <p className="text-xs text-muted-foreground">{order.items.length} item(s)</p>
-                          <p className="font-semibold">₹{order.total.toLocaleString()}</p>
+                          <div className="flex items-center gap-3">
+                            <p className="font-semibold">₹{order.total.toLocaleString()}</p>
+                            <Button variant="ghost" size="sm" className="text-xs text-gold hover:text-gold hover:bg-gold/5" onClick={() => navigate('order-tracking')}>
+                              Track <ChevronRight className="h-3 w-3 ml-0.5" />
+                            </Button>
+                          </div>
                         </div>
                       </motion.div>
                     ))}

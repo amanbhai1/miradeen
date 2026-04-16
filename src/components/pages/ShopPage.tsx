@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, ShoppingBag, SlidersHorizontal, Grid3X3, Grid2X2, ChevronDown, X } from 'lucide-react';
+import { Heart, ShoppingBag, SlidersHorizontal, Grid3X3, Grid2X2, ChevronDown, X, Eye, GitCompareArrows } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import type { Product, Category } from '@/types';
 import { parseJsonField } from '@/types';
 
 export default function ShopPage() {
-  const { navigate, addToCart, toggleWishlist, wishlistIds, searchQuery, categoryFilter, setCategoryFilter } = useStore();
+  const { navigate, addToCart, toggleWishlist, wishlistIds, searchQuery, categoryFilter, setCategoryFilter, setQuickViewProductId, toggleCompare, compareIds } = useStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +70,7 @@ export default function ShopPage() {
         <div className="relative z-10 text-center text-white">
           <p className="text-xs tracking-[0.3em] uppercase text-gold-light mb-2">Discover</p>
           <h1 className="heading-serif text-4xl md:text-5xl font-bold">Shop</h1>
+          <p className="text-sm text-primary-foreground/70 mt-2">{products.length} products available</p>
         </div>
       </div>
 
@@ -77,7 +78,7 @@ export default function ShopPage() {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="lg:hidden">
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="lg:hidden hover:border-gold hover:text-gold transition-colors">
               <SlidersHorizontal className="h-4 w-4 mr-1" /> Filters
             </Button>
             <span className="text-sm text-muted-foreground">{products.length} products</span>
@@ -87,7 +88,7 @@ export default function ShopPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-background border border-input rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="appearance-none bg-background border border-input rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-gold"
               >
                 <option value="latest">Latest</option>
                 <option value="price-asc">Price: Low to High</option>
@@ -98,10 +99,10 @@ export default function ShopPage() {
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
             <div className="hidden sm:flex border rounded-md">
-              <Button variant={gridCols === 4 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 rounded-r-none" onClick={() => setGridCols(4)}>
+              <Button variant={gridCols === 4 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 rounded-r-none hover:text-gold transition-colors" onClick={() => setGridCols(4)}>
                 <Grid3X3 className="h-4 w-4" />
               </Button>
-              <Button variant={gridCols === 2 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 rounded-l-none" onClick={() => setGridCols(2)}>
+              <Button variant={gridCols === 2 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 rounded-l-none hover:text-gold transition-colors" onClick={() => setGridCols(2)}>
                 <Grid2X2 className="h-4 w-4" />
               </Button>
             </div>
@@ -134,7 +135,7 @@ export default function ShopPage() {
                 <div className="absolute right-0 top-0 bottom-0 w-80 bg-background p-6 overflow-y-auto">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="font-semibold">Filters</h3>
-                    <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)}><X className="h-5 w-5" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)} className="hover:text-gold"><X className="h-5 w-5" /></Button>
                   </div>
                   <FilterSidebar
                     categories={categories}
@@ -154,19 +155,24 @@ export default function ShopPage() {
             {loading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
+                  <div key={i} className="space-y-3">
+                    <div className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
+                    <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                  </div>
                 ))}
               </div>
             ) : products.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-muted-foreground">No products found matching your criteria.</p>
-                <Button variant="outline" className="mt-4" onClick={() => { setSelectedCategory(''); setCategoryFilter(''); setPriceRange([0, 100000]); }}>Clear Filters</Button>
+                <Button variant="outline" className="mt-4 hover:border-gold hover:text-gold transition-colors" onClick={() => { setSelectedCategory(''); setCategoryFilter(''); setPriceRange([0, 100000]); }}>Clear Filters</Button>
               </div>
             ) : (
               <div className={`grid gap-4 md:gap-6 ${gridCols === 4 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
                 {products.map((product, i) => {
                   const images = parseJsonField<string>(product.images);
-                  const discount = product.comparePrice ? Math.round((1 - product.price / product.comparePrice) * 100) : 0;
+                  const productDiscount = product.comparePrice ? Math.round((1 - product.price / product.comparePrice) * 100) : 0;
                   return (
                     <motion.div
                       key={product.id}
@@ -178,26 +184,47 @@ export default function ShopPage() {
                         <div className="relative aspect-[3/4] img-zoom">
                           <img src={images[0] || '/placeholder.jpg'} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                           <div className="absolute top-2 left-2 flex flex-col gap-1">
-                            {discount > 0 && <Badge className="bg-red-500 text-white text-[9px] px-1.5 py-0">-{discount}%</Badge>}
+                            {productDiscount > 0 && <Badge className="bg-red-500 text-white text-[9px] px-1.5 py-0">-{productDiscount}%</Badge>}
                             {product.isNewArrival && <Badge className="bg-gold text-background text-[9px] px-1.5 py-0">New</Badge>}
                             {product.isBestseller && <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Bestseller</Badge>}
                           </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
-                            className="absolute top-2 right-2 w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
-                          >
-                            <Heart className={`h-4 w-4 ${wishlistIds.includes(product.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                          </button>
-                          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="absolute top-2 right-2 flex flex-col gap-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
+                              className="w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
+                            >
+                              <Heart className={`h-4 w-4 ${wishlistIds.includes(product.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleCompare(product.id); }}
+                              className={`w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center transition-colors ${
+                                compareIds.includes(product.id) ? 'bg-gold text-background' : 'hover:bg-gold hover:text-background'
+                              }`}
+                            >
+                              <GitCompareArrows className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-1">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQuickViewProductId(product.id);
+                              }}
+                              size="sm"
+                              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
+                            >
+                              <Eye className="h-3 w-3 mr-0.5" /> Quick View
+                            </Button>
                             <Button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const sizes = parseJsonField<string>(product.sizes);
                                 addToCart(product, 1, sizes[0]);
                               }}
-                              className="w-full bg-white text-foreground hover:bg-gold hover:text-background text-xs tracking-wider uppercase h-9"
+                              size="sm"
+                              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
                             >
-                              Add to Cart
+                              <ShoppingBag className="h-3 w-3 mr-0.5" /> Add to Cart
                             </Button>
                           </div>
                         </div>
@@ -245,11 +272,11 @@ function FilterSidebar({ categories, selectedCategory, onSelectCategory, priceRa
       <div>
         <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-4">Categories</h4>
         <div className="space-y-2">
-          <button onClick={() => onSelectCategory('')} className={`block w-full text-left text-sm py-1.5 transition-colors ${!selectedCategory ? 'text-gold font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
+          <button onClick={() => onSelectCategory('')} className={`block w-full text-left text-sm py-1.5 transition-all duration-200 ${!selectedCategory ? 'text-gold font-medium pl-1 border-l-2 border-gold' : 'text-muted-foreground hover:text-foreground hover:pl-1'}`}>
             All Products
           </button>
           {categories.map((cat) => (
-            <button key={cat.id} onClick={() => onSelectCategory(cat.slug)} className={`block w-full text-left text-sm py-1.5 transition-colors ${selectedCategory === cat.slug ? 'text-gold font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
+            <button key={cat.id} onClick={() => onSelectCategory(cat.slug)} className={`block w-full text-left text-sm py-1.5 transition-all duration-200 ${selectedCategory === cat.slug ? 'text-gold font-medium pl-1 border-l-2 border-gold' : 'text-muted-foreground hover:text-foreground hover:pl-1'}`}>
               {cat.name}
             </button>
           ))}
@@ -268,13 +295,7 @@ function FilterSidebar({ categories, selectedCategory, onSelectCategory, priceRa
           <span>₹{priceRange[0].toLocaleString()}</span>
           <span>₹{priceRange[1].toLocaleString()}</span>
         </div>
-        <Button size="sm" variant="outline" className="w-full mt-4" onClick={onApply}>Apply Filters</Button>
-      </div>
-      <div>
-        <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-4">Quick Filters</h4>
-        {['New Arrivals', 'Bestsellers', 'On Sale'].map((filter) => (
-          <button key={filter} className="block text-sm text-muted-foreground hover:text-foreground py-1.5">{filter}</button>
-        ))}
+        <Button size="sm" variant="outline" className="w-full mt-4 hover:border-gold hover:text-gold transition-colors" onClick={onApply}>Apply Filters</Button>
       </div>
     </div>
   );
