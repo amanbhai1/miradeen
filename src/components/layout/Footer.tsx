@@ -202,6 +202,7 @@ export default function Footer() {
     { label: 'Shop All', page: 'shop' },
     { label: 'New Arrivals', page: 'shop' },
     { label: 'Bestsellers', page: 'shop' },
+    { label: 'Gift Guide', page: 'gift-guide' },
     { label: 'Lookbook', page: 'lookbook' },
     { label: 'Style Quiz', page: 'style-quiz' },
     { label: 'About Us', page: 'about' },

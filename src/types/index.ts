@@ -206,4 +206,5 @@ export type PageType =
   | 'admin-cms'
   | 'admin-settings'
   | 'lookbook'
-  | 'style-quiz';
+  | 'style-quiz'
+  | 'gift-guide';

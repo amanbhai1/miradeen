@@ -295,6 +295,85 @@ Task: New features (Loyalty Rewards, Lookbook, Style Quiz), ProductPage tabs, ad
 
 ---
 
+Task ID: 7-4
+Agent: Frontend Styling Expert
+Task: Add Luxury CSS Animations (Phase 7: Advanced Luxury Design System)
+
+### QA Assessment
+- ESLint: Pre-existing error in SearchOverlay.tsx (unrelated to CSS changes) — no new errors introduced
+- globals.css grew from 1,384 → 2,081 lines (+697 lines appended)
+
+### Changes Made
+- **File modified**: `src/app/globals.css` — APPENDED 697 lines at end of file (no existing CSS modified)
+- **Section header**: `PHASE 7: Advanced Luxury Design System`
+
+### 8 Categories Added (47 new utility classes, 6 new keyframe animations):
+
+#### 1. Advanced Hover Effects (7 classes)
+- `.hover-lift-sm` / `.hover-lift-lg` — Subtle/strong lift with gold-tinted shadows + dark mode
+- `.hover-glow` — Dual-layer gold glow on hover
+- `.hover-border-reveal` — Animated border scale-in reveal
+- `.hover-bg-shift` — Gradient position shift
+- `.hover-text-gradient` — Text becomes gold gradient on hover
+- `.hover-icon-bounce` — Icon bounce keyframe animation
+- `.hover-3d-flip` — Perspective-based 3D rotation
+
+#### 2. Scroll-Triggered Animations (6 classes)
+- `.scroll-fade-in` / `.scroll-slide-left` / `.scroll-slide-right` — Opacity + transform transitions (`.visible` trigger)
+- `.scroll-scale-up` / `.scroll-rotate-in` / `.scroll-blur-in` — Scale, rotation, and blur entrance effects
+- `.scroll-zoom-reveal` — Zoom from 1.1 to 1 with cubic-bezier easing
+
+#### 3. Luxury Card Variants (7 classes)
+- `.card-glass-elevated` — Frosted glass with 24px blur + gold border + dark mode
+- `.card-warm` — Beige gradient card with hover lift + dark mode
+- `.card-dark-luxury` — Dark gradient with gold border glow
+- `.card-bordered-gold` — Animated gold corner accents that expand on hover
+- `.card-gradient-overlay` — Bottom gradient overlay for image cards
+- `.card-interactive` — Full interactive card (lift + scale + active state)
+- `.card-spotlight` — Mouse-following radial gradient spotlight effect
+
+#### 4. Text Effects (8 classes)
+- `.text-shadow-gold` / `.text-glow-pulse` — Gold text shadow + pulsing glow keyframe
+- `.text-gradient-animated` — 5-color gradient with continuous animation
+- `.text-luxury-sm/md/lg/xl` — Serif typography with letter spacing + uppercase
+- `.text-monogram` — Large serif monogram style in gold
+- `.text-label` — Uppercase label with gold color
+
+#### 5. Loading & Skeleton Enhancements (6 classes)
+- `.skeleton-card` / `.skeleton-text` / `.skeleton-image` — Full skeleton placeholders with dark mode
+- `.loading-dots` — 3 bouncing gold dots
+- `.loading-bar` — Animated progress bar with gold gradient fill
+- `.loading-ring` — Spinning ring loader with gold accent
+
+#### 6. Decorative Elements (6 classes)
+- `.corner-accents` — Gold L-shaped corner decorations
+- `.divider-ornate` — Centered icon divider with gradient lines
+- `.divider-leaf` — Nature-inspired divider with directional gradients
+- `.frame-gold` — Double-border gold picture frame
+- `.badge-elegant` — Uppercase badge with gold border + hover + dark mode
+- `.ribbon` — Corner ribbon with folded shadow effect
+
+#### 7. Interactive States (5 classes)
+- `.active-scale` / `.press-effect` — Press-down depth effects + dark mode
+- `.focus-glow` — Enhanced gold glow ring on focus
+- `.selected-gold` — Gold highlight selection state + dark mode
+- `.disabled-luxury` — Grayscale + opacity disabled state
+
+#### 8. Responsive Utility Enhancements (7 classes)
+- `.container-luxury` — Max-width 1280px with responsive padding
+- `.section-padding` — 80px top/bottom (48px mobile)
+- `.grid-luxury-2/3/4` — Responsive grid with breakpoints at 1024px and 640px
+- `.flex-center` / `.flex-between` — Common flex alignment patterns
+
+### Design Principles Applied
+- Gold color `#C9A96E` (or rgba) used throughout
+- Transitions: 0.3s–0.7s ease for smooth interactions
+- Dark mode variants for cards, skeletons, interactive states, and utilities
+- CSS custom properties referenced (e.g., `var(--font-playfair)`)
+- Efficient selectors — no redundant specificity
+
+---
+
 ## Priority Recommendations for Next Phase
 
 ### High Priority (Production Readiness)
@@ -317,3 +396,313 @@ Task: New features (Loyalty Rewards, Lookbook, Style Quiz), ProductPage tabs, ad
 13. **PWA support**: Service worker, manifest, offline capability
 14. **Analytics integration**: Google Analytics / Plausible
 15. **Accessibility audit**: WCAG 2.1 AA compliance check
+
+---
+Task ID: 7-1
+Agent: Component Developer
+Task: Newsletter Popup component for MIRADEEN luxury eCommerce platform
+
+Work Log:
+- Created `src/components/shared/NewsletterPopup.tsx` — self-contained timed newsletter popup component
+- **Timed popup**: Appears after 20 seconds of browsing (configurable via `POPUP_DELAY_MS`)
+- **Glass morphism design**: Uses `glass-card`, `border-gold/20`, `shadow-luxury-xl` styling with dark mode support
+- **Animated entrance**: Scale (0.85→1) + fade + y-translate with spring-like easing via Framer Motion
+- **Content**: "Join the MIRADEEN Family" heading (gold-gradient), email input with gold focus border, Subscribe button (btn-luxury), dismiss link, privacy note
+- **Smart behavior**:
+  - Only shows once per session (sessionStorage key: `miradeen-newsletter-dismissed`)
+  - Skips if already subscribed (localStorage key: `miradeen-newsletter`)
+  - Close via X button, backdrop click, or "No thanks" link
+  - Submit calls POST `/api/newsletter` with `{ email }`
+  - On success: spring-animated thank you screen with checkmark, auto-closes after 3s
+  - On error: inline animated error message
+- **Decorative elements**: Rotating gold diamond corners, animated sparkle icons
+- **Mobile responsive**: Full width on mobile, centered max-w-md card on desktop
+- **Uses existing UI components**: Button, Input from shadcn/ui; uses project CSS classes (glass-card, btn-luxury, text-gold-gradient, heading-serif, divider-gold, shadow-luxury-xl)
+- **Integration**: Added to `src/app/page.tsx` — renders only on non-admin pages
+- **Lint**: ESLint passes with 0 errors, 0 warnings
+- **Existing API**: Reuses pre-existing `/api/newsletter` POST route (already stores subscriptions via Prisma)
+
+### Files Created/Modified
+- `src/components/shared/NewsletterPopup.tsx` — NEW: ~170 lines, self-contained newsletter popup
+- `src/app/page.tsx` — MODIFIED: Added NewsletterPopup import and render (non-admin pages only)
+
+---
+Task ID: 7-2
+Agent: Component Developer
+Task: Enhanced SearchOverlay — Trending Searches, Recent History, Category Browsing, Popular Brands
+
+Work Log:
+- Enhanced `src/components/shared/SearchOverlay.tsx` with 4 major new features while preserving all existing functionality
+
+### 1. Trending Searches Section
+- "Trending Now" header with TrendingUp icon in gold
+- 6 trending terms as animated pill buttons: Silk Sarees, Designer Blazers, Summer Collection, Wedding Wear, Gold Jewelry, Premium Denim
+- Each pill has a subtle TrendingUp arrow icon
+- Clicking sets search query and triggers search; also saves to recent history
+
+### 2. Recent Search History
+- Stored in localStorage (key: `miradeen-recent-searches`)
+- Shows "Recent Searches" section with Clock icon when no query entered
+- Displays up to 5 recent terms, each with individual delete (X) button on hover
+- "Clear All" button to wipe all history
+- Clicking a recent term sets search query; saves to history on submit or result click
+
+### 3. Category Quick Browse
+- "Browse Categories" header below trending section
+- 2-column grid of 6 category cards: Men's Fashion, Women's Fashion, Accessories, New Arrivals, Best Sellers, Sale
+- Each card has a Lucide icon (Shirt, Crown, Watch, Sparkles, Star, Tag), category name, and item count
+- Clicking sets category filter via `setCategoryFilter` and navigates to shop page
+
+### 4. Popular Brands Section
+- 5 brand names (Gucci, Prada, Versace, Armani, Burberry) as subtle hover-animated pills
+- Clicking triggers search for the brand name
+
+### 5. Enhanced Design & Animations
+- Improved empty state with gradient circle background and icon
+- Staggered Framer Motion section transitions (sectionVariants with custom delay index)
+- Search result items have `whileHover` translateX animation via motion.button
+- AnimatePresence mode="wait" for smooth state transitions between idle/results/empty
+- Decorative bottom divider with ShoppingBag icon ("Start exploring")
+- Increased panel height to 85vh for better content display
+- All sections follow luxury aesthetic (gold accents, muted backgrounds, subtle borders)
+
+### Preserved Functionality
+- Keyboard shortcuts (Ctrl/Cmd+K to open, Escape to close)
+- Debounced search API calls (300ms)
+- Product result display with images, prices, compare prices
+- View All navigation
+- SearchTrigger and useSearchOverlay exports unchanged
+
+### Lint
+- ESLint: 0 errors, 0 warnings ✅
+
+### Files Modified
+- `src/components/shared/SearchOverlay.tsx` — ENHANCED: ~370 lines (from ~258 lines), added trending/recent/categories/brands
+
+---
+Task ID: 7-3
+Agent: Component Developer
+Task: Gift Guide Page for MIRADEEN luxury eCommerce platform
+
+Work Log:
+- Created `src/components/pages/GiftGuidePage.tsx` — comprehensive gift guide page with 8 rich sections
+
+### 1. Hero Section
+- Full-width hero with parallax effect using `useScroll` + `useTransform`
+- Background image from Unsplash with dark gradient overlay
+- "THE ART OF GIFTING" heading with `text-shimmer` animation
+- Gold diamond decorations and Gift icon
+- Scroll indicator that navigates to occasions section
+
+### 2. Occasion Categories (6 cards)
+- Grid: 1 col mobile, 2 col tablet, 3 col desktop
+- Occasions: Birthday, Anniversary, Wedding, Festival, Congratulations, Just Because
+- Each card has background image, hover overlay with description + "Shop Now"
+- `card-shine` sweep effect, gold border glow on hover
+- Navigates to shop page on click
+
+### 3. Gift by Price Range (4 tiers)
+- Under ₹2,000 (Affordable Luxury) → Above ₹10,000 (Ultra Premium)
+- Ascending visual grandeur via increasing gold border opacity and gradient intensity
+- Tag, description, and "Explore" button with animated arrow
+- Beige background section
+
+### 4. Gift by Recipient (4 sections)
+- For Her, For Him, For Couples, For Yourself
+- Alternating left/right split layouts (image + content)
+- Category suggestion chips as pill buttons
+- "Shop All" CTA button, `img-hover-scale` on images
+
+### 5. Gift Cards Section
+- "MIRADEEN Gift Cards" heading with `text-shimmer`
+- 3 denominations: ₹2,000 (Starter), ₹5,000 (Popular), ₹10,000 (Premium)
+- Each as a glass-card with gold border, icon, and "Buy Gift Card" button
+- "Most Popular" badge on ₹5,000 card
+- "Perfect for when you can't decide" note with sparkle icons
+
+### 6. Gift Wrapping Showcase
+- Premium Gold Box, Silver Gift Bag, Black Luxury Box
+- Preview cards with image, icon, name, and description
+- "Add to any order for ₹199" note in gold pill badge
+
+### 7. Gift Tips Section
+- 4 tips: Consider Their Style, Make It Personal, Include Gift Receipt, Quality Over Quantity
+- Icons: Lightbulb, Heart, Clock, Star
+- Large numbering (01-04) as decorative background text
+- 4-column responsive grid
+
+### 8. CTA Section
+- "Can't Decide?" heading with pulsing gold gift icon
+- "Take Style Quiz" button → navigates to style-quiz page
+- "Contact Our Stylists" button → navigates to contact page
+- Floating gold particles animation
+
+### Design Features
+- Framer Motion scroll-triggered animations (IntersectionObserver-based `AnimatedSection` wrapper)
+- Staggered card entrances with `staggerContainer` and `scaleIn` variants
+- Consistent use of `heading-serif`, `text-gold-gradient`, `separator-diamond`, `card-luxury`, `card-shine`, `btn-luxury`
+- Responsive design throughout (1→2→3/4 column grids)
+- Dark luxury gradient sections with particle decorations
+
+### Integration
+- Added `'gift-guide'` to `PageType` union in `src/types/index.ts`
+- Added route, import, and breadcrumb in `src/app/page.tsx`
+- Added "Gift Guide" link to Navbar (desktop + mobile menu)
+- Added "Gift Guide" link to Footer Quick Links
+
+### QA
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+
+### Files Created/Modified
+- `src/components/pages/GiftGuidePage.tsx` — NEW: ~530 lines, 8-section gift guide page
+- `src/types/index.ts` — MODIFIED: Added 'gift-guide' to PageType union
+- `src/app/page.tsx` — MODIFIED: Added import, route, and breadcrumb
+- `src/components/layout/Navbar.tsx` — MODIFIED: Added Gift Guide nav link
+- `src/components/layout/Footer.tsx` — MODIFIED: Added Gift Guide to Quick Links
+
+---
+Task ID: 7-5
+Agent: Component Developer
+Task: Enhance Navbar with Mega Menu dropdown for "Shop" link on desktop
+
+Work Log:
+- Enhanced `src/components/layout/Navbar.tsx` with a desktop Mega Menu dropdown for the Shop navigation link
+
+### Desktop Mega Menu Features
+- **4-column layout** (max-w-4xl, centered under Shop link):
+  - **Column 1 — Categories**: Men (Shirt), Women (Crown), Accessories (Watch), New Arrivals (Sparkles), Best Sellers (Star) — each navigates via `setCategoryFilter` + `navigate('shop')`
+  - **Column 2 — Collections**: Summer 2024 (Sun), Wedding Collection (Heart), Premium Basics (Gem), Limited Edition (Palette)
+  - **Column 3 — Featured**: 2 product showcase cards with Unsplash images, names, and gold-accented prices (Silk Charmeuse Blazer ₹12,999, Gold Chronograph Watch ₹24,999) — hover zoom on images
+  - **Column 4 — Quick Links**: Gift Guide, Size Guide, Style Quiz, Lookbook — each navigates to the respective page
+- **Design**: bg-background + border-border + rounded-b-xl + shadow-luxury-lg, gold gradient accent line at top, section headers in text-xs tracking-wider uppercase text-muted-foreground
+- **Animations**: AnimatePresence + motion.div slide-down (scaleY 0.95→1, y -10→0, opacity 0→1), exit with reverse
+- **Hover behavior**:
+  - Shows on mouseEnter with 200ms delay (prevents accidental opens)
+  - Hides on mouseLeave with 300ms delay
+  - Moving from nav link to mega menu panel keeps it open (both inside same hover zone container)
+  - useRef for open/close timeout references, cleanup on unmount
+- **Shop link indicator**: ChevronDown icon rotates 180° when open, underline fills, text turns gold
+
+### Mobile Behavior
+- No changes to existing mobile menu (Collapsible categories remain intact)
+- Mega menu only renders in `hidden md:flex` desktop nav section
+
+### Icons Added
+- 11 new lucide-react icons: Shirt, Crown, Watch, Sparkles, Star, Gem, Palette, Gift, Ruler, PenTool, BookOpen
+
+### QA
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+
+### Files Modified
+- `src/components/layout/Navbar.tsx` — ENHANCED: ~660 lines (from ~590), added mega menu with 4 columns, hover behavior, animations
+
+---
+Task ID: 7-6
+Agent: Frontend Developer
+Task: Add "Why MIRADEEN", "As Seen In", "Trending Now", and "Customer Love" sections to HomePage
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+
+### Changes Made
+
+#### 1. "Why MIRADEEN" Store Features Section
+- Added after Categories section, before New Arrivals
+- 6 feature cards in responsive grid (2 cols mobile, 3 cols tablet, 6 cols desktop)
+- Features: Premium Quality (Gem), Free Shipping (Truck), Easy Returns (RotateCcw), Secure Payment (Shield), Expert Styling (Sparkles), Exclusive Access (Crown)
+- Each card: gold-bordered circle icon, title, description, card-luxury hover effect
+- Heading in text-gold-gradient, subtitle, divider-gold separator
+
+#### 2. "As Seen In" Brand Logos Marquee
+- Added after Why MIRADEEN section
+- Infinite scroll marquee of 6 luxury brands: VOGUE, Harper's BAZAAR, ELLE, GQ, ESQUIRE, L'Officiel
+- Fade edges on both sides using gradient overlays
+- Uses existing animate-marquee CSS animation
+
+#### 3. "Trending Now" Section
+- Added after New Arrivals, before Featured Products
+- Fetches products from /api/products?sort=popular&limit=4
+- Horizontal scrollable on mobile (snap-x, scrollbar-hide), grid on desktop
+- Each card: image, category, name, star rating, price, hover "Add to Cart" overlay
+- Skeleton loading state, "View All" button at end
+
+#### 4. "Customer Love" Testimonials Section
+- Added before Bottom CTA (after Loyalty Rewards)
+- 4 testimonials in 2-column grid with staggered entrance animation
+- Cards: left gold border (border-l-2 border-gold), 5-star rating, quote text, avatar initial, name, location
+- Hover shadow-luxury-sm effect
+
+#### Additional Changes
+- Added imports: Gem, RotateCcw, Crown, TrendingUp, ChevronLeft, ChevronRight
+- Added trendingProducts state + fetch useEffect
+- Added addToCart to useStore destructure
+- Added scrollbar-hide CSS utility to globals.css
+
+### Files Modified
+- `src/components/pages/HomePage.tsx` — ENHANCED: +225 lines (1061→1286), 4 new sections
+- `src/app/globals.css` — APPENDED: scrollbar-hide utility class
+
+---
+Task ID: 7-7
+Agent: Component Developer
+Task: Enhance NotificationToast component with more notification types, social proof system, and luxury design
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+
+### Changes Made
+
+#### 1. New Notification Types
+- Extended `Notification.type` union: `'promo' | 'social_proof' | 'countdown' | 'achievement' | 'success' | 'error' | 'info' | 'shipping'`
+- Added `action?: NotificationAction` (optional CTA button) and `icon?: string` (optional custom icon) to interface
+- Icon mapping: ShoppingBag (social_proof), Timer (countdown), Award (achievement), Bell (promo), CheckCircle (success), AlertCircle (error), Info (info), Truck (shipping)
+
+#### 2. Social Proof System (built into useNotification hook)
+- **Auto-start**: 15-second initial delay after page load
+- **Random intervals**: Each subsequent notification fires after 30-45 seconds (randomized via recursive setTimeout)
+- **Predefined purchases**: 6 items cycling randomly:
+  - "Aarav from Delhi just purchased Silk Blazer"
+  - "Priya from Mumbai just ordered Wedding Collection"
+  - "Rohan from Bangalore just bought Premium Denim"
+  - "Ananya from Pune just purchased Designer Dress"
+  - "Vikram from Chennai just ordered Gold Accessories"
+  - "Meera from Hyderabad just bought Summer Collection"
+- **Session limits**: Max 5 social proof notifications per session
+- **Dismiss persistence**: Closing any social proof toast sets `sessionStorage('miradeen-sp-dismissed')` which stops all future social proof for that session
+- **Auto-dismiss**: Each social proof toast shows for 5 seconds
+
+#### 3. Enhanced Toast Design
+- **Glass card style**: `glass-card` + `rounded-xl` + `shadow-luxury-lg`
+- **Gold accent border**: 3px left border color-coded per notification type (gold for promo/achievement, green for success, red for error, amber for countdown, etc.)
+- **Icon**: Gold-tinted circular icon container (`bg-gold/10`) with lucide-react icon; social_proof type shows User icon
+- **Progress bar**: 2px bar at bottom, color-coded per type, animates from 100% → 0% using `requestAnimationFrame` for smooth 60fps animation
+- **Hover pause**: Progress bar pauses when hovering; resumes from correct position on unhover (tracks cumulative elapsed time via ref)
+- **Close button**: X button appears on hover only (`group-hover:opacity-70`), positioned top-right
+- **Social proof layout**: Shows "2 minutes ago" timestamp below message text
+- **Optional CTA**: `action.label` button with gold color and arrow icon
+
+#### 4. Animations (Framer Motion)
+- **Entrance**: `opacity: 0, y: 60, scale: 0.92` → `opacity: 1, y: 0, scale: 1` (slide up + fade + scale)
+- **Exit**: `opacity: 0, x: 120, scale: 0.92` (slide right + fade + scale)
+- **Easing**: `[0.25, 0.46, 0.45, 0.94]` (custom cubic-bezier for smooth luxury feel)
+- **Layout**: `layout` prop for smooth repositioning when notifications stack
+- **AnimatePresence**: `mode="popLayout"` for smooth enter/exit without layout jumps
+
+#### 5. Positioning & Stacking
+- **Position**: `fixed bottom-4 right-4 z-50` (bottom-right corner)
+- **Stacking**: `flex-col-reverse` — newest notifications appear at the bottom, pushing older ones up
+- **Max width**: `max-w-sm w-full`
+- **ARIA**: `aria-live="polite"` + `role="status"` for screen reader accessibility
+
+#### 6. Backward Compatibility
+- `useNotification()` hook returns same `{ notifications, addNotification, removeNotification }` — no breaking changes
+- Existing `addNotification({ type: 'promo', ... })` calls work unchanged (new fields are optional)
+- `<NotificationToast notifications={...} onRemove={...} />` props unchanged
+- No modifications needed to `page.tsx` — social proof auto-activates via hook
+
+### Files Modified
+- `src/components/shared/NotificationToast.tsx` — REWRITTEN: ~365 lines (from ~88 lines), enhanced with new types, glass card design, progress bar, social proof system, hover pause, improved animations

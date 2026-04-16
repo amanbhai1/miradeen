@@ -20,6 +20,7 @@ import AdminDashboard from '@/components/pages/AdminPages';
 import OrderTrackingPage from '@/components/pages/OrderTrackingPage';
 import StyleQuizPage from '@/components/pages/StyleQuizPage';
 import LookbookPage from '@/components/pages/LookbookPage';
+import GiftGuidePage from '@/components/pages/GiftGuidePage';
 import BreadcrumbNav from '@/components/shared/BreadcrumbNav';
 import QuickViewModal from '@/components/shared/QuickViewModal';
 import CompareDrawer from '@/components/shared/CompareDrawer';
@@ -30,6 +31,7 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import LoadingBar from '@/components/shared/LoadingBar';
 import PromoTimerBar from '@/components/shared/PromoTimerBar';
 import NotificationToast, { useNotification } from '@/components/shared/NotificationToast';
+import NewsletterPopup from '@/components/shared/NewsletterPopup';
 import type { PageType } from '@/types';
 
 function PageRenderer({ page }: { page: PageType }) {
@@ -48,6 +50,7 @@ function PageRenderer({ page }: { page: PageType }) {
     case 'order-tracking': return <OrderTrackingPage />;
     case 'style-quiz': return <StyleQuizPage />;
     case 'lookbook': return <LookbookPage />;
+    case 'gift-guide': return <GiftGuidePage />;
     case 'admin-dashboard':
     case 'admin-products':
     case 'admin-orders':
@@ -76,6 +79,7 @@ function getBreadcrumbItems(page: PageType, productName?: string): { label: stri
     case 'order-tracking': return [...base, { label: 'Order Tracking' }];
     case 'lookbook': return [...base, { label: 'Lookbook' }];
     case 'style-quiz': return [...base, { label: 'Style Quiz' }];
+    case 'gift-guide': return [...base, { label: 'Gift Guide' }];
     default: return base;
   }
 }
@@ -252,6 +256,7 @@ export default function App() {
             <CompareDrawer />
             {/* WhatsApp floating button - only on non-admin pages */}
             {!isAdminPage && <WhatsAppButton />}
+            {!isAdminPage && <NewsletterPopup />}
             <NotificationToast notifications={notifications} onRemove={removeNotification} />
           </motion.div>
         </AnimatePresence>

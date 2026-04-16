@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import {
   Search, Heart, User, Menu, X, Sun, Moon,
   LogOut, Shield, Package, Settings, MapPin,
-  ChevronDown, ChevronRight, LogIn, ShoppingBag
+  ChevronDown, ChevronRight, LogIn, ShoppingBag,
+  Shirt, Crown, Watch, Sparkles, Star, Gem,
+  Palette, Gift, Ruler, PenTool, BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +43,47 @@ const shopCategories = [
   { label: 'Women', slug: 'women' },
   { label: 'Accessories', slug: 'accessories' },
 ];
+
+const megaMenuCategories = [
+  { label: 'Men', icon: Shirt, slug: 'men' },
+  { label: 'Women', icon: Crown, slug: 'women' },
+  { label: 'Accessories', icon: Watch, slug: 'accessories' },
+  { label: 'New Arrivals', icon: Sparkles, slug: 'new-arrivals' },
+  { label: 'Best Sellers', icon: Star, slug: 'best-sellers' },
+];
+
+const megaMenuCollections = [
+  { label: 'Summer 2024', icon: Sun },
+  { label: 'Wedding Collection', icon: Heart },
+  { label: 'Premium Basics', icon: Gem },
+  { label: 'Limited Edition', icon: Palette },
+];
+
+const megaMenuQuickLinks = [
+  { label: 'Gift Guide', icon: Gift, page: 'gift-guide' as const },
+  { label: 'Size Guide', icon: Ruler, page: 'size-guide' as const },
+  { label: 'Style Quiz', icon: PenTool, page: 'style-quiz' as const },
+  { label: 'Lookbook', icon: BookOpen, page: 'lookbook' as const },
+];
+
+const featuredProducts = [
+  {
+    name: 'Silk Charmeuse Blazer',
+    price: '₹12,999',
+    image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=200&h=240&fit=crop',
+  },
+  {
+    name: 'Gold Chronograph Watch',
+    price: '₹24,999',
+    image: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=200&h=240&fit=crop',
+  },
+];
+
+const megaMenuVariants = {
+  hidden: { opacity: 0, y: -10, scaleY: 0.95 },
+  visible: { opacity: 1, y: 0, scaleY: 1, transition: { duration: 0.2, ease: 'easeOut' } },
+  exit: { opacity: 0, y: -10, scaleY: 0.95, transition: { duration: 0.15, ease: 'easeIn' } },
+};
 
 function getUserInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -79,6 +122,9 @@ export default function Navbar() {
   const [shopExpanded, setShopExpanded] = useState(false);
   const [searchPulse, setSearchPulse] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [shopMenuOpen, setShopMenuOpen] = useState(false);
+  const shopMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shopMenuCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cartTotal = getCartTotal();
 
@@ -142,6 +188,14 @@ export default function Navbar() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Cleanup mega menu timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (shopMenuTimeoutRef.current) clearTimeout(shopMenuTimeoutRef.current);
+      if (shopMenuCloseTimeoutRef.current) clearTimeout(shopMenuCloseTimeoutRef.current);
+    };
+  }, []);
+
   const handleDismissAnnouncement = () => {
     setAnnouncementDismissed(true);
     try {
@@ -157,6 +211,26 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   };
 
+  const handleShopMenuEnter = useCallback(() => {
+    if (shopMenuCloseTimeoutRef.current) {
+      clearTimeout(shopMenuCloseTimeoutRef.current);
+      shopMenuCloseTimeoutRef.current = null;
+    }
+    shopMenuTimeoutRef.current = setTimeout(() => {
+      setShopMenuOpen(true);
+    }, 200);
+  }, []);
+
+  const handleShopMenuLeave = useCallback(() => {
+    if (shopMenuTimeoutRef.current) {
+      clearTimeout(shopMenuTimeoutRef.current);
+      shopMenuTimeoutRef.current = null;
+    }
+    shopMenuCloseTimeoutRef.current = setTimeout(() => {
+      setShopMenuOpen(false);
+    }, 300);
+  }, []);
+
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const userInitials = useMemo(() => {
     if (user?.name) return getUserInitials(user.name);
@@ -168,6 +242,7 @@ export default function Navbar() {
   const navLinks = [
     { label: 'Home', page: 'home' as const },
     { label: 'Shop', page: 'shop' as const },
+    { label: 'Gift Guide', page: 'gift-guide' as const },
     { label: 'Lookbook', page: 'lookbook' as const },
     { label: 'Style Quiz', page: 'style-quiz' as const },
     { label: 'About', page: 'about' as const },
@@ -413,27 +488,170 @@ export default function Navbar() {
 
             {/* Desktop Nav Links */}
             <div className="hidden md:flex items-center gap-8">
-              {navLinks.map((link) => (
-                <button
-                  key={link.page}
-                  onClick={() => navigate(link.page)}
-                  className="relative text-sm tracking-[0.1em] uppercase font-medium transition-colors hover:text-gold group py-1"
-                >
-                  {link.label}
-                  {/* Hover underline */}
-                  <span className={`absolute -bottom-1 left-0 h-px bg-gold transition-all duration-300 ${
-                    currentPage === link.page ? 'w-full' : 'w-0 group-hover:w-full'
-                  }`} />
-                  {/* Gold dot indicator for active link */}
-                  {currentPage === link.page && (
-                    <motion.span
-                      layoutId="active-nav-dot"
-                      className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gold"
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                </button>
-              ))}
+              {navLinks.map((link) => {
+                if (link.page === 'shop') {
+                  return (
+                    <div
+                      key={link.page}
+                      className="relative"
+                      onMouseEnter={handleShopMenuEnter}
+                      onMouseLeave={handleShopMenuLeave}
+                    >
+                      <button
+                        onClick={() => navigate(link.page)}
+                        className={`relative text-sm tracking-[0.1em] uppercase font-medium transition-colors hover:text-gold group py-1 flex items-center gap-1 ${
+                          shopMenuOpen ? 'text-gold' : ''
+                        }`}
+                      >
+                        {link.label}
+                        <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${shopMenuOpen ? 'rotate-180' : ''}`} />
+                        <span className={`absolute -bottom-1 left-0 h-px bg-gold transition-all duration-300 ${
+                          currentPage === link.page || shopMenuOpen ? 'w-full' : 'w-0 group-hover:w-full'
+                        }`} />
+                        {currentPage === link.page && !shopMenuOpen && (
+                          <motion.span
+                            layoutId="active-nav-dot"
+                            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gold"
+                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                          />
+                        )}
+                      </button>
+
+                      {/* Mega Menu Panel */}
+                      <AnimatePresence>
+                        {shopMenuOpen && (
+                          <motion.div
+                            variants={megaMenuVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-50"
+                            style={{ transformOrigin: 'top center' }}
+                          >
+                            {/* Gold accent line */}
+                            <div className="h-[2px] rounded-full bg-gradient-to-r from-transparent via-gold to-transparent" />
+                            <div className="bg-background border border-border rounded-b-xl shadow-luxury-lg w-[80vw] max-w-4xl">
+                              <div className="p-6 grid grid-cols-4 gap-6">
+                                {/* Column 1: Categories */}
+                                <div>
+                                  <h3 className="text-xs tracking-wider uppercase text-muted-foreground font-semibold mb-3">Categories</h3>
+                                  <ul className="space-y-1">
+                                    {megaMenuCategories.map((cat) => {
+                                      const Icon = cat.icon;
+                                      return (
+                                        <li key={cat.label}>
+                                          <button
+                                            onClick={() => handleNavigateShopCategory(cat.slug)}
+                                            className="w-full flex items-center gap-2.5 px-2 py-2 text-sm rounded-md transition-colors hover:bg-gold/5 hover:text-gold"
+                                          >
+                                            <Icon className="h-4 w-4 text-muted-foreground group-hover:text-gold" />
+                                            {cat.label}
+                                          </button>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                </div>
+
+                                {/* Column 2: Collections */}
+                                <div>
+                                  <h3 className="text-xs tracking-wider uppercase text-muted-foreground font-semibold mb-3">Collections</h3>
+                                  <ul className="space-y-1">
+                                    {megaMenuCollections.map((col) => {
+                                      const Icon = col.icon;
+                                      return (
+                                        <li key={col.label}>
+                                          <button
+                                            onClick={() => { navigate('shop'); setMobileMenuOpen(false); }}
+                                            className="w-full flex items-center gap-2.5 px-2 py-2 text-sm rounded-md transition-colors hover:bg-gold/5 hover:text-gold"
+                                          >
+                                            <Icon className="h-4 w-4 text-muted-foreground" />
+                                            {col.label}
+                                          </button>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                </div>
+
+                                {/* Column 3: Featured Products */}
+                                <div>
+                                  <h3 className="text-xs tracking-wider uppercase text-muted-foreground font-semibold mb-3">Featured</h3>
+                                  <div className="space-y-3">
+                                    {featuredProducts.map((product) => (
+                                      <button
+                                        key={product.name}
+                                        onClick={() => { navigate('shop'); setMobileMenuOpen(false); }}
+                                        className="w-full group/feat text-left rounded-lg overflow-hidden border border-border/50 hover:border-gold/30 transition-all duration-300 hover:shadow-md"
+                                      >
+                                        <div className="relative h-24 overflow-hidden">
+                                          <img
+                                            src={product.image}
+                                            alt={product.name}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover/feat:scale-110"
+                                          />
+                                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                                        </div>
+                                        <div className="p-2.5">
+                                          <p className="text-xs font-medium truncate">{product.name}</p>
+                                          <p className="text-xs text-gold font-semibold mt-0.5">{product.price}</p>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Column 4: Quick Links */}
+                                <div>
+                                  <h3 className="text-xs tracking-wider uppercase text-muted-foreground font-semibold mb-3">Quick Links</h3>
+                                  <ul className="space-y-1">
+                                    {megaMenuQuickLinks.map((ql) => {
+                                      const Icon = ql.icon;
+                                      return (
+                                        <li key={ql.label}>
+                                          <button
+                                            onClick={() => { navigate(ql.page); setMobileMenuOpen(false); }}
+                                            className="w-full flex items-center gap-2.5 px-2 py-2 text-sm rounded-md transition-colors hover:bg-gold/5 hover:text-gold"
+                                          >
+                                            <Icon className="h-4 w-4 text-muted-foreground" />
+                                            {ql.label}
+                                          </button>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    key={link.page}
+                    onClick={() => navigate(link.page)}
+                    className="relative text-sm tracking-[0.1em] uppercase font-medium transition-colors hover:text-gold group py-1"
+                  >
+                    {link.label}
+                    {/* Hover underline */}
+                    <span className={`absolute -bottom-1 left-0 h-px bg-gold transition-all duration-300 ${
+                      currentPage === link.page ? 'w-full' : 'w-0 group-hover:w-full'
+                    }`} />
+                    {/* Gold dot indicator for active link */}
+                    {currentPage === link.page && (
+                      <motion.span
+                        layoutId="active-nav-dot"
+                        className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gold"
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Right Actions */}
