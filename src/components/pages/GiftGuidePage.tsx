@@ -120,15 +120,15 @@ const recipients = [
     reversed: false,
   },
   {
-    title: 'For Him',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800',
-    categories: ['Formal Shirts', 'Leather Accessories', 'Watches', 'Cufflinks', 'Blazers'],
+    title: 'For Mom',
+    image: 'https://images.unsplash.com/photo-1596870230751-ebdfce98ec42?w=800',
+    categories: ['Silk Scarves', 'Cashmere Wraps', 'Pearl Sets', 'Scented Candles', 'Tea Gift Sets'],
     reversed: true,
   },
   {
-    title: 'For Couples',
+    title: 'For Best Friend',
     image: 'https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=800',
-    categories: ['Matching Sets', 'Home Décor', 'Fragrance Duos', 'Experience Boxes', 'Photo Frames'],
+    categories: ['Matching Sets', 'Co-ord Sets', 'Fragrance Duos', 'Spa Kits', 'Photo Frames'],
     reversed: false,
   },
   {

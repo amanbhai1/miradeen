@@ -41,13 +41,11 @@ const announcements = [
 const ANNOUNCEMENT_DISMISSED_KEY = 'miradeen-announcement-dismissed';
 
 const shopCategories = [
-  { label: 'Men', slug: 'men' },
   { label: 'Women', slug: 'women' },
   { label: 'Accessories', slug: 'accessories' },
 ];
 
 const megaMenuCategories = [
-  { label: 'Men', icon: Shirt, slug: 'men' },
   { label: 'Women', icon: Crown, slug: 'women' },
   { label: 'Accessories', icon: Watch, slug: 'accessories' },
   { label: 'New Arrivals', icon: Sparkles, slug: 'new-arrivals' },
@@ -58,7 +56,7 @@ const megaMenuCollections = [
   { label: 'Summer 2024', icon: Sun },
   { label: 'Wedding Collection', icon: Heart },
   { label: 'Premium Basics', icon: Gem },
-  { label: 'Limited Edition', icon: Palette },
+  { label: 'Bridal Collection', icon: Palette },
 ];
 
 const megaMenuQuickLinks = [
@@ -85,12 +83,12 @@ const companyMenuItems = [
 
 const featuredProducts = [
   {
-    name: 'Silk Charmeuse Blazer',
+    name: 'Silk Evening Gown',
     price: '₹12,999',
     image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=200&h=240&fit=crop',
   },
   {
-    name: 'Gold Chronograph Watch',
+    name: 'Gold Chain Necklace',
     price: '₹24,999',
     image: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=200&h=240&fit=crop',
   },

@@ -227,11 +227,11 @@ export default function HomePage() {
       }))
     : [
         { name: 'Priya Sharma', location: 'Mumbai', role: 'Fashion Blogger', rating: 5, verified: true, text: 'The quality is beyond anything I\'ve experienced. MIRADEEN has set a new standard for luxury fashion in India. Every piece feels like it was made just for me.' },
-        { name: 'Arjun Mehta', location: 'Delhi', role: 'Creative Director', rating: 5, verified: true, text: 'From the packaging to the fabric quality, everything screams premium. The Sovereign Blazer is now my go-to for every important occasion.' },
+        { name: 'Ananya Mehta', location: 'Delhi', role: 'Creative Director', rating: 5, verified: true, text: 'From the packaging to the fabric quality, everything screams premium. The Silk Evening Gown is now my go-to for every important occasion.' },
         { name: 'Ananya Patel', location: 'Bangalore', role: 'Interior Designer', rating: 5, verified: false, text: 'I\'ve been a loyal customer for over a year. The craftsmanship is consistently exceptional. MIRADEEN truly redefines luxury fashion.' },
-        { name: 'Vikram Rao', location: 'Chennai', role: 'Entrepreneur', rating: 5, verified: true, text: 'The attention to detail is impeccable. From stitching to fabric choice, every element reflects true luxury. MIRADEEN is my wardrobe staple now.' },
+        { name: 'Isha Rao', location: 'Chennai', role: 'Entrepreneur', rating: 5, verified: true, text: 'The attention to detail is impeccable. From stitching to fabric choice, every element reflects true luxury. MIRADEEN is my wardrobe staple now.' },
         { name: 'Meera Kapoor', location: 'Hyderabad', role: 'Style Consultant', rating: 5, verified: false, text: 'I recommend MIRADEEN to all my clients. The timeless designs and premium quality make every outfit feel effortlessly elegant.' },
-        { name: 'Rohan Desai', location: 'Pune', role: 'Photographer', rating: 5, verified: true, text: 'As someone who works in fashion, I appreciate the thought behind each collection. MIRADEEN delivers sophistication with every piece.' },
+        { name: 'Diya Desai', location: 'Pune', role: 'Photographer', rating: 5, verified: true, text: 'As someone who works in fashion, I appreciate the thought behind each collection. MIRADEEN delivers sophistication with every piece.' },
       ];
 
   // Countdown timer
@@ -279,8 +279,8 @@ export default function HomePage() {
   }, [testimonialHovered, testimonials.length]);
 
   const categories = [
-    { name: 'Men', slug: 'men', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=800&fit=crop' },
     { name: 'Women', slug: 'women', image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=600&h=800&fit=crop' },
+    { name: 'Ethnic Wear', slug: 'women', image: 'https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=600&h=800&fit=crop' },
     { name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=800&fit=crop' },
   ];
 
@@ -577,7 +577,7 @@ export default function HomePage() {
           </AnimatedSection>
 
           <div className="flex animate-marquee whitespace-nowrap">
-            {['VOGUE', "Harper's BAZAAR", 'ELLE', 'GQ', 'ESQUIRE', "L'OFFICIEL", 'VOGUE', "Harper's BAZAAR", 'ELLE', 'GQ', 'ESQUIRE', "L'OFFICIEL"].map((brand, i) => (
+            {['VOGUE', "Harper's BAZAAR", 'ELLE', 'Vanity Fair', "L'OFFICIEL", 'VOGUE', "Harper's BAZAAR", 'ELLE', 'Vanity Fair', "L'OFFICIEL"].map((brand, i) => (
               <span key={i} className="mx-10 md:mx-16 text-muted-foreground/60 text-sm md:text-base tracking-[0.3em] uppercase font-light shrink-0">
                 {brand}
               </span>
@@ -837,8 +837,8 @@ export default function HomePage() {
                 image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&h=800&fit=crop',
               },
               {
-                title: 'Classic Power',
-                image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=800&fit=crop',
+                title: 'Timeless Grace',
+                image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=800&fit=crop',
               },
             ].map((look, i) => (
               <AnimatedSection key={look.title} delay={i * 0.15}>
@@ -898,7 +898,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
-              { title: 'For Him', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=400&fit=crop' },
+              { title: 'For Mom', image: 'https://images.unsplash.com/photo-1596870230751-ebdfce98ec42?w=400&h=400&fit=crop' },
               { title: 'For Her', image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=400&h=400&fit=crop' },
               { title: 'Accessories', image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop' },
               { title: 'Gift Cards', image: null },
@@ -1208,7 +1208,7 @@ export default function HomePage() {
           <div className="absolute right-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-l from-foreground to-transparent z-10 pointer-events-none" />
 
           <div className="flex animate-marquee whitespace-nowrap gap-6 md:gap-8">
-            {['VOGUE', "Harper's BAZAAR", 'ELLE', 'GQ', 'ESQUIRE', "L'Officiel", 'Forbes', 'Tatler', 'VOGUE', "Harper's BAZAAR", 'ELLE', 'GQ', 'ESQUIRE', "L'Officiel", 'Forbes', 'Tatler'].map((brand, i) => (
+            {['VOGUE', "Harper's BAZAAR", 'ELLE', 'Vanity Fair', "L'Officiel", 'Forbes', 'Tatler', 'VOGUE', "Harper's BAZAAR", 'ELLE', 'Vanity Fair', "L'Officiel", 'Forbes', 'Tatler'].map((brand, i) => (
               <div
                 key={`r1-${i}`}
                 className="glass-card border border-white/10 rounded-lg px-6 md:px-8 py-3 md:py-4 shrink-0 flex items-center justify-center hover:border-gold/30 transition-colors duration-300"
@@ -1225,7 +1225,7 @@ export default function HomePage() {
           <div className="absolute right-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-l from-foreground to-transparent z-10 pointer-events-none" />
 
           <div className="flex animate-marquee whitespace-nowrap gap-6 md:gap-8" style={{ animationDirection: 'reverse' }}>
-            {['Tatler', 'Forbes', "L'Officiel", 'ESQUIRE', 'GQ', 'ELLE', "Harper's BAZAAR", 'VOGUE', 'Tatler', 'Forbes', "L'Officiel", 'ESQUIRE', 'GQ', 'ELLE', "Harper's BAZAAR", 'VOGUE'].map((brand, i) => (
+            {['Tatler', 'Forbes', "L'Officiel", 'Vanity Fair', 'ELLE', "Harper's BAZAAR", 'VOGUE', 'Tatler', 'Forbes', "L'Officiel", 'Vanity Fair', 'ELLE', "Harper's BAZAAR", 'VOGUE'].map((brand, i) => (
               <div
                 key={`r2-${i}`}
                 className="glass-card border border-white/10 rounded-lg px-6 md:px-8 py-3 md:py-4 shrink-0 flex items-center justify-center hover:border-gold/30 transition-colors duration-300"

@@ -91,12 +91,12 @@ interface SocialProofItem {
 }
 
 const SOCIAL_PROOF_ITEMS: SocialProofItem[] = [
-  { name: 'Aarav', location: 'Delhi', product: 'Silk Blazer' },
-  { name: 'Priya', location: 'Mumbai', product: 'Wedding Collection' },
-  { name: 'Rohan', location: 'Bangalore', product: 'Premium Denim' },
-  { name: 'Ananya', location: 'Pune', product: 'Designer Dress' },
-  { name: 'Vikram', location: 'Chennai', product: 'Gold Accessories' },
-  { name: 'Meera', location: 'Hyderabad', product: 'Summer Collection' },
+  { name: 'Priya', location: 'Delhi', product: 'Silk Evening Gown' },
+  { name: 'Ananya', location: 'Mumbai', product: 'Wedding Collection' },
+  { name: 'Diya', location: 'Bangalore', product: 'Designer Dress' },
+  { name: 'Isha', location: 'Pune', product: 'Ethnic Kurta Set' },
+  { name: 'Meera', location: 'Chennai', product: 'Gold Jewellery' },
+  { name: 'Nisha', location: 'Hyderabad', product: 'Summer Collection' },
 ];
 
 const MAX_SP_PER_SESSION = 5;

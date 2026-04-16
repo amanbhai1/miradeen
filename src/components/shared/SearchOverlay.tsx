@@ -23,21 +23,21 @@ import { parseJsonField } from '@/types';
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRENDING_SEARCHES = [
   'Silk Sarees',
-  'Designer Blazers',
+  'Designer Dresses',
   'Summer Collection',
-  'Wedding Wear',
-  'Gold Jewelry',
-  'Premium Denim',
+  'Bridal Wear',
+  'Gold Jewellery',
+  'Ethnic Kurtis',
 ];
 
-const POPULAR_BRANDS = ['Gucci', 'Prada', 'Versace', 'Armani', 'Burberry'];
+const POPULAR_BRANDS = ['Gucci', 'Prada', 'Versace', 'Valentino', 'Burberry'];
 
 const BROWSE_CATEGORIES = [
-  { name: "Men's Fashion", icon: Shirt, count: '2,450+', slug: "men's-fashion" },
   { name: "Women's Fashion", icon: Crown, count: '3,120+', slug: "women's-fashion" },
+  { name: 'Dresses', icon: Sparkles, count: '1,850+', slug: 'dresses' },
+  { name: 'Ethnic Wear', icon: Shirt, count: '2,450+', slug: 'ethnic-wear' },
   { name: 'Accessories', icon: Watch, count: '890+', slug: 'accessories' },
   { name: 'New Arrivals', icon: Sparkles, count: '340+', slug: 'new-arrivals' },
-  { name: 'Best Sellers', icon: Star, count: '520+', slug: 'best-sellers' },
   { name: 'Sale', icon: Tag, count: '180+', slug: 'sale' },
 ];
 

@@ -167,15 +167,6 @@ export async function DELETE(
     // Check if product exists
     const product = await db.product.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: {
-            orderItems: true,
-            wishlists: true,
-            reviews: true,
-          },
-        },
-      },
     });
 
     if (!product) {
@@ -185,8 +176,9 @@ export async function DELETE(
       );
     }
 
-    // Check if product is referenced in orders
-    if (product._count.orderItems > 0) {
+    // Check if product is referenced in orders (productId is a plain field, not a Prisma relation)
+    const orderItemCount = await db.orderItem.count({ where: { productId: id } });
+    if (orderItemCount > 0) {
       // Soft delete: set isActive to false instead of deleting
       await db.product.update({
         where: { id },
@@ -198,9 +190,10 @@ export async function DELETE(
       });
     }
 
-    // Delete associated reviews and wishlists first
+    // Delete associated reviews, wishlists, and recently viewed first
     await db.review.deleteMany({ where: { productId: id } });
     await db.wishlist.deleteMany({ where: { productId: id } });
+    await db.recentlyViewed.deleteMany({ where: { productId: id } });
 
     // Delete product
     await db.product.delete({ where: { id } });

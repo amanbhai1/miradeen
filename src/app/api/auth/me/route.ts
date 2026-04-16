@@ -46,6 +46,12 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { name, phone, address, city, state, zipCode, country } = body;
 
+    // Verify user still exists
+    const userExists = await db.user.findUnique({ where: { id: payload.userId } });
+    if (!userExists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const updatedUser = await db.user.update({
       where: { id: payload.userId },
       data: {

@@ -2565,3 +2565,91 @@ Task: Enhance OrderTrackingPage with visual timeline, delivery map placeholder, 
 
 ### Files Modified
 - `src/components/pages/OrderTrackingPage.tsx` — REWRITTEN: ~900 lines with enhanced hero, search, map placeholder, shipping details, loading states, help section
+
+---
+Task ID: 8
+Agent: Phase 8 — Women-Only Rebrand, CRUD Fixes, CMS/CRM Enhancement
+Task: Comprehensive update — rebrand to women-only, fix CRUD, enhance admin panel
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully on port 3000 ✅
+- All API routes return HTTP 200 ✅
+- GET / 200 in 3.3s (compile: 2.9s) ✅
+
+### Changes Made
+
+#### 1. Women-Only Fashion Rebrand (6 files modified)
+- **Navbar.tsx**: Removed "Men" from shopCategories and megaMenuCategories; updated collections to women-focused (Bridal Collection); changed featured products to "Silk Evening Gown" and "Gold Chain Necklace"
+- **layout.tsx**: Updated metadata — description, keywords, OG/Twitter cards all changed to women's luxury fashion; removed men's keywords
+- **SearchOverlay.tsx**: Updated trending searches to women's terms; replaced "Men's Fashion" category with "Dresses" and "Ethnic Wear"; changed brand references to women-focused
+- **GiftGuidePage.tsx**: Changed "For Him" → "For Mom", "For Couples" → "For Best Friend"
+- **HomePage.tsx**: Updated collections, testimonials (feminine names), marquee (replaced GQ/ESQUIRE with Vanity Fair), gift guide section
+- **NotificationToast.tsx**: Updated social proof names to feminine (Priya, Diya, Meera, Nisha) with women's fashion products
+- **Footer.tsx**: No changes needed (already gender-neutral)
+
+#### 2. CRUD API Route Fixes (5 bugs fixed across 5 files)
+- **CRITICAL — admin/products/[id]/route.ts (DELETE)**: Fixed invalid Prisma relation `_count.orderItems` → `db.orderItem.count({ where: { productId: id } })`. Also added recentlyViewed cleanup.
+- **api/coupons/route.ts (POST)**: Added `startsAt` validation — coupons with future start dates now correctly rejected
+- **api/admin/categories/route.ts (PUT)**: Added uniqueness check for name/slug updates, returning 409 Conflict on duplicates
+- **api/admin/coupons/route.ts (PUT)**: Added `type` field validation (must be "percentage" or "fixed")
+- **api/auth/me/route.ts (PUT)**: Added user existence check before update, returning 404 if user deleted
+
+#### 3. CMS/CRM Admin Panel Enhancements (AdminPages.tsx ~3200 lines)
+
+##### CMS Tab:
+- **SEO Settings Section**: Connected all 11 SettingField components to state and API (was broken — fields rendered empty with no save functionality)
+- **Settings Tab**: Added Tax Settings (enabled toggle + rate), Payment Settings (PayPal Client ID + mode), Express Shipping Rate, Pinterest social media field
+- All settings sections now always render with sensible defaults
+
+##### CRM Enhancements (Users Tab):
+- **Customer Segmentation**: 5 filter cards (All, VIP, Regular, New, Inactive) with dynamic computation
+- **Enhanced Customer Detail**: 4 stat cards, spending breakdown (Paid/Pending/Refunded), admin notes (persistent via SiteSettings), order history timeline, enhanced wishlist grid, expanded user info
+- **Customer Export**: CSV and JSON export with UTF-8 BOM, including segment/status columns
+
+##### Marketing Tab Enhancements:
+- **Newsletter**: Monthly trend bar chart, enhanced export, add subscriber manually, toggle status
+- **Social Proof** (NEW): Enable/disable toggle, configurable notification text template with placeholders, display delay setting, live preview
+- **Promotional Banners** (NEW): Guidance cards for seasonal sales, flash deals, new arrivals with best practices
+
+### Files Modified
+- `src/components/layout/Navbar.tsx` — Women-only categories
+- `src/app/layout.tsx` — Women-focused metadata
+- `src/components/shared/SearchOverlay.tsx` — Women-focused search
+- `src/components/pages/GiftGuidePage.tsx` — Women-focused gift guide
+- `src/components/pages/HomePage.tsx` — Women-focused content
+- `src/components/shared/NotificationToast.tsx` — Feminine social proof
+- `src/app/api/admin/products/[id]/route.ts` — Fixed critical delete bug
+- `src/app/api/coupons/route.ts` — Fixed startsAt validation
+- `src/app/api/admin/categories/route.ts` — Fixed uniqueness check
+- `src/app/api/admin/coupons/route.ts` — Fixed type validation
+- `src/app/api/auth/me/route.ts` — Fixed user existence check
+- `src/components/pages/AdminPages.tsx` — CMS/CRM/Marketing/Settings enhancements
+
+---
+
+## Current Project Status Assessment
+
+### Overall Health: STABLE ✅
+- **Code Quality**: ESLint 0 errors, 0 warnings
+- **Compilation**: All pages compile successfully with Turbopack
+- **Runtime**: All routes respond HTTP 200
+- **Branding**: Now exclusively women's luxury fashion
+- **Admin Panel**: Full CMS, CRM, and Marketing functionality
+- **API Routes**: All CRUD operations verified and fixed
+
+### Unresolved Issues / Risks
+1. **Memory constraints**: Next.js dev server + Chrome compete for ~8GB RAM
+2. **PayPal integration**: Placeholder payment flow
+3. **Product images**: Using Unsplash URLs
+4. **Email service**: Toast-based feedback only
+5. **Forgot Password**: Placeholder link
+6. **Admin image uploads**: No file upload capability
+7. **Social login**: Visual buttons only
+
+### Priority Recommendations for Next Phase
+1. **Style improvements**: More micro-interactions, animations, polish
+2. **Additional CMS pages**: Blog post editor, FAQ management
+3. **Customer email notifications**: Order confirmation, shipping updates
+4. **Product image upload**: Cloud storage integration
+5. **Analytics dashboard**: More detailed charts and reports

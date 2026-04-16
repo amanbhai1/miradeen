@@ -84,6 +84,20 @@ export async function PUT(request: NextRequest) {
       updateData.slug = (updateData.slug as string).toLowerCase().replace(/[^a-z0-9]+/g, '-');
     }
 
+    // Check uniqueness if name or slug is being changed
+    if (updateData.name && updateData.name !== existing.name) {
+      const nameExists = await db.category.findUnique({ where: { name: updateData.name as string } });
+      if (nameExists) {
+        return NextResponse.json({ error: 'Category with this name already exists' }, { status: 409 });
+      }
+    }
+    if (updateData.slug && updateData.slug !== existing.slug) {
+      const slugExists = await db.category.findUnique({ where: { slug: updateData.slug as string } });
+      if (slugExists) {
+        return NextResponse.json({ error: 'Category with this slug already exists' }, { status: 409 });
+      }
+    }
+
     const category = await db.category.update({ where: { id }, data: updateData });
     return NextResponse.json({ category });
   } catch {

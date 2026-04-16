@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Discover premium luxury fashion at MIRADEEN. Fluid fabric-inspired design, silk flow, craftsmanship, and artistic luxury. Shop the finest collection of men's and women's clothing.",
+    "Discover premium luxury fashion at MIRADEEN. Fluid fabric-inspired design, silk flow, craftsmanship, and artistic luxury. Shop the finest collection of women's luxury fashion.",
   keywords: [
     "MIRADEEN",
     "luxury fashion",
@@ -66,8 +66,6 @@ export const metadata: Metadata = {
     "handcrafted fashion",
     "artisan",
     "artisan clothing",
-    "men's fashion",
-    "men's luxury fashion",
     "women's fashion",
     "women's luxury fashion",
     "Indian designer",
@@ -75,7 +73,6 @@ export const metadata: Metadata = {
     "premium ethnic wear",
     "luxury kurta",
     "designer saree",
-    "luxury sherwani",
     "handloom fashion",
     "bespoke fashion",
     "high-end clothing",
@@ -118,7 +115,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: `${SITE_NAME} — Redefining Luxury Fashion`,
     description:
-      "Discover premium luxury fashion at MIRADEEN. Shop the finest collection of men's and women's designer clothing.",
+      "Discover premium luxury fashion at MIRADEEN. Shop the finest collection of women's designer clothing.",
     url: SITE_URL,
     siteName: SITE_NAME,
     locale: "en_IN",
@@ -129,7 +126,7 @@ export const metadata: Metadata = {
         url: `${SITE_URL}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: `${SITE_NAME} — Premium Luxury Fashion for Men & Women`,
+        alt: `${SITE_NAME} — Premium Luxury Fashion for Women`,
         type: "image/png",
       },
     ],
@@ -141,7 +138,7 @@ export const metadata: Metadata = {
     site: "@MIRADEEN",
     title: `${SITE_NAME} — Redefining Luxury Fashion`,
     description:
-      "Discover premium luxury fashion at MIRADEEN. Shop designer clothing for men & women.",
+      "Discover premium luxury fashion at MIRADEEN. Shop designer clothing for women.",
     images: [`${SITE_URL}/og-image.png`],
     creator: "@miradeen",
   },

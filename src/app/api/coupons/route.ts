@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Coupon is not active' }, { status: 400 });
     }
 
+    if (coupon.startsAt && new Date(coupon.startsAt) > new Date()) {
+      return NextResponse.json({ error: 'Coupon is not yet active' }, { status: 400 });
+    }
+
     if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
       return NextResponse.json({ error: 'Coupon has expired' }, { status: 400 });
     }

@@ -941,8 +941,12 @@ function UsersTab({ token }: { token: string | null }) {
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userLoading, setUserLoading] = useState(false);
+  const [customerNotes, setCustomerNotes] = useState<Record<string, string>>({});
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } })
@@ -962,69 +966,206 @@ function UsersTab({ token }: { token: string | null }) {
     setSelectedUser(null);
     try {
       const res = await fetch(`/api/admin/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setSelectedUser(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedUser(data);
+        // Load admin note for this user
+        const settingsRes = await fetch('/api/admin/settings', { headers: { Authorization: `Bearer ${token}` } });
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          const note = settingsData.settings?.[`admin_note_${userId}`] || '';
+          setCustomerNotes(prev => ({ ...prev, [userId]: note }));
+        }
+      }
     } catch {}
     setUserLoading(false);
   };
 
+  const saveCustomerNote = async (userId: string) => {
+    setNoteSaving(true);
+    try {
+      await fetch('/api/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ key: `admin_note_${userId}`, value: customerNotes[userId] || '' }) });
+      toast({ title: 'Note saved' });
+    } catch { toast({ title: 'Failed to save note', variant: 'destructive' }); }
+    setNoteSaving(false);
+  };
+
+  const getCustomerSegment = (user: UserType): string => {
+    const orderCount = user._count?.orders || 0;
+    const createdDate = new Date(user.createdAt);
+    const now = new Date();
+    const daysSinceJoined = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (orderCount >= 5) return 'vip';
+    if (daysSinceJoined > 90 && orderCount === 0) return 'inactive';
+    if (daysSinceJoined <= 30) return 'new';
+    return 'regular';
+  };
+
+  const getSegmentBadge = (segment: string) => {
+    const map: Record<string, { label: string; cls: string }> = {
+      vip: { label: 'VIP', cls: 'bg-gold/10 text-gold border-gold/20' },
+      regular: { label: 'Regular', cls: 'bg-green-50 dark:bg-green-950/30 text-green-700 border-green-200 dark:border-green-800' },
+      new: { label: 'New', cls: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 border-blue-200 dark:border-blue-800' },
+      inactive: { label: 'Inactive', cls: 'bg-gray-50 dark:bg-gray-900/30 text-gray-600 border-gray-200 dark:border-gray-700' },
+    };
+    return map[segment] || map.regular;
+  };
+
+  const exportCustomers = async (format: 'csv' | 'json') => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/admin/users?limit=1000', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const exportUsers = data.users || [];
+      if (format === 'csv') {
+        const csv = 'Name,Email,Phone,Role,Orders,Joined,Segment,Status\n' +
+          exportUsers.map((u: any) => {
+            const seg = getCustomerSegment(u);
+            return `${u.name},${u.email},${u.phone || ''},${u.role},${u._count?.orders || 0},${new Date(u.createdAt).toLocaleDateString()},${seg},${u.isBlocked ? 'Blocked' : 'Active'}`;
+          }).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'customers.csv'; a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const json = JSON.stringify(exportUsers, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'customers.json'; a.click();
+        URL.revokeObjectURL(url);
+      }
+      toast({ title: `Exported ${exportUsers.length} customers as ${format.toUpperCase()}` });
+    } catch { toast({ title: 'Export failed', variant: 'destructive' }); }
+    setExporting(false);
+  };
+
   if (loading) return <AdminSkeleton rows={3} height="h-16" />;
 
-  const filteredUsers = users.filter(u =>
+  let filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (segmentFilter !== 'all') {
+    filteredUsers = filteredUsers.filter(u => getCustomerSegment(u) === segmentFilter);
+  }
+
+  // Segment counts
+  const segmentCounts = { all: users.length, vip: 0, regular: 0, new: 0, inactive: 0 };
+  users.forEach(u => { segmentCounts[getCustomerSegment(u) as keyof typeof segmentCounts]++; });
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="heading-serif text-2xl font-bold">Users</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">{users.length} registered users</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="heading-serif text-2xl font-bold">Users</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{users.length} registered users</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => exportCustomers('csv')} variant="outline" size="sm" className="text-xs" disabled={exporting}>
+            {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileSpreadsheet className="h-3 w-3 mr-1" />} Export CSV
+          </Button>
+          <Button onClick={() => exportCustomers('json')} variant="outline" size="sm" className="text-xs" disabled={exporting}>
+            {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileJson className="h-3 w-3 mr-1" />} Export JSON
+          </Button>
+        </div>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-9 ${icls} border-border`} />
+      {/* Customer Segmentation */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { key: 'all', label: 'All Users', count: segmentCounts.all, icon: Users, color: 'text-foreground', bg: 'bg-muted/30' },
+          { key: 'vip', label: 'VIP', count: segmentCounts.vip, icon: Crown, color: 'text-gold', bg: 'bg-gold/10' },
+          { key: 'regular', label: 'Regular', count: segmentCounts.regular, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
+          { key: 'new', label: 'New', count: segmentCounts.new, icon: Sparkles, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+          { key: 'inactive', label: 'Inactive', count: segmentCounts.inactive, icon: UserCircle, color: 'text-muted-foreground', bg: 'bg-muted' },
+        ].map(seg => (
+          <button key={seg.key} onClick={() => setSegmentFilter(seg.key)} className={`p-3 rounded-lg border transition-all duration-200 text-left ${segmentFilter === seg.key ? 'border-gold/50 ring-2 ring-gold/20 bg-gold/5' : 'border-border hover:border-gold/30'}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <div className={`p-1.5 rounded-md ${seg.bg}`}><seg.icon className={`h-3.5 w-3.5 ${seg.color}`} /></div>
+              <p className="text-lg font-bold">{seg.count}</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{seg.label}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="flex gap-2 items-center">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-9 ${icls} border-border`} />
+        </div>
+        {segmentFilter !== 'all' && (
+          <Button variant="ghost" size="sm" onClick={() => setSegmentFilter('all')} className="text-xs h-8"><X className="h-3 w-3 mr-1" /> Clear Filter</Button>
+        )}
+        <span className="text-xs text-muted-foreground">{filteredUsers.length} shown</span>
       </div>
 
       <div className="space-y-3">
-        {filteredUsers.map(user => (
-          <Card key={user.id} className="group transition-all duration-300 hover:shadow-lg hover:border-gold/30 cursor-pointer" onClick={() => openUserDetail(user.id)}>
-            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold ring-2 ring-gold/30 ring-offset-1 group-hover:ring-gold transition-all duration-300">
-                  {user.name.charAt(0)}
+        {filteredUsers.length === 0 && (
+          <Card><CardContent className="p-8 text-center"><Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No users found</p></CardContent></Card>
+        )}
+        {filteredUsers.map(user => {
+          const segment = getCustomerSegment(user);
+          const segBadge = getSegmentBadge(segment);
+          return (
+            <Card key={user.id} className="group transition-all duration-300 hover:shadow-lg hover:border-gold/30 cursor-pointer" onClick={() => openUserDetail(user.id)}>
+              <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold ring-2 ring-offset-1 group-hover:ring-gold transition-all duration-300 ${segment === 'vip' ? 'ring-gold/50 bg-gold/10' : 'ring-gold/30'}`}>
+                    {user.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm group-hover:text-gold transition-colors duration-200">{user.name}</p>
+                      <Badge variant="outline" className={`text-[8px] border px-1.5 py-0 ${segBadge.cls}`}>{segBadge.label}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{user.email} • {user._count?.orders || 0} orders</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm group-hover:text-gold transition-colors duration-200">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                <div className="flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                  <Badge variant="outline" className="text-[10px] capitalize">{user.role}</Badge>
+                  <Badge variant={user.isBlocked ? 'destructive' : 'secondary'} className="text-[10px]">{user.isBlocked ? 'Blocked' : 'Active'}</Badge>
+                  <span className="text-[10px] text-muted-foreground">{new Date(user.createdAt).toLocaleDateString()}</span>
+                  <Button variant="ghost" size="sm" onClick={() => toggleBlock(user.id, user.isBlocked)} className="text-xs">
+                    {user.isBlocked ? <><CheckCircle className="mr-1 h-3 w-3" /> Unblock</> : <><Ban className="mr-1 h-3 w-3" /> Block</>}
+                  </Button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-                <Badge variant="outline" className="text-[10px] capitalize">{user.role}</Badge>
-                <Badge variant={user.isBlocked ? 'destructive' : 'secondary'} className="text-[10px]">{user.isBlocked ? 'Blocked' : 'Active'}</Badge>
-                <span className="text-xs text-muted-foreground">{user._count?.orders || 0} orders</span>
-                <Button variant="ghost" size="sm" onClick={() => toggleBlock(user.id, user.isBlocked)} className="text-xs">
-                  {user.isBlocked ? <><CheckCircle className="mr-1 h-3 w-3" /> Unblock</> : <><Ban className="mr-1 h-3 w-3" /> Block</>}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* User Detail Dialog */}
       <Dialog open={userLoading || !!selectedUser} onOpenChange={(open) => { if (!open) setSelectedUser(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           {userLoading && <div className="py-8 text-center"><Loader2 className="h-6 w-6 animate-spin text-gold mx-auto" /></div>}
           {selectedUser && (
             <>
               <DialogHeader>
-                <DialogTitle className="heading-serif text-lg">{selectedUser.user.name}</DialogTitle>
-                <DialogDescription>{selectedUser.user.email}</DialogDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="heading-serif text-lg flex items-center gap-2">
+                      {selectedUser.user.name}
+                      <Badge variant="outline" className={`text-[8px] border px-1.5 py-0 ${getSegmentBadge(getCustomerSegment(selectedUser.user)).cls}`}>
+                        {getSegmentBadge(getCustomerSegment(selectedUser.user)).label}
+                      </Badge>
+                    </DialogTitle>
+                    <DialogDescription>{selectedUser.user.email}</DialogDescription>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {customerNotes[selectedUser.user.id] && <Badge variant="outline" className="text-[9px] border-gold/30 text-gold"><FileText className="h-2.5 w-2.5 mr-0.5" /> Has Notes</Badge>}
+                  </div>
+                </div>
               </DialogHeader>
               <div className="space-y-4">
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   <div className="p-3 rounded-lg bg-muted/30 text-center">
                     <p className="text-lg font-bold text-gold">{selectedUser.orders.length}</p>
                     <p className="text-[10px] text-muted-foreground uppercase">Orders</p>
@@ -1034,48 +1175,121 @@ function UsersTab({ token }: { token: string | null }) {
                     <p className="text-[10px] text-muted-foreground uppercase">Total Spent</p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/30 text-center">
+                    <p className="text-lg font-bold text-gold">{selectedUser.orders.length > 0 ? formatCurrency(Math.round(selectedUser.totalSpent / selectedUser.orders.length)) : '₹0'}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Avg. Order</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/30 text-center">
                     <p className="text-lg font-bold text-gold">{selectedUser.user._count?.wishlist || 0}</p>
                     <p className="text-[10px] text-muted-foreground uppercase">Wishlist</p>
                   </div>
                 </div>
+
+                {/* Spending Breakdown */}
+                {selectedUser.orders.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-1"><DollarSign className="h-3.5 w-3.5 text-gold" /> Spending Breakdown</h4>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(() => {
+                        const paid = selectedUser.orders.filter((o: Order) => o.paymentStatus === 'paid');
+                        const pending = selectedUser.orders.filter((o: Order) => o.paymentStatus === 'pending');
+                        const refunded = selectedUser.orders.filter((o: Order) => o.paymentStatus === 'refunded');
+                        const paidTotal = paid.reduce((s: number, o: Order) => s + o.total, 0);
+                        const pendingTotal = pending.reduce((s: number, o: Order) => s + o.total, 0);
+                        const refundedTotal = refunded.reduce((s: number, o: Order) => s + o.total, 0);
+                        return [
+                          { label: 'Paid', amount: paidTotal, count: paid.length, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
+                          { label: 'Pending', amount: pendingTotal, count: pending.length, color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-950/30' },
+                          { label: 'Refunded', amount: refundedTotal, count: refunded.length, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
+                        ].map(item => (
+                          <div key={item.label} className={`p-3 rounded-lg ${item.bg}`}>
+                            <p className="text-[10px] text-muted-foreground uppercase">{item.label} ({item.count})</p>
+                            <p className={`text-base font-bold mt-1 ${item.color}`}>{formatCurrency(item.amount)}</p>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
+
                 {/* Info */}
                 <div className="p-3 rounded-lg bg-muted/30 space-y-1 text-sm">
-                  <p><span className="text-muted-foreground">Joined:</span> {new Date(selectedUser.user.createdAt).toLocaleDateString()}</p>
-                  <p><span className="text-muted-foreground">Phone:</span> {selectedUser.user.phone || 'N/A'}</p>
-                  <p><span className="text-muted-foreground">Location:</span> {selectedUser.user.city || 'N/A'}, {selectedUser.user.state || ''}</p>
-                </div>
-                {/* Recent Orders */}
-                <div>
-                  <h4 className="text-sm font-semibold mb-2">Recent Orders</h4>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {selectedUser.orders.length === 0 && <p className="text-xs text-muted-foreground">No orders yet</p>}
-                    {selectedUser.orders.map((o: Order) => (
-                      <div key={o.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                        <div>
-                          <p className="text-xs font-medium">{o.orderNumber}</p>
-                          <p className="text-[10px] text-muted-foreground">{new Date(o.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={`text-[9px] border ${getOrderStatusColor(o.status)}`}>{o.status}</Badge>
-                          <span className="text-xs font-bold text-gold">{formatCurrency(o.total)}</span>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-2 gap-2">
+                    <p><span className="text-muted-foreground">Joined:</span> {new Date(selectedUser.user.createdAt).toLocaleDateString()}</p>
+                    <p><span className="text-muted-foreground">Phone:</span> {selectedUser.user.phone || 'N/A'}</p>
+                    <p><span className="text-muted-foreground">City:</span> {selectedUser.user.city || 'N/A'}</p>
+                    <p><span className="text-muted-foreground">State:</span> {selectedUser.user.state || 'N/A'}</p>
+                    <p><span className="text-muted-foreground">Address:</span> {selectedUser.user.address || 'N/A'}</p>
+                    <p><span className="text-muted-foreground">Role:</span> {selectedUser.user.role}</p>
                   </div>
                 </div>
+
+                {/* Customer Notes */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1"><FileText className="h-3.5 w-3.5 text-gold" /> Admin Notes</h4>
+                  <Textarea
+                    value={customerNotes[selectedUser.user.id] || ''}
+                    onChange={(e) => setCustomerNotes(prev => ({ ...prev, [selectedUser.user.id]: e.target.value }))}
+                    className={icls}
+                    rows={2}
+                    placeholder="Add internal notes about this customer..."
+                  />
+                  <Button size="sm" onClick={() => saveCustomerNote(selectedUser.user.id)} disabled={noteSaving} className="mt-2 text-xs">
+                    {noteSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />} Save Note
+                  </Button>
+                </div>
+
+                {/* Activity Timeline */}
+                {selectedUser.orders.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-gold" /> Order History Timeline</h4>
+                    <div className="space-y-0 max-h-64 overflow-y-auto">
+                      {selectedUser.orders.map((o: Order, i: number) => {
+                        const isFirst = i === 0;
+                        return (
+                          <div key={o.id} className="flex gap-3">
+                            <div className="flex flex-col items-center">
+                              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isFirst ? 'bg-gold ring-2 ring-gold/30' : 'bg-muted-foreground/30'}`} />
+                              {i < selectedUser.orders.length - 1 && <div className="w-px flex-1 bg-border" />}
+                            </div>
+                            <div className="flex-1 pb-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs font-medium">{o.orderNumber}</p>
+                                  <p className="text-[10px] text-muted-foreground">{new Date(o.createdAt).toLocaleDateString()} • {o.items.length} item{o.items.length !== 1 ? 's' : ''}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className={`text-[8px] border ${getOrderStatusColor(o.status)}`}>{o.status}</Badge>
+                                  <span className="text-xs font-bold text-gold">{formatCurrency(o.total)}</span>
+                                </div>
+                              </div>
+                              {isFirst && <span className="text-[9px] text-gold font-medium">Latest Order</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Wishlist */}
                 {selectedUser.wishlist.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-red-500" /> Wishlist</h4>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {selectedUser.wishlist.map((w: any) => (
-                        <div key={w.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-                          <div className="w-8 h-10 rounded bg-muted overflow-hidden shrink-0">
-                            <img src={parseJsonField<string>(w.product?.images)[0] || '/placeholder.jpg'} alt="" className="w-full h-full object-cover" />
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-red-500" /> Wishlist ({selectedUser.wishlist.length} items)</h4>
+                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      {selectedUser.wishlist.map((w: any) => {
+                        const imgs = parseJsonField<string>(w.product?.images);
+                        return (
+                          <div key={w.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                            <div className="w-8 h-10 rounded bg-muted overflow-hidden shrink-0">
+                              <img src={imgs[0] || '/placeholder.jpg'} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">{w.product?.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{w.product?.category?.name || ''} • {formatCurrency(w.product?.price || 0)}</p>
+                            </div>
                           </div>
-                          <p className="text-xs font-medium truncate">{w.product?.name}</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2050,30 +2264,30 @@ function SEOSettingsSection({ token }: { token: string | null }) {
       <SectionHeader icon={BarChart3} title="SEO Settings" />
       <div className="space-y-4">
         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">General SEO</p>
-        <SettingField label="Site Title" key="seo_title" placeholder="MIRADEEN - Luxury Fashion" />
-        <SettingField label="Site Description" key="seo_description" placeholder="Discover luxury fashion at MIRADEEN..." type="textarea" />
-        <SettingField label="Keywords" key="seo_keywords" placeholder="luxury, fashion, silk, designer" />
+        <SettingField label="Site Title" value={seoSettings['seo_title'] || ''} onChange={(v) => updateSetting('seo_title', v)} placeholder="MIRADEEN - Luxury Fashion" />
+        <SettingField label="Site Description" value={seoSettings['seo_description'] || ''} onChange={(v) => updateSetting('seo_description', v)} placeholder="Discover luxury fashion at MIRADEEN..." type="textarea" />
+        <SettingField label="Keywords" value={seoSettings['seo_keywords'] || ''} onChange={(v) => updateSetting('seo_keywords', v)} placeholder="luxury, fashion, silk, designer" />
       </div>
       <div className="space-y-4">
         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1"><Globe className="h-3 w-3" /> Social Media Links</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <SettingField label="Facebook URL" key="social_facebook" placeholder="https://facebook.com/miradeen" />
-          <SettingField label="Instagram URL" key="social_instagram" placeholder="https://instagram.com/miradeen" />
-          <SettingField label="Twitter URL" key="social_twitter" placeholder="https://twitter.com/miradeen" />
-          <SettingField label="Pinterest URL" key="social_pinterest" placeholder="https://pinterest.com/miradeen" />
-          <SettingField label="YouTube URL" key="social_youtube" placeholder="https://youtube.com/@miradeen" />
-          <SettingField label="Google Analytics ID" key="google_analytics_id" placeholder="G-XXXXXXXXXX" />
+          <SettingField label="Facebook URL" value={seoSettings['social_facebook'] || ''} onChange={(v) => updateSetting('social_facebook', v)} placeholder="https://facebook.com/miradeen" />
+          <SettingField label="Instagram URL" value={seoSettings['social_instagram'] || ''} onChange={(v) => updateSetting('social_instagram', v)} placeholder="https://instagram.com/miradeen" />
+          <SettingField label="Twitter URL" value={seoSettings['social_twitter'] || ''} onChange={(v) => updateSetting('social_twitter', v)} placeholder="https://twitter.com/miradeen" />
+          <SettingField label="Pinterest URL" value={seoSettings['social_pinterest'] || ''} onChange={(v) => updateSetting('social_pinterest', v)} placeholder="https://pinterest.com/miradeen" />
+          <SettingField label="YouTube URL" value={seoSettings['social_youtube'] || ''} onChange={(v) => updateSetting('social_youtube', v)} placeholder="https://youtube.com/@miradeen" />
+          <SettingField label="Google Analytics ID" value={seoSettings['google_analytics_id'] || ''} onChange={(v) => updateSetting('google_analytics_id', v)} placeholder="G-XXXXXXXXXX" />
         </div>
       </div>
       <div className="space-y-4">
         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1"><ImageIcon className="h-3 w-3" /> Media</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <SettingField label="Favicon URL" key="favicon_url" placeholder="https://..." />
-          <SettingField label="Open Graph Default Image" key="og_image_url" placeholder="https://..." />
+          <SettingField label="Favicon URL" value={seoSettings['favicon_url'] || ''} onChange={(v) => updateSetting('favicon_url', v)} placeholder="https://..." />
+          <SettingField label="Open Graph Default Image" value={seoSettings['og_image_url'] || ''} onChange={(v) => updateSetting('og_image_url', v)} placeholder="https://..." />
         </div>
-        {seoSettings.og_image_url && (
+        {seoSettings['og_image_url'] && (
           <div className="w-64 h-40 rounded-lg bg-muted overflow-hidden border border-border">
-            <img src={seoSettings.og_image_url} alt="OG Preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src={seoSettings['og_image_url']} alt="OG Preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           </div>
         )}
       </div>
@@ -2315,14 +2529,54 @@ function MediaLibrarySection({ token }: { token: string | null }) {
 function MarketingTab({ token }: { token: string | null }) {
   const { toast } = useToast();
   const [subscribers, setSubscribers] = useState<any[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<{ month: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [emailText, setEmailText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSection, setActiveSection] = useState<'newsletter' | 'social_proof' | 'promo_banners'>('newsletter');
 
-  useEffect(() => {
+  // Social Proof settings
+  const [socialProofEnabled, setSocialProofEnabled] = useState(false);
+  const [socialProofText, setSocialProofText] = useState('');
+  const [socialProofDelay, setSocialProofDelay] = useState('15');
+  const [socialProofLoading, setSocialProofLoading] = useState(false);
+
+  // Add subscriber form
+  const [showAddSub, setShowAddSub] = useState(false);
+  const [newSubEmail, setNewSubEmail] = useState('');
+  const [newSubName, setNewSubName] = useState('');
+  const [addingSub, setAddingSub] = useState(false);
+
+  const fetchNewsletterData = useCallback(() => {
     fetch('/api/admin/newsletter', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { setSubscribers(d.subscribers || []); setLoading(false); }).catch(() => setLoading(false));
+      .then(r => r.json()).then(d => {
+        setSubscribers(d.subscribers || []);
+        setMonthlyTrend(d.monthlyTrend || []);
+        setLoading(false);
+      }).catch(() => setLoading(false));
   }, [token]);
+
+  useEffect(() => { fetchNewsletterData(); }, [fetchNewsletterData]);
+
+  // Load social proof settings
+  useEffect(() => {
+    fetch('/api/admin/settings', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => {
+        const s = d.settings || {};
+        setSocialProofEnabled(s.social_proof_enabled === 'true');
+        setSocialProofText(s.social_proof_text || 'Someone just purchased a {product}!');
+        setSocialProofDelay(s.social_proof_delay || '15');
+      }).catch(() => {});
+  }, [token]);
+
+  const saveSocialProof = async (key: string, value: string) => {
+    setSocialProofLoading(true);
+    try {
+      await fetch('/api/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ key, value }) });
+      toast({ title: 'Social proof setting saved' });
+    } catch { toast({ title: 'Failed to save', variant: 'destructive' }); }
+    setSocialProofLoading(false);
+  };
 
   const deleteSub = async (id: string) => {
     await fetch(`/api/admin/newsletter?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
@@ -2330,9 +2584,15 @@ function MarketingTab({ token }: { token: string | null }) {
     setSubscribers(prev => prev.filter(s => s.id !== id));
   };
 
+  const toggleSubActive = async (sub: any) => {
+    await fetch('/api/admin/newsletter', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: sub.id, isActive: !sub.isActive }) });
+    setSubscribers(prev => prev.map(s => s.id === sub.id ? { ...s, isActive: !s.isActive } : s));
+    toast({ title: `Subscriber ${!sub.isActive ? 'activated' : 'deactivated'}` });
+  };
+
   const exportSubscribers = () => {
-    const csv = 'Email,Name,Subscribed\n' + subscribers.map(s => `${s.email},${s.name || ''},${new Date(s.createdAt).toLocaleDateString()}`).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = 'Email,Name,Status,Subscribed\n' + subscribers.map(s => `${s.email},${s.name || ''},${s.isActive ? 'Active' : 'Inactive'},${new Date(s.createdAt).toLocaleDateString()}`).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'subscribers.csv'; a.click();
@@ -2342,85 +2602,306 @@ function MarketingTab({ token }: { token: string | null }) {
 
   const handleBulkEmail = () => {
     if (!emailText.trim()) { toast({ title: 'Enter email content', variant: 'destructive' }); return; }
-    toast({ title: `Bulk email queued for ${subscribers.length} subscribers`, description: 'Email sending is a placeholder — configure SMTP for production.' });
+    toast({ title: `Bulk email queued for ${subscribers.filter(s => s.isActive).length} active subscribers`, description: 'Email sending is a placeholder — configure SMTP for production.' });
     setEmailText('');
+  };
+
+  const handleAddSubscriber = async () => {
+    if (!newSubEmail.trim() || !validateEmail(newSubEmail.trim())) {
+      toast({ title: 'Valid email required', variant: 'destructive' });
+      return;
+    }
+    setAddingSub(true);
+    try {
+      const res = await fetch('/api/admin/newsletter', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: newSubEmail.trim(), name: newSubName.trim() || null }) });
+      if (res.ok) {
+        toast({ title: 'Subscriber added!' });
+        setNewSubEmail(''); setNewSubName(''); setShowAddSub(false);
+        fetchNewsletterData();
+      } else {
+        const d = await res.json();
+        toast({ title: d.error || 'Failed to add subscriber', variant: 'destructive' });
+      }
+    } catch { toast({ title: 'Failed', variant: 'destructive' }); }
+    setAddingSub(false);
   };
 
   if (loading) return <AdminSkeleton rows={3} />;
 
   const filtered = subscribers.filter(s => s.email.toLowerCase().includes(searchQuery.toLowerCase()) || (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()));
   const activeCount = subscribers.filter(s => s.isActive).length;
+  const thisMonthCount = monthlyTrend.length > 0 ? monthlyTrend[monthlyTrend.length - 1]?.count || 0 : 0;
+  const maxTrendCount = Math.max(...monthlyTrend.map(t => t.count), 1);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="heading-serif text-2xl font-bold">Marketing</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Newsletter subscribers & email campaigns</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card className="transition-all duration-300 hover:shadow-md">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-50 dark:bg-green-950/30"><Mail className="h-4 w-4 text-green-600" /></div>
-            <div><p className="text-lg font-bold">{subscribers.length}</p><p className="text-[10px] text-muted-foreground uppercase">Total</p></div>
-          </CardContent>
-        </Card>
-        <Card className="transition-all duration-300 hover:shadow-md">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30"><CheckCircle2 className="h-4 w-4 text-blue-600" /></div>
-            <div><p className="text-lg font-bold">{activeCount}</p><p className="text-[10px] text-muted-foreground uppercase">Active</p></div>
-          </CardContent>
-        </Card>
-        <Card className="transition-all duration-300 hover:shadow-md">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30"><Send className="h-4 w-4 text-gold" /></div>
-            <div><p className="text-lg font-bold">0</p><p className="text-[10px] text-muted-foreground uppercase">Campaigns</p></div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bulk Email */}
-      <Card className="border-gold/20">
-        <CardContent className="p-4">
-          <h3 className="heading-serif text-base font-semibold text-gold mb-2 flex items-center gap-2"><Send className="h-4 w-4" /> Send Bulk Email</h3>
-          <Textarea value={emailText} onChange={(e) => setEmailText(e.target.value)} className={`${icls} mb-3`} rows={3} placeholder="Write your email content here..." />
-          <div className="flex gap-2">
-            <Button onClick={handleBulkEmail} disabled={!emailText.trim()} className={goldBtn} size="sm"><Send className="h-3 w-3 mr-1" /> Send to All</Button>
-            <Button onClick={exportSubscribers} variant="outline" size="sm"><Download className="h-3 w-3 mr-1" /> Export CSV</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Subscribers List */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <SectionHeader icon={Mail} title="Subscribers" badge={`${filtered.length} shown`} />
-          <div className="relative w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-8 h-8 text-xs ${icls}`} />
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="heading-serif text-2xl font-bold">Marketing</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Newsletter, social proof & promotions</p>
         </div>
-        <div className="max-h-96 overflow-y-auto space-y-2">
-          {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No subscribers found</p>}
-          {filtered.map(sub => (
-            <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-card border border-border hover:border-gold/30 transition-all duration-200">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-xs font-bold text-gold">{(sub.name || sub.email).charAt(0).toUpperCase()}</div>
-                <div>
-                  <p className="text-sm font-medium">{sub.name || sub.email}</p>
-                  <p className="text-xs text-muted-foreground">{sub.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge className={`text-[9px] ${sub.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{sub.isActive ? 'Active' : 'Inactive'}</Badge>
-                <span className="text-[10px] text-muted-foreground">{new Date(sub.createdAt).toLocaleDateString()}</span>
-                <button onClick={() => deleteSub(sub.id)} className="p-1 rounded text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button>
-              </div>
-            </div>
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { id: 'newsletter' as const, label: 'Newsletter', icon: Mail },
+            { id: 'social_proof' as const, label: 'Social Proof', icon: MousePointerClick },
+            { id: 'promo_banners' as const, label: 'Promo Banners', icon: Megaphone },
+          ]).map(s => (
+            <Button key={s.id} variant={activeSection === s.id ? 'default' : 'outline'} size="sm" onClick={() => setActiveSection(s.id)} className={activeSection === s.id ? goldBtn : 'text-xs'}>
+              <s.icon className="h-3 w-3 mr-1" /> {s.label}
+            </Button>
           ))}
         </div>
       </div>
+
+      {/* Newsletter Section */}
+      {activeSection === 'newsletter' && (
+        <div className="space-y-6">
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="transition-all duration-300 hover:shadow-md">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-50 dark:bg-green-950/30"><Mail className="h-4 w-4 text-green-600" /></div>
+                <div><p className="text-lg font-bold">{subscribers.length}</p><p className="text-[10px] text-muted-foreground uppercase">Total</p></div>
+              </CardContent>
+            </Card>
+            <Card className="transition-all duration-300 hover:shadow-md">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30"><CheckCircle2 className="h-4 w-4 text-blue-600" /></div>
+                <div><p className="text-lg font-bold">{activeCount}</p><p className="text-[10px] text-muted-foreground uppercase">Active</p></div>
+              </CardContent>
+            </Card>
+            <Card className="transition-all duration-300 hover:shadow-md">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30"><TrendingUp className="h-4 w-4 text-gold" /></div>
+                <div><p className="text-lg font-bold text-gold">{thisMonthCount}</p><p className="text-[10px] text-muted-foreground uppercase">This Month</p></div>
+              </CardContent>
+            </Card>
+            <Card className="transition-all duration-300 hover:shadow-md">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30"><Send className="h-4 w-4 text-purple-600" /></div>
+                <div><p className="text-lg font-bold">0</p><p className="text-[10px] text-muted-foreground uppercase">Campaigns</p></div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Monthly Trend */}
+          {monthlyTrend.length > 0 && (
+            <Card className="transition-all duration-300 hover:shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="heading-serif text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-gold" /> Subscription Trend (Last 6 Months)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end gap-2 h-24">
+                  {monthlyTrend.map((t, i) => {
+                    const height = Math.max((t.count / maxTrendCount) * 100, 4);
+                    return (
+                      <div key={t.month} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-[9px] font-bold text-gold">{t.count}</span>
+                        <div className="w-full bg-gold/20 rounded-t-sm relative" style={{ height: `${height}%` }}>
+                          <div className={`absolute inset-0 rounded-t-sm ${i === monthlyTrend.length - 1 ? 'bg-gold' : 'bg-gold/50'}`} />
+                        </div>
+                        <span className="text-[8px] text-muted-foreground">{t.month.split('-')[1]}/{t.month.split('-')[0].slice(2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Bulk Email */}
+          <Card className="border-gold/20">
+            <CardContent className="p-4">
+              <h3 className="heading-serif text-base font-semibold text-gold mb-2 flex items-center gap-2"><Send className="h-4 w-4" /> Send Bulk Email</h3>
+              <Textarea value={emailText} onChange={(e) => setEmailText(e.target.value)} className={`${icls} mb-3`} rows={3} placeholder="Write your email content here..." />
+              <div className="flex gap-2">
+                <Button onClick={handleBulkEmail} disabled={!emailText.trim()} className={goldBtn} size="sm"><Send className="h-3 w-3 mr-1" /> Send to {activeCount} Active</Button>
+                <Button onClick={exportSubscribers} variant="outline" size="sm"><Download className="h-3 w-3 mr-1" /> Export CSV</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Subscribers List */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <SectionHeader icon={Mail} title="Subscribers" badge={`${filtered.length} shown`} action={
+                <Button onClick={() => setShowAddSub(!showAddSub)} size="sm" variant="outline" className="text-xs">
+                  <Plus className="h-3 w-3 mr-1" /> Add Subscriber
+                </Button>
+              } />
+            </div>
+
+            {/* Add Subscriber Form */}
+            {showAddSub && (
+              <Card className="mb-3 border-gold/30">
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><Label>Email <span className="text-destructive">*</span></Label><Input value={newSubEmail} onChange={(e) => setNewSubEmail(e.target.value)} className={`mt-1 ${icls}`} placeholder="email@example.com" /></div>
+                    <div><Label>Name</Label><Input value={newSubName} onChange={(e) => setNewSubName(e.target.value)} className={`mt-1 ${icls}`} placeholder="Optional name" /></div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <Button onClick={handleAddSubscriber} disabled={addingSub || !newSubEmail.trim()} size="sm" className={goldBtn}>
+                      {addingSub ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />} Add
+                    </Button>
+                    <Button onClick={() => setShowAddSub(false)} size="sm" variant="outline">Cancel</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="flex gap-2 mb-3 flex-wrap">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input placeholder="Search subscribers..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-8 h-8 text-xs ${icls}`} />
+              </div>
+              <Button variant={searchQuery ? 'ghost' : 'outline'} size="sm" onClick={() => setSearchQuery('')} className="text-xs h-8"><X className="h-3 w-3" /></Button>
+            </div>
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No subscribers found</p>}
+              {filtered.map(sub => (
+                <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-card border border-border hover:border-gold/30 transition-all duration-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-xs font-bold text-gold">{(sub.name || sub.email).charAt(0).toUpperCase()}</div>
+                    <div>
+                      <p className="text-sm font-medium">{sub.name || sub.email}</p>
+                      <p className="text-xs text-muted-foreground">{sub.email} • {new Date(sub.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={`text-[9px] cursor-pointer ${sub.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`} onClick={() => toggleSubActive(sub)}>{sub.isActive ? 'Active' : 'Inactive'}</Badge>
+                    <button onClick={() => toggleSubActive(sub)} className="p-1 rounded text-muted-foreground hover:text-gold" title="Toggle active">
+                      {sub.isActive ? <ToggleRight className="h-3.5 w-3.5 text-green-600" /> : <ToggleLeft className="h-3.5 w-3.5" />}
+                    </button>
+                    <button onClick={() => deleteSub(sub.id)} className="p-1 rounded text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Social Proof Section */}
+      {activeSection === 'social_proof' && (
+        <div className="space-y-6">
+          <SectionHeader icon={MousePointerClick} title="Social Proof Notifications" badge="Engagement" />
+
+          <Card className="border-gold/20">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Enable Social Proof Popups</p>
+                  <p className="text-xs text-muted-foreground">Show recent purchase notifications to visitors</p>
+                </div>
+                <Switch
+                  checked={socialProofEnabled}
+                  onCheckedChange={(v) => { setSocialProofEnabled(v); saveSocialProof('social_proof_enabled', String(v)); }}
+                />
+              </div>
+
+              {socialProofEnabled && (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium">Notification Text Template</Label>
+                    <p className="text-[10px] text-muted-foreground mb-1">Use {'{product}'} and {'{time}'} as placeholders</p>
+                    <Input
+                      value={socialProofText}
+                      onChange={(e) => setSocialProofText(e.target.value)}
+                      className={icls}
+                      placeholder="Someone just purchased a {product}!"
+                      onBlur={() => saveSocialProof('social_proof_text', socialProofText)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Display Delay (seconds)</Label>
+                    <p className="text-[10px] text-muted-foreground mb-1">Time between notifications</p>
+                    <Input
+                      type="number"
+                      value={socialProofDelay}
+                      onChange={(e) => setSocialProofDelay(e.target.value)}
+                      className={`w-32 ${icls}`}
+                      min="5" max="120"
+                      onBlur={() => saveSocialProof('social_proof_delay', socialProofDelay)}
+                    />
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mb-2">Preview</p>
+                    <div className="p-3 rounded-lg bg-card border border-gold/20 shadow-lg max-w-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center"><ShoppingBag className="h-4 w-4 text-gold" /></div>
+                        <div>
+                          <p className="text-xs font-medium">{socialProofText.replace('{product}', 'Silk Saree').replace('{time}', '2 min ago')}</p>
+                          <p className="text-[10px] text-muted-foreground">Just now</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {socialProofLoading && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Saving...</div>}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1"><Sparkles className="h-4 w-4 text-gold" /> Tips for Social Proof</h4>
+              <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                <li>Keep notifications concise — 2-3 seconds visibility works best</li>
+                <li>Use real product names for authenticity</li>
+                <li>Set delay between 10-30 seconds to avoid annoying visitors</li>
+                <li>Combine with limited-time offers for higher conversions</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Promotional Banners Section */}
+      {activeSection === 'promo_banners' && (
+        <div className="space-y-6">
+          <SectionHeader icon={Megaphone} title="Promotional Banners" badge="CMS Integration" />
+
+          <Card className="border-gold/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-gold" />
+                <p className="font-medium text-sm">Schedule Promotional Banners</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Manage time-sensitive promotional banners from the CMS Banners section. Use start/end dates to automatically activate and deactivate promotional content.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { title: 'Seasonal Sales', desc: 'Create banners for Diwali, Eid, Christmas sales', color: 'bg-green-50 dark:bg-green-950/30' },
+                  { title: 'Flash Deals', desc: 'Time-limited offers with countdown urgency', color: 'bg-orange-50 dark:bg-orange-950/30' },
+                  { title: 'New Arrivals', desc: 'Promote new collections automatically', color: 'bg-blue-50 dark:bg-blue-950/30' },
+                ].map(card => (
+                  <div key={card.title} className={`p-3 rounded-lg border border-border ${card.color}`}>
+                    <p className="text-sm font-semibold">{card.title}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{card.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <Button onClick={() => { setActiveSection('newsletter'); }} variant="outline" size="sm" className="text-xs">
+                <ImageIcon className="h-3 w-3 mr-1" /> Go to CMS Banners to manage
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1"><CalendarDays className="h-4 w-4 text-gold" /> Scheduling Best Practices</h4>
+              <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                <li>Set both start and end dates for seasonal promotions</li>
+                <li>Use &quot;hero&quot; position for maximum visibility</li>
+                <li>Stack multiple mid-page banners for product categories</li>
+                <li>Disable expired banners to keep the storefront clean</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -2433,13 +2914,25 @@ function SettingsTab({ token }: { token: string | null }) {
   const [loading, setLoading] = useState(true);
   const [settingsErrors, setSettingsErrors] = useState<Record<string, string>>({});
 
+  // Default settings keys to always show even when not in DB
+  const defaultSettings: Record<string, string> = {
+    site_name: '', tagline: '', address: '',
+    contact_email: '', contact_phone: '', contact_whatsapp: '',
+    social_instagram: '', social_facebook: '', social_twitter: '', social_youtube: '', social_pinterest: '',
+    seo_title: '', seo_description: '', seo_keywords: '',
+    announcement_text: '',
+    brand_tagline: '', brand_mission: '', about_title: '', about_content: '',
+    free_shipping_min: '', shipping_flat_rate: '', shipping_express_rate: '',
+    tax_rate: '', tax_enabled: 'false',
+    paypal_client_id: '', paypal_mode: 'sandbox',
+  };
+
   useEffect(() => {
     fetch('/api/admin/settings', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(data => { setSettings(data.settings || {}); setLoading(false); }).catch(() => setLoading(false));
+      .then(r => r.json()).then(data => { setSettings({ ...defaultSettings, ...(data.settings || {}) }); setLoading(false); }).catch(() => { setSettings(defaultSettings); setLoading(false); });
   }, [token]);
 
   const updateSetting = (key: string, value: string) => {
-    // Validate before saving
     const error = validateSettingField(key, value);
     setSettingsErrors(prev => {
       const updated = { ...prev };
@@ -2448,14 +2941,13 @@ function SettingsTab({ token }: { token: string | null }) {
       return updated;
     });
     if (!error) {
-      // Only save to server if valid
       fetch('/api/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ key, value }) })
         .then(res => { if (res.ok) setSettings(prev => ({ ...prev, [key]: value })); });
     }
   };
 
   const validateSettingField = (key: string, value: string): string | undefined => {
-    if (!value.trim()) return undefined; // empty ok for optional fields
+    if (!value.trim()) return undefined;
     switch (key) {
       case 'contact_email':
         if (!validateEmail(value)) return 'Please enter a valid email';
@@ -2464,15 +2956,23 @@ function SettingsTab({ token }: { token: string | null }) {
       case 'contact_whatsapp':
         if (!validatePhone(value)) return 'Enter a valid 10-digit Indian phone (starts with 6-9)';
         return undefined;
-      case 'free_shipping_min': {
+      case 'free_shipping_min':
+      case 'shipping_flat_rate':
+      case 'shipping_express_rate': {
         const n = parseFloat(value);
         if (isNaN(n) || n < 0) return 'Must be a valid non-negative number';
+        return undefined;
+      }
+      case 'tax_rate': {
+        const n = parseFloat(value);
+        if (isNaN(n) || n < 0 || n > 100) return 'Tax rate must be between 0 and 100';
         return undefined;
       }
       case 'social_instagram':
       case 'social_facebook':
       case 'social_twitter':
       case 'social_youtube':
+      case 'social_pinterest':
         if (!validateUrl(value)) return 'Please enter a valid URL';
         return undefined;
       default:
@@ -2487,22 +2987,75 @@ function SettingsTab({ token }: { token: string | null }) {
     brand_mission: 'Brand Mission', contact_email: 'Contact Email', contact_phone: 'Contact Phone',
     contact_whatsapp: 'WhatsApp Number', free_shipping_min: 'Free Shipping Min Order (₹)',
     site_name: 'Site Name', tagline: 'Tagline', address: 'Address',
-    social_instagram: 'Instagram URL', social_facebook: 'Facebook URL', social_twitter: 'Twitter URL', social_youtube: 'YouTube URL',
+    social_instagram: 'Instagram URL', social_facebook: 'Facebook URL', social_twitter: 'Twitter URL',
+    social_youtube: 'YouTube URL', social_pinterest: 'Pinterest URL',
     seo_title: 'SEO Meta Title', seo_description: 'SEO Meta Description', seo_keywords: 'SEO Keywords',
     announcement_text: 'Announcement Text',
+    shipping_flat_rate: 'Standard Shipping Rate (₹)', shipping_express_rate: 'Express Shipping Rate (₹)',
+    tax_rate: 'Tax Rate (%)', tax_enabled: 'Tax Enabled',
+    paypal_client_id: 'PayPal Client ID', paypal_mode: 'PayPal Mode',
   };
 
   const sections = [
     { title: 'Site Info', keys: ['site_name', 'tagline', 'address'], icon: Globe },
     { title: 'Contact Information', keys: ['contact_email', 'contact_phone', 'contact_whatsapp'], icon: Phone },
-    { title: 'Social Media', keys: ['social_instagram', 'social_facebook', 'social_twitter', 'social_youtube'], icon: Globe },
+    { title: 'Social Media', keys: ['social_instagram', 'social_facebook', 'social_twitter', 'social_youtube', 'social_pinterest'], icon: Globe },
     { title: 'SEO Settings', keys: ['seo_title', 'seo_description', 'seo_keywords'], icon: BarChart3 },
     { title: 'Announcement', keys: ['announcement_text'], icon: Megaphone },
     { title: 'Brand Settings', keys: ['brand_tagline', 'brand_mission', 'about_title', 'about_content'], icon: Crown },
-    { title: 'Shipping Settings', keys: ['free_shipping_min'], icon: Package },
+    { title: 'Shipping Settings', keys: ['free_shipping_min', 'shipping_flat_rate', 'shipping_express_rate'], icon: Truck },
+    { title: 'Tax Settings', keys: ['tax_enabled', 'tax_rate'], icon: Percent },
+    { title: 'Payment Settings', keys: ['paypal_client_id', 'paypal_mode'], icon: CreditCard },
   ];
 
   const saveAll = () => { toast({ title: 'All settings saved!' }); };
+
+  const renderField = (key: string, value: string) => {
+    const isTextarea = key.includes('content') || key.includes('mission') || key.includes('description') || key.includes('announcement');
+    if (key === 'tax_enabled') {
+      return (
+        <Card key={key} className="transition-all duration-300 hover:shadow-md hover:border-gold/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">{labels[key] || key}</Label>
+              <Switch checked={value === 'true'} onCheckedChange={(v) => updateSetting(key, String(v))} />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">Enable tax calculation on orders</p>
+          </CardContent>
+        </Card>
+      );
+    }
+    if (key === 'paypal_mode') {
+      return (
+        <Card key={key} className="transition-all duration-300 hover:shadow-md hover:border-gold/20">
+          <CardContent className="p-4">
+            <Label className="text-sm font-medium">{labels[key] || key}</Label>
+            <Select value={value} onValueChange={(v) => updateSetting(key, v)}>
+              <SelectTrigger className={`mt-1 ${icls}`}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
+                <SelectItem value="live">Live (Production)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">Use sandbox for testing, switch to live for production</p>
+          </CardContent>
+        </Card>
+      );
+    }
+    return (
+      <Card key={key} className="transition-all duration-300 hover:shadow-md hover:border-gold/20">
+        <CardContent className="p-4">
+          <Label className="text-sm font-medium">{labels[key] || key}</Label>
+          {isTextarea ? (
+            <Textarea value={value || ''} onChange={(e) => updateSetting(key, e.target.value)} className={`mt-1 ${icls} ${settingsErrors[key] ? 'border-destructive' : ''}`} rows={2} placeholder={`Enter ${labels[key] || key}`} />
+          ) : (
+            <Input value={value || ''} onChange={(e) => updateSetting(key, e.target.value)} className={`mt-1 ${icls} ${settingsErrors[key] ? 'border-destructive' : ''}`} placeholder={`Enter ${labels[key] || key}`} />
+          )}
+          {settingsErrors[key] && <p className="text-xs text-destructive mt-1">{settingsErrors[key]}</p>}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -2513,35 +3066,19 @@ function SettingsTab({ token }: { token: string | null }) {
         </div>
         <Button onClick={saveAll} size="sm" className={goldBtn}><Save className="mr-1 h-4 w-4" /> Save All</Button>
       </div>
-      {sections.map((section) => {
-        const entries = Object.entries(settings).filter(([key]) => section.keys.includes(key));
-        if (entries.length === 0) return null;
-        return (
-          <div key={section.title} className="space-y-3">
-            <SectionHeader icon={section.icon} title={section.title} />
-            <div className="space-y-3">
-              {entries.map(([key, value]) => (
-                <Card key={key} className="transition-all duration-300 hover:shadow-md hover:border-gold/20">
-                  <CardContent className="p-4">
-                    <Label className="text-sm font-medium">{labels[key] || key}</Label>
-                    {key.includes('content') || key.includes('mission') || key.includes('description') || key.includes('announcement') ? (
-                      <Textarea value={value} onChange={(e) => updateSetting(key, e.target.value)} className={`mt-1 ${icls} ${settingsErrors[key] ? 'border-destructive' : ''}`} rows={2} />
-                    ) : (
-                      <Input value={value} onChange={(e) => updateSetting(key, e.target.value)} className={`mt-1 ${icls} ${settingsErrors[key] ? 'border-destructive' : ''}`} />
-                    )}
-                    {settingsErrors[key] && <p className="text-xs text-destructive mt-1">{settingsErrors[key]}</p>}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+      {sections.map((section) => (
+        <div key={section.title} className="space-y-3">
+          <SectionHeader icon={section.icon} title={section.title} badge={`${section.keys.length} fields`} />
+          <div className="space-y-3">
+            {section.keys.map(key => renderField(key, settings[key] || ''))}
           </div>
-        );
-      })}
+        </div>
+      ))}
 
       {/* Ungrouped settings */}
       {(() => {
         const allKeys = new Set(sections.flatMap(s => s.keys));
-        const ungrouped = Object.entries(settings).filter(([k]) => !allKeys.has(k));
+        const ungrouped = Object.entries(settings).filter(([k, v]) => !allKeys.has(k) && v);
         if (ungrouped.length === 0) return null;
         return (
           <div className="space-y-3">

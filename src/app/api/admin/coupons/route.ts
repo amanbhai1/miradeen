@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const coupon = await db.coupon.create({
       data: {
         code: code.toUpperCase(),
-        discount: parseFloat(discount),
+        discount: Number(discount),
         type,
         minOrder: minOrder ? parseFloat(minOrder) : null,
         maxUses: maxUses ? parseInt(maxUses) : null,
@@ -103,7 +103,12 @@ export async function PUT(request: NextRequest) {
       updateData.code = upperCode;
     }
     if (discount !== undefined) updateData.discount = parseFloat(discount);
-    if (type !== undefined) updateData.type = type;
+    if (type !== undefined) {
+      if (!['percentage', 'fixed'].includes(type)) {
+        return NextResponse.json({ error: 'Type must be "percentage" or "fixed"' }, { status: 400 });
+      }
+      updateData.type = type;
+    }
     if (minOrder !== undefined) updateData.minOrder = minOrder ? parseFloat(minOrder) : null;
     if (maxUses !== undefined) updateData.maxUses = maxUses ? parseInt(maxUses) : null;
     if (isActive !== undefined) updateData.isActive = isActive;
