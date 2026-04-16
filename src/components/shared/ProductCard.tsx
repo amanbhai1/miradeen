@@ -96,7 +96,7 @@ function ProductBadges({ product, show }: { product: Product; show: boolean }) {
   return (
     <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1.5">
       {product.isNewArrival && (
-        <Badge className="badge-shine bg-green-600 text-white text-[9px] px-2 py-0.5 rounded-sm font-semibold tracking-wider border-0 shadow-sm">
+        <Badge className="new-badge-pulse badge-shine bg-green-600 text-white text-[9px] px-2 py-0.5 rounded-sm font-semibold tracking-wider border-0 shadow-sm">
           NEW
         </Badge>
       )}
@@ -365,7 +365,7 @@ function CompareButton({
    ═══════════════════════════════════════════════════════════════════ */
 
 function GridCard({ product, showQuickActions, showRating, showBadges, showCompare, showWishlist }: Omit<ProductCardProps, 'variant' | 'className'>) {
-  const { navigate, toggleWishlist, toggleCompare, wishlistIds, compareIds } = useStore();
+  const { navigate, toggleWishlist, toggleCompare, wishlistIds, compareIds, setQuickViewProductId } = useStore();
   const images = parseJsonField<string>(product.images);
   const colors = parseJsonField<string>(product.colors);
   const [isHovered, setIsHovered] = useState(false);
@@ -397,7 +397,7 @@ function GridCard({ product, showQuickActions, showRating, showBadges, showCompa
       <div
         onMouseMove={tilt.handleMouseMove}
         onMouseLeave={tilt.handleMouseLeave}
-        className="card-luxury card-shine rounded-lg overflow-hidden border border-border hover:shadow-[0_16px_48px_-8px_rgba(201,169,110,0.25)] dark:hover:shadow-[0_16px_48px_-8px_rgba(201,169,110,0.15)]"
+        className="card-luxury card-shine product-card-animated-border rounded-lg overflow-hidden border border-border"
         style={tilt.style}
       >
         {/* Image Container */}
@@ -424,37 +424,37 @@ function GridCard({ product, showQuickActions, showRating, showBadges, showCompa
             />
           </div>
 
-          {/* Always-visible wishlist button (top-right) */}
-          {showWishlist && (
-            <div className="absolute top-2.5 right-2.5 z-10">
-              <WishlistButton
-                productId={product.id}
-                isWishlisted={isWishlisted}
-                onToggle={handleToggleWishlist}
-              />
+          {/* Quick Actions overlay (center buttons) */}
+          {showQuickActions && (
+            <div className="quick-actions-overlay">
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={handleToggleWishlist}
+                aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+              >
+                <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-foreground/70'}`} />
+              </motion.button>
+              {showCompare && (
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleToggleCompare}
+                  aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
+                  className={isCompared ? '!bg-gold !text-white' : ''}
+                >
+                  <GitCompareArrows className="h-4 w-4" />
+                </motion.button>
+              )}
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => { e.stopPropagation(); setQuickViewProductId(product.id); }}
+                aria-label="Quick view"
+              >
+                <Eye className="h-4 w-4" />
+              </motion.button>
             </div>
           )}
 
-          {/* Compare button (below wishlist on hover) */}
-          <AnimatePresence>
-            {showCompare && isHovered && (
-              <motion.div
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                transition={{ delay: 0.1, duration: 0.2 }}
-                className="absolute top-[52px] right-2.5 z-10"
-              >
-                <CompareButton
-                  productId={product.id}
-                  isCompared={isCompared}
-                  onToggle={handleToggleCompare}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Quick Add Overlay */}
+          {/* Quick Add Overlay (bottom) */}
           {showQuickActions && (
             <QuickAddOverlay product={product} show={isHovered} />
           )}

@@ -77,6 +77,45 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PUT: Sync wishlist (bulk replace user's wishlist with provided productIds) — requires auth
+export async function PUT(request: NextRequest) {
+  try {
+    const userId = getAuthPayload(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { productIds } = body;
+
+    if (!Array.isArray(productIds)) {
+      return NextResponse.json({ error: 'productIds must be an array' }, { status: 400 });
+    }
+
+    // Delete all existing wishlist items for this user
+    await db.wishlist.deleteMany({ where: { userId } });
+
+    // Create new wishlist entries
+    if (productIds.length > 0) {
+      await db.wishlist.createMany({
+        data: productIds.map((productId: string) => ({ userId, productId })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Return the synced items
+    const syncedItems = await db.wishlist.findMany({
+      where: { userId },
+      include: { product: { include: { category: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json({ items: syncedItems, synced: true });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 // DELETE: Remove item from wishlist (requires auth)
 export async function DELETE(request: NextRequest) {
   try {

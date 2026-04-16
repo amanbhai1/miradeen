@@ -7,7 +7,8 @@ import {
   BarChart3, DollarSign, TrendingUp, Eye, EyeOff, Ban, CheckCircle,
   ChevronLeft, Search, Edit, Trash2, Plus, X, Save,
   ArrowUpRight, ArrowDownRight, Star, Package, Calendar, Clock, Trophy,
-  ShoppingCart, Filter, UserCheck, ToggleLeft, ToggleRight, Sparkles, Crown, Mail
+  ShoppingCart, Filter, UserCheck, ToggleLeft, ToggleRight, Sparkles, Crown, Mail,
+  Download, FileJson, FileSpreadsheet, Loader2, CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ import { useStore } from '@/store/useStore';
 import { useToast } from '@/hooks/use-toast';
 import type { Product, Order, User as UserType, ContactMessage } from '@/types';
 import { parseJsonField } from '@/types';
+import { exportData, type ExportDataType, type ExportFormatType } from '@/lib/export';
 
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'users' | 'messages' | 'settings';
 
@@ -965,6 +967,231 @@ function SettingsTab({ token }: { token: string | null }) {
           </div>
         );
       })()}
+
+      {/* Export Data Section */}
+      <ExportDataSection token={token} />
+    </div>
+  );
+}
+
+// ── Export Data Section ───────────────────────────────────────────────────────
+
+function ExportDataSection({ token }: { token: string | null }) {
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState<ExportDataType | 'all' | null>(null);
+  const [exportedItems, setExportedItems] = useState<Set<string>>(new Set());
+
+  const exportCategories: {
+    type: ExportDataType;
+    label: string;
+    description: string;
+    icon: React.ElementType;
+    color: string;
+    bg: string;
+  }[] = [
+    {
+      type: 'products',
+      label: 'Products',
+      description: 'Export all product data including categories, pricing, stock, and tags',
+      icon: Shirt,
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-50 dark:bg-amber-950/30',
+    },
+    {
+      type: 'orders',
+      label: 'Orders',
+      description: 'Export all orders with items, shipping details, and payment status',
+      icon: ShoppingBag,
+      color: 'text-green-600 dark:text-green-400',
+      bg: 'bg-green-50 dark:bg-green-950/30',
+    },
+    {
+      type: 'users',
+      label: 'Users',
+      description: 'Export all registered users with their profile and account details',
+      icon: Users,
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-50 dark:bg-blue-950/30',
+    },
+    {
+      type: 'messages',
+      label: 'Messages',
+      description: 'Export all contact messages with read status and replies',
+      icon: MessageSquare,
+      color: 'text-orange-600 dark:text-orange-400',
+      bg: 'bg-orange-50 dark:bg-orange-950/30',
+    },
+  ];
+
+  const handleExport = async (type: ExportDataType | 'all', format: ExportFormatType) => {
+    if (!token) return;
+    setExporting(type);
+    try {
+      const success = await exportData(token, type, format);
+      if (success) {
+        setExportedItems(prev => new Set(prev).add(`${type}-${format}`));
+        toast({
+          title: `Export complete!`,
+          description: `${type === 'all' ? 'All data' : type.charAt(0).toUpperCase() + type.slice(1)} exported as ${format.toUpperCase()}`,
+        });
+      } else {
+        toast({ title: 'Export failed', description: 'Could not export data. Please try again.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Export failed', description: 'An unexpected error occurred.', variant: 'destructive' });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportAll = async () => {
+    if (!token) return;
+    setExporting('all');
+    const formats: ExportFormatType[] = ['json', 'csv'];
+    const types: ExportDataType[] = ['products', 'orders', 'users', 'messages'];
+
+    let allSuccess = true;
+    for (const format of formats) {
+      try {
+        const success = await exportData(token, 'all', format);
+        if (success) {
+          setExportedItems(prev => new Set(prev).add(`all-${format}`));
+        } else {
+          allSuccess = false;
+        }
+      } catch {
+        allSuccess = false;
+      }
+    }
+
+    setExporting(null);
+    if (allSuccess) {
+      toast({ title: 'Full workspace exported!', description: 'All data downloaded as CSV and JSON.' });
+    } else {
+      toast({ title: 'Partial export', description: 'Some exports may have failed. Check your downloads.', variant: 'destructive' });
+    }
+  };
+
+  const isFormatDone = (type: ExportDataType | 'all', format: ExportFormatType) => exportedItems.has(`${type}-${format}`);
+
+  return (
+    <div className="space-y-4 mt-8">
+      {/* Section Header with Gold Divider */}
+      <div className="flex items-center gap-3 divider-gold pb-3 border-b border-gold/20">
+        <Download className="h-4 w-4 text-gold" />
+        <h3 className="heading-serif text-lg font-semibold text-gold">Export Data</h3>
+        <Badge className="bg-gold/10 text-gold border border-gold/20 text-xs ml-auto">
+          <Download className="h-3 w-3 mr-1" /> Download Workspace
+        </Badge>
+      </div>
+      <p className="text-sm text-muted-foreground -mt-2">
+        Download your store data as CSV or JSON files for backup, analysis, or migration.
+      </p>
+
+      {/* Export Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {exportCategories.map((cat) => {
+          const isExporting = exporting === cat.type;
+          return (
+            <Card key={cat.type} className="group transition-all duration-300 hover:shadow-lg hover:border-gold/30">
+              <CardContent className="card-luxury p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className={`p-2 rounded-lg ${cat.bg} transition-colors duration-200`}>
+                    <cat.icon className={`h-5 w-5 ${cat.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm group-hover:text-gold transition-colors duration-200">{cat.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{cat.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={`flex-1 text-xs transition-all duration-200 ${isFormatDone(cat.type, 'csv') ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-950/30 dark:text-green-400' : 'hover:border-gold/40 hover:text-gold'}`}
+                    onClick={() => handleExport(cat.type, 'csv')}
+                    disabled={!!exporting}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : isFormatDone(cat.type, 'csv') ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                    ) : (
+                      <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    CSV
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={`flex-1 text-xs transition-all duration-200 ${isFormatDone(cat.type, 'json') ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-950/30 dark:text-green-400' : 'hover:border-gold/40 hover:text-gold'}`}
+                    onClick={() => handleExport(cat.type, 'json')}
+                    disabled={!!exporting}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : isFormatDone(cat.type, 'json') ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                    ) : (
+                      <FileJson className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    JSON
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Export All Button */}
+      <Card className="border-gold/20 overflow-hidden">
+        <CardContent className="card-luxury p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <p className="font-medium text-sm flex items-center gap-2">
+                <Download className="h-4 w-4 text-gold" />
+                Export Full Workspace
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Download all data (Products, Orders, Users, Messages) in both CSV and JSON formats — 8 files total.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="bg-gold text-background hover:bg-gold-dark transition-all duration-200 hover:shadow-md whitespace-nowrap"
+              onClick={handleExportAll}
+              disabled={!!exporting}
+            >
+              {exporting === 'all' ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Export All
+                </>
+              )}
+            </Button>
+          </div>
+          {/* Progress indicator when exporting all */}
+          {exporting === 'all' && (
+            <div className="mt-3">
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-gold-dark to-gold rounded-full"
+                  initial={{ width: '0%' }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 3, ease: 'easeInOut' }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Generating export files...</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
