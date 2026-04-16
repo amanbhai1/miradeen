@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, ShoppingBag, SlidersHorizontal, Grid3X3, Grid2X2, ChevronDown, ChevronLeft, ChevronRight, X, Eye, GitCompareArrows, PackageSearch, RotateCcw, List, ArrowUp } from 'lucide-react';
+import { Heart, ShoppingBag, SlidersHorizontal, Grid3X3, Grid2X2, ChevronDown, ChevronLeft, ChevronRight, X, Eye, GitCompareArrows, RotateCcw, List, ArrowUp, Search, Sparkles, Loader2, CheckCircle2, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -117,19 +117,25 @@ export default function ShopPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [allLoaded, setAllLoaded] = useState(false);
   const isInitialMount = useRef(true);
 
-  // ─── Products per page for pagination ───────────────────────────
+  // ─── Products per page for load-more pagination ─────────────────
   const PRODUCTS_PER_PAGE = 12;
   const totalPages = Math.ceil(products.length / PRODUCTS_PER_PAGE);
+  const visibleCount = currentPage * PRODUCTS_PER_PAGE;
   const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
-    return products.slice(start, start + PRODUCTS_PER_PAGE);
-  }, [products, currentPage]);
+    const start = 0;
+    return products.slice(start, visibleCount);
+  }, [products, visibleCount]);
+  const hasMore = visibleCount < products.length;
+  const allProductsShown = visibleCount >= products.length;
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
+    setAllLoaded(false);
   }, [selectedCategory, searchQuery, sortBy, priceRange, inStockOnly, selectedColors, selectedSizes]);
 
   // ─── Scroll-to-top button visibility ────────────────────────────
@@ -143,6 +149,15 @@ export default function ShopPage() {
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLoadMore = () => {
+    setLoadingMore(true);
+    // Simulate a small loading delay for visual feedback
+    setTimeout(() => {
+      setCurrentPage(prev => prev + 1);
+      setLoadingMore(false);
+    }, 400);
   };
 
   // ─── Fetch all products (unfiltered) ─────────────────────────────
@@ -347,13 +362,13 @@ export default function ShopPage() {
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
             <div className="hidden sm:flex border rounded-md">
-              <Button variant={gridCols === 4 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 hover:text-gold transition-colors" onClick={() => setGridCols(4)}>
-                <Grid3X3 className="h-4 w-4" />
+              <Button variant={gridCols === 4 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 hover:text-gold transition-colors" onClick={() => setGridCols(4)} aria-label="Grid view 3 columns">
+                <LayoutGrid className="h-4 w-4" />
               </Button>
-              <Button variant={gridCols === 2 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 hover:text-gold transition-colors" onClick={() => setGridCols(2)}>
+              <Button variant={gridCols === 2 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 hover:text-gold transition-colors" onClick={() => setGridCols(2)} aria-label="Grid view 2 columns">
                 <Grid2X2 className="h-4 w-4" />
               </Button>
-              <Button variant={gridCols === 1 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 rounded-l-none hover:text-gold transition-colors" onClick={() => setGridCols(1)}>
+              <Button variant={gridCols === 1 ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9 hover:text-gold transition-colors" onClick={() => setGridCols(1)} aria-label="List view">
                 <List className="h-4 w-4" />
               </Button>
             </div>
@@ -513,22 +528,51 @@ export default function ShopPage() {
                 {/* Morph blob background */}
                 <div className="absolute w-64 h-64 bg-gold/5 morph-blob rounded-3xl -top-10 -right-10 blur-3xl" />
                 <div className="absolute w-48 h-48 bg-gold/5 morph-blob-slow rounded-3xl -bottom-10 -left-10 blur-3xl" />
+                {/* Sparkle particles */}
+                <motion.div
+                  className="absolute top-16 left-1/4 pointer-events-none"
+                  animate={{ y: [0, -10, 0], opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  <Sparkles className="h-5 w-5 text-gold/40" />
+                </motion.div>
+                <motion.div
+                  className="absolute top-24 right-1/4 pointer-events-none"
+                  animate={{ y: [0, -8, 0], opacity: [0.2, 0.8, 0.2] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+                >
+                  <Sparkles className="h-4 w-4 text-gold/30" />
+                </motion.div>
+                <motion.div
+                  className="absolute bottom-24 left-1/3 pointer-events-none"
+                  animate={{ y: [0, -12, 0], opacity: [0.2, 0.7, 0.2], rotate: [0, 15, 0] }}
+                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-gold/25" />
+                </motion.div>
                 <div className="relative z-10">
-                  <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mb-6 mx-auto">
-                    <PackageSearch className="h-10 w-10 text-muted-foreground/50" />
-                  </div>
-                  <h3 className="heading-serif text-xl font-semibold mb-2">No products found</h3>
+                  {/* Gold magnifying glass icon */}
+                  <motion.div
+                    className="w-24 h-24 rounded-full flex items-center justify-center mb-6 mx-auto relative"
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                  >
+                    <div className="absolute inset-0 rounded-full bg-gold/10 border border-gold/20" />
+                    <div className="absolute inset-2 rounded-full bg-gold/5" />
+                    <Search className="h-10 w-10 text-gold/60 relative z-10" />
+                  </motion.div>
+                  <h3 className="heading-serif text-xl font-semibold mb-2">No products found matching your filters</h3>
                   <p className="text-sm text-muted-foreground max-w-md mb-6">
                     We couldn&apos;t find any products matching your current filters. Try adjusting your criteria or browse our full collection.
                   </p>
                   {activeFilterCount > 0 && (
                     <Button
-                      variant="outline"
-                      className="hover:border-gold hover:text-gold transition-colors mb-6"
+                      className="bg-gold text-background hover:bg-gold/90 shadow-luxury-lg mb-6 px-6"
                       onClick={clearAllFilters}
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
-                      Browse All Products
+                      Clear All Filters
                     </Button>
                   )}
                   {/* Suggested categories */}
@@ -552,6 +596,7 @@ export default function ShopPage() {
               </motion.div>
             ) : gridCols === 1 ? (
               /* ─── List View ─── */
+              <>
               <div className="space-y-4">
                 {paginatedProducts.map((product, i) => {
                   const images = parseJsonField<string>(product.images);
@@ -684,6 +729,45 @@ export default function ShopPage() {
                   );
                 })}
               </div>
+
+              {/* ─── Load More (List View) ─── */}
+              <div className="mt-8 flex flex-col items-center gap-4">
+                {hasMore && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Button
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="bg-gold text-background hover:bg-gold/90 px-8 h-11 shadow-luxury-lg disabled:opacity-70 transition-all duration-200"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          Load More Products
+                          <ChevronDown className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </motion.div>
+                )}
+                {allProductsShown && products.length > PRODUCTS_PER_PAGE && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-2 text-sm text-muted-foreground py-4"
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-gold" />
+                    <span>You&apos;ve seen all <span className="font-medium text-foreground">{products.length}</span> products</span>
+                  </motion.div>
+                )}
+              </div>
+              </>
             ) : (
               /* ─── Grid View ─── */
               <>
@@ -811,51 +895,51 @@ export default function ShopPage() {
                   })}
                 </div>
 
-                {/* ─── Pagination ─── */}
-                {totalPages > 1 && (
-                  <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border pt-6">
-                    <p className="text-sm text-muted-foreground">
-                      Showing <span className="font-medium text-foreground">{(currentPage - 1) * PRODUCTS_PER_PAGE + 1}</span> to{' '}
-                      <span className="font-medium text-foreground">{Math.min(currentPage * PRODUCTS_PER_PAGE, products.length)}</span> of{' '}
-                      <span className="font-medium text-foreground">{products.length}</span> products
-                    </p>
-                    <div className="flex items-center gap-1">
+                {/* ─── Load More / Pagination ─── */}
+                <div className="mt-8 flex flex-col items-center gap-4">
+                  {hasMore && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
                       <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9 hover:border-gold hover:text-gold transition-colors"
-                        disabled={currentPage === 1}
-                        onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); scrollToTop(); }}
+                        onClick={handleLoadMore}
+                        disabled={loadingMore}
+                        className="bg-gold text-background hover:bg-gold/90 px-8 h-11 shadow-luxury-lg disabled:opacity-70 transition-all duration-200"
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        {loadingMore ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            Load More Products
+                            <ChevronDown className="h-4 w-4 ml-2" />
+                          </>
+                        )}
                       </Button>
-                      {Array.from({ length: totalPages }, (_, pi) => pi + 1).map((page) => (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? 'default' : 'outline'}
-                          size="icon"
-                          className={`h-9 w-9 transition-colors ${
-                            currentPage === page
-                              ? 'bg-gold text-background hover:bg-gold/90'
-                              : 'hover:border-gold hover:text-gold'
-                          }`}
-                          onClick={() => { setCurrentPage(page); scrollToTop(); }}
-                        >
-                          {page}
-                        </Button>
-                      ))}
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9 hover:border-gold hover:text-gold transition-colors"
-                        disabled={currentPage === totalPages}
-                        onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); scrollToTop(); }}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                    </motion.div>
+                  )}
+                  {allProductsShown && products.length > PRODUCTS_PER_PAGE && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex items-center gap-2 text-sm text-muted-foreground py-4"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-gold" />
+                      <span>You&apos;ve seen all <span className="font-medium text-foreground">{products.length}</span> products</span>
+                    </motion.div>
+                  )}
+                  {/* Page number indicators for navigation */}
+                  {totalPages > 2 && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-muted-foreground">
+                        Showing {Math.min(visibleCount, products.length)} of {products.length} products
+                      </span>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             )}
           </div>

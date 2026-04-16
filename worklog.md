@@ -1211,3 +1211,288 @@ Turbopack dev server has slow initial compilation (~60s for homepage). Productio
 3. **Email integration**: Transactional emails for orders, registration, password reset
 4. **Performance optimization**: Code splitting, image optimization, bundle analysis
 5. **PWA support**: Service worker, manifest, offline capability
+
+
+## Task 11-c: Wishlist Backend Persistence + Shop Page Enhancements
+
+**Date:** $(date -u '+%Y-%m-%d %H:%M UTC')
+
+### Part 1: Wishlist Backend Persistence
+
+**Status: Schema and API were already complete. Store enhanced with sync actions.**
+
+#### Changes Made:
+
+1. **Prisma Schema (`prisma/schema.prisma`)** — No changes needed
+   - Wishlist model already existed with proper relations (userId, productId, User, Product)
+   - `@@unique([userId, productId])` constraint already in place
+   - `db push` confirmed schema is in sync
+
+2. **Wishlist API (`src/app/api/wishlist/route.ts`)** — No changes needed
+   - GET: Returns user's wishlist with product details (auth required) ✅
+   - POST: Adds product to wishlist via upsert (auth required) ✅
+   - DELETE: Removes product from wishlist by productId query param (auth required) ✅
+   - All endpoints use JWT verification via `verifyToken()` from `@/lib/auth`
+
+3. **Zustand Store (`src/store/useStore.ts`)** — Enhanced
+   - Added `wishlistSynced: boolean` state field to track sync status
+   - Added `fetchWishlistFromServer()` action:
+     - Fetches server wishlist via GET /api/wishlist with auth headers
+     - Merges server IDs with local IDs using Set union
+     - Sets `wishlistSynced = true` on success
+     - Silently fails if not authenticated or network error
+   - Added `syncWishlistToServer()` action:
+     - Batch-upserts all local wishlist IDs to server via POST
+     - Uses `Promise.allSettled()` for resilient batch sync
+     - Sets `wishlistSynced = true` on completion
+   - Modified `setUser()`: Auto-calls `fetchWishlistFromServer()` on login (with 100ms setTimeout to avoid render-time calls)
+   - Modified `logout()`: Resets `wishlistSynced` to false
+   - `wishlistSynced` added to partialize for persistence
+
+### Part 2: Shop Page Enhancements
+
+#### Changes Made to `src/components/pages/ShopPage.tsx`:
+
+1. **View Toggle Icons** — Updated
+   - Replaced `Grid3X3` with `LayoutGrid` for the 3-column grid button
+   - Added `aria-label` attributes for accessibility on all 3 view toggle buttons
+
+2. **Active Filters Display** — Already complete (no changes needed)
+   - Gold-bordered `FilterChip` components with X remove button ✅
+   - "Clear all" text button ✅
+   - AnimatePresence for smooth enter/exit ✅
+
+3. **Product Count with Sort** — Already complete (no changes needed)
+   - "Showing X of Y products" next to sort dropdown ✅
+   - Updates dynamically when filters change ✅
+
+4. **Improved Empty State** — Enhanced
+   - Replaced generic `PackageSearch` icon with gold `Search` magnifying glass
+   - Added gold concentric circles background (bg-gold/10 + border-gold/20)
+   - Added 3 animated sparkle particles using Framer Motion:
+     - Float up/down with varying durations (2.5s, 3s, 3.5s)
+     - Opacity pulses for subtle shimmer effect
+     - Third sparkle includes rotation animation
+   - "Clear All Filters" button now uses `bg-gold text-background shadow-luxury-lg` (btn-luxury style)
+   - Updated heading: "No products found matching your filters"
+
+5. **Load More / Pagination** — Replaced numbered pagination with Load More
+   - Shows 12 products initially (PRODUCTS_PER_PAGE = 12)
+   - "Load More Products" button with ChevronDown icon
+   - Loading state: spinner (Loader2 with animate-spin) + "Loading..." text
+   - Button disabled during loading with opacity reduction
+   - 400ms simulated delay for visual feedback
+   - When all products shown: green CheckCircle2 icon + "You've seen all X products" message
+   - Count indicator: "Showing X of Y products" below button
+   - Reset to page 1 when any filter changes
+   - Applied to both Grid View and List View sections
+   - Wrapped List View in React fragment (`<>...</>`) for proper JSX ternary structure
+
+### Lint Results:
+- **0 errors** in modified files (useStore.ts, ShopPage.tsx, wishlist/route.ts)
+- 7 pre-existing errors in ProductPage.tsx (conditional hooks — unrelated to this task)
+
+### Files Modified:
+1. `src/store/useStore.ts` — Added wishlist sync actions and auto-fetch on login
+2. `src/components/pages/ShopPage.tsx` — Enhanced empty state, replaced pagination with load more
+
+## Task 11-b: Enhance ProductPage.tsx
+
+### Changes Made
+
+#### 1. Sticky Add-to-Cart Bar
+- Added IntersectionObserver to detect when main Add to Cart button scrolls out of view
+- Fixed position bar at bottom (z-40) with glass morphism design (glass-card class)
+- Shows product thumbnail, name (truncated), selected size, total price, and quantity selector
+- Smooth slide-up animation with Framer Motion (AnimatePresence + spring transition)
+- Mobile-optimized: compact layout with truncated name + price
+- Desktop: centered with max-w-4xl and rounded-2xl corners
+- Only appears when product is in stock and main CTA is not visible
+
+#### 2. Improved Image Gallery
+- Added crossfade animation when switching images (AnimatePresence mode=wait)
+- Added left/right arrow buttons on main image (semi-transparent, show on hover)
+- Added image zoom on hover (scale 2x tracking mouse position) for desktop
+- Added zoom magnifier icon indicator (ZoomIn icon, bottom-right)
+- Added image counter "X / Y" in bottom-left corner
+- Thumbnail strip changed from grid to horizontal scroll (snap-x, custom-scrollbar)
+- Auto-scrolls active thumbnail into view on selection
+- Beautiful placeholder with product initial when no images available
+
+#### 3. Enhanced Product Info Section
+- Added Share button row: WhatsApp, Twitter, Facebook, Copy Link (with lucide icons)
+- Added "Earn X loyalty points" display near price (gold text, Gift icon)
+- Added estimated delivery: "Delivery by [date 5 days from now]" with Truck icon
+- Enhanced Add to Cart button: h-14, loading spinner state (Loader2), success checkmark animation (AnimatePresence)
+- Buy Now button already existed and maintained
+
+#### 4. Enhanced Reviews Tab Content
+- Beautiful empty state: animated floating gold star, heading, description, prominent Write a Review button
+- Star distribution breakdown now shows percentages alongside counts
+- Improved Verified Purchase badge: green dot + text (replaced BadgeCheck icon with dot)
+- Enhanced ReviewForm: added Recommended yes/no toggle (ThumbsUp/ThumbsDown)
+- Enhanced ReviewForm: added loading spinner to Submit Review button (Loader2)
+- Photo upload placeholder already existed and maintained
+
+### Issues Encountered
+- React Hooks rules-of-hooks errors: hooks were placed after early returns. Fixed by moving useEffects before early returns and converting useCallbacks back to regular functions.
+- Removed unused BadgeCheck import (replaced with green dot styling for Verified Purchase badge)
+
+### Lint Status
+- 0 errors, 0 warnings after fixes
+
+---
+Task ID: 11-a
+Agent: Frontend Enhancement Developer
+Task: Enhance HomePage — Stats Fix, Shop The Look, Testimonials Enhancement, Sustainability Promise
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+- No existing sections broken ✅
+
+### Changes Made
+
+#### 1. Stats Counter Section (Verified — Already Correct)
+- The existing "Trust Badges" section (line 908+) already uses `FadeInStat` component
+- `FadeInStat` displays the target value immediately (no counting animation) with a scroll-triggered fade-in
+- Values: 50K+ Happy Customers, 500+ Products, 4.9★ Average Rating, 30+ Countries
+- No changes needed — confirmed working as specified
+
+#### 2. Enhanced Testimonials Section ("What Our Clients Say")
+- **Added navigation arrows**: Left/Right circular buttons with ChevronLeft/ChevronRight icons
+- **Glass morphism styling**: `backdrop-blur-md`, `bg-background/60`, `border-gold/20`, `hover:border-gold/60`
+- **Desktop only**: Arrows hidden on mobile (`hidden md:flex`)
+- **Auto-play**: Changed interval from 6s → 5s
+- **Hover pause**: Added `onMouseEnter`/`onMouseLeave` handlers that set `testimonialHovered` state, which conditionally prevents the auto-play interval from running
+- **Existing dot indicators preserved**: Bottom dots unchanged
+
+#### 3. "Shop The Look" Inspiration Section (NEW)
+- **Placement**: After "What Our Clients Say" testimonials section, before Instagram Gallery
+- **Header**: "Inspiration" subtitle, "SHOP THE LOOK" heading with `text-gold-gradient`, `separator-diamond` with gold diamond
+- **3 inspiration cards** in responsive grid (1 col mobile, 3 col desktop):
+  - **Evening Elegance**: Dark dress image from Unsplash
+  - **Summer Breeze**: Light linen image from Unsplash  
+  - **Classic Power**: Blazer image from Unsplash
+- **Card design**: `card-luxury` + `card-shine` CSS classes, aspect-[3/4] ratio
+- **Hover effects**: Image zoom (scale-110), gradient overlay, "Shop This Look" button slides up with glass morphism (backdrop-blur-sm)
+- **Click behavior**: Each card navigates to shop page via `navigate('shop')`
+
+#### 4. "Sustainability Promise" Section (NEW)
+- **Placement**: Before the Bottom CTA (Limited Time Offer) section
+- **Dark gradient background**: `bg-gradient-to-br from-foreground to-foreground/90`
+- **Gold particle decorations**: 6 floating `motion.div` elements with randomized sizes, positions, durations, and delays creating subtle ambient movement
+- **Center heading**: "OUR SUSTAINABILITY PROMISE" using `text-shimmer` animation class
+- **Subheading**: "Our Commitment" with descriptive paragraph
+- **3 pillars in responsive grid** (1 col mobile, 3 col desktop):
+  - **Ethical Sourcing** (Leaf icon): Certified suppliers, fair labor, environmental stewardship
+  - **Eco Packaging** (Package icon): Recycled/biodegradable materials, beautiful design
+  - **Fair Trade** (Handshake icon): Fair wages, safe working conditions for artisans
+- **Pillar design**: Gold circle icon with `whileHover` scale animation, gold border glow on hover
+- **CTA button**: "Learn More About Our Values" → navigates to about page, gold outlined button with hover effect
+
+### Files Modified
+- `src/components/pages/HomePage.tsx` — ENHANCED: ~1520 lines (from ~1349), 2 new sections + testimonials enhancement
+
+---
+Task ID: 11
+Agent: Phase 11 Development Team (3 parallel agents)
+Task: QA testing, HomePage enhancements, ProductPage enhancements, Wishlist API persistence, ShopPage improvements
+
+### QA Assessment (Phase 11)
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully with Turbopack ✅
+- All routes respond HTTP 200 ✅
+- No console errors detected ✅
+- Auth API (Register/Login/Me): All working with JWT tokens ✅
+- Products API: Working, returns 12 products ✅
+- Coupon API: Working (POST only, as designed) ✅
+- Homepage: All sections render correctly with all features ✅
+- Shop page: All filters, products, sorting work ✅
+
+### Changes Made by Agent 11-a (HomePage Enhancements)
+
+#### 1. Enhanced Testimonials Section ("What Our Clients Say")
+- Added visible left/right arrow buttons (ChevronLeft/ChevronRight) on desktop
+- Styled with gold color, circular shape, glass morphism (backdrop-blur-md, bg-background/60, border-gold/20)
+- Auto-play reduced from 6 seconds to 5 seconds
+- Hover pause: Auto-play pauses when mouse enters carousel area, resumes on mouse leave
+
+#### 2. NEW "Shop The Look" Inspiration Section
+- Placed after "What Our Clients Say" testimonials section
+- Section header with "SHOP THE LOOK" in gold gradient text + diamond separator
+- 3 inspiration cards in responsive grid (1→3 cols)
+- Cards: Evening Elegance, Summer Breeze, Classic Power with Unsplash images
+- card-luxury + card-shine CSS classes, hover zoom, sliding "Shop This Look" button
+- Each card navigates to shop page on click
+
+#### 3. NEW "Sustainability Promise" Section
+- Dark gradient background (from-foreground to-foreground/90)
+- "OUR SUSTAINABILITY PROMISE" heading with text-shimmer gold animation
+- 6 floating gold particle decorations with ambient motion
+- 3 pillars: Ethical Sourcing (Leaf), Eco Packaging (Package), Fair Trade (Handshake)
+- Gold circle icons with hover scale animation
+- "Learn More About Our Values" button links to About page
+
+### Changes Made by Agent 11-b (ProductPage Enhancements)
+
+#### 1. Sticky Add-to-Cart Bar
+- IntersectionObserver on addToCartRef to detect when main CTA scrolls out of view
+- Fixed bottom bar with glass morphism design
+- Shows: product thumbnail, name (truncated), selected size badge, total price, quantity selector, Add to Cart
+- Framer Motion spring slide-up animation
+- Mobile: compact layout; Desktop: centered max-w-4xl with rounded corners
+
+#### 2. Improved Image Gallery
+- Crossfade animation when switching images (AnimatePresence mode=wait)
+- Left/right arrow buttons on main image (semi-transparent, show on hover)
+- Image zoom on hover (scale 2x) tracking mouse position
+- Zoom magnifier icon (ZoomIn) in bottom-right corner
+- Image counter (X / Y) in bottom-left corner
+- Thumbnail strip: horizontal scroll (snap-x, custom-scrollbar), auto-scrolls active thumbnail
+- Beautiful placeholder with product initial when no images available
+
+#### 3. Enhanced Product Info Section
+- Share button row: WhatsApp, Twitter, Facebook, Copy Link (circular bordered buttons)
+- Loyalty points display: "Earn X loyalty points" with Gift icon near price
+- Estimated delivery: "Delivery by [date 5 days from now]" with Truck icon
+- Enhanced Add to Cart: h-14, Loader2 spinner, Check checkmark animation
+- Buy Now button maintained at same size
+
+#### 4. Enhanced Reviews Tab Content
+- Beautiful empty state: animated floating gold star, heading, "Write a Review" button
+- Star distribution breakdown shows percentages alongside counts
+- Verified Purchase badge: green dot + text (cleaner than icon)
+- ReviewForm: Recommended yes/no toggle (ThumbsUp/ThumbsDown), loading spinner on Submit
+
+### Changes Made by Agent 11-c (Wishlist API + ShopPage)
+
+#### 1. Wishlist Backend Persistence
+- Wishlist model and API already existed in Prisma schema
+- Enhanced `src/store/useStore.ts` with:
+  - `wishlistSynced` state flag
+  - `fetchWishlistFromServer()` action (GETs server wishlist, merges with local)
+  - `syncWishlistToServer()` action (batch-upserts all local wishlist IDs)
+  - Auto-fetch on login via `setUser()` callback
+  - Reset on logout
+
+#### 2. Shop Page Enhancements
+- View Toggle: Updated icons (LayoutGrid/List), added aria-label for accessibility
+- Active Filters: Already existed with gold-bordered chips
+- Product Count: "Showing X of Y" dynamically updates
+- Empty State: Enhanced with gold Search icon, 3 animated sparkle particles, btn-luxury "Clear All Filters" button
+- Load More: Replaced numbered pagination with "Load More" button + spinner + "You've seen all" message
+
+### Files Modified
+- `src/components/pages/HomePage.tsx` — ENHANCED: testimonials arrows + auto-play, Shop The Look section, Sustainability Promise section
+- `src/components/pages/ProductPage.tsx` — ENHANCED: sticky add-to-cart bar, image gallery, share buttons, loyalty points, delivery estimate, enhanced reviews
+- `src/components/pages/ShopPage.tsx` — ENHANCED: view toggle, load more button, enhanced empty state
+- `src/store/useStore.ts` — ENHANCED: wishlist server sync (fetch/sync on login/logout)
+
+### QA Screenshots
+- qa-phase11-home-final.png — Homepage top
+- qa-phase11-home-mid.png — Homepage middle sections
+- qa-phase11-home-bottom.png — Homepage bottom (footer)
+- qa-phase11-shop.png — Shop page initial
+- qa-phase11-shop-final.png — Shop page with filters
+

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useInView, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import {
   Star, Heart, ShoppingBag, ArrowRight,
   Truck, Shield, RefreshCw, Headphones, Instagram, Sparkles,
   Eye, GitCompareArrows, MessageCircle, Clock, Scissors, Leaf, Landmark, Gift,
   Gem, RotateCcw, Crown, TrendingUp, ChevronLeft, ChevronRight,
-  Quote, ExternalLink, Camera, CheckCircle
+  Quote, ExternalLink, Camera, CheckCircle, Package, Handshake
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -119,14 +119,21 @@ function ParallaxImage({ src, alt, speed = 0.3 }: { src: string; alt: string; sp
   );
 }
 
-/* ─── Animated Counter Badge ────────────────────────────────────────── */
+/* ─── Fade-In Stat Display ─────────────────────────────────────────── */
 
-function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
-  const { count, ref } = useCountUp(target, 2200);
+function FadeInStat({ value, suffix = '' }: { value: string; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true, margin: '-30px' });
   return (
-    <span ref={ref} className="heading-serif text-2xl md:text-3xl font-bold text-gold">
-      {count.toLocaleString()}{suffix}
-    </span>
+    <motion.span
+      ref={ref}
+      initial={{ opacity: 0, y: 10 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      className="heading-serif text-2xl md:text-3xl font-bold text-gold"
+    >
+      {value}{suffix}
+    </motion.span>
   );
 }
 
@@ -185,6 +192,7 @@ export default function HomePage() {
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [testimonialHovered, setTestimonialHovered] = useState(false);
   const trendingRef = useRef<HTMLDivElement>(null);
 
   // Countdown timer
@@ -217,11 +225,12 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (testimonialHovered) return;
     const interval = setInterval(() => {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 6000);
+    }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [testimonialHovered]);
 
   const categories = [
     { name: 'Men', slug: 'men', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=800&fit=crop' },
@@ -770,7 +779,27 @@ export default function HomePage() {
             <div className="divider-gold w-20 mx-auto" />
           </AnimatedSection>
 
-          <div className="max-w-2xl mx-auto">
+          <div
+            className="max-w-2xl mx-auto relative"
+            onMouseEnter={() => setTestimonialHovered(true)}
+            onMouseLeave={() => setTestimonialHovered(false)}
+          >
+            {/* Navigation Arrows (desktop only) */}
+            <button
+              onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-14 z-10 hidden md:flex w-10 h-10 rounded-full bg-background/60 dark:bg-card/60 backdrop-blur-md border border-gold/20 hover:border-gold/60 hover:bg-gold/10 items-center justify-center transition-all duration-300 shadow-luxury-sm"
+              aria-label="Previous testimonial"
+            >
+              <ChevronLeft className="h-4 w-4 text-gold" />
+            </button>
+            <button
+              onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-14 z-10 hidden md:flex w-10 h-10 rounded-full bg-background/60 dark:bg-card/60 backdrop-blur-md border border-gold/20 hover:border-gold/60 hover:bg-gold/10 items-center justify-center transition-all duration-300 shadow-luxury-sm"
+              aria-label="Next testimonial"
+            >
+              <ChevronRight className="h-4 w-4 text-gold" />
+            </button>
+
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentTestimonial}
@@ -804,6 +833,60 @@ export default function HomePage() {
                 />
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Shop The Look ═══ */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-12">
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Inspiration</p>
+            <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-3 text-gold-gradient">SHOP THE LOOK</h2>
+            <div className="separator-diamond w-40 mx-auto mt-4">
+              <div className="diamond" />
+            </div>
+          </AnimatedSection>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'Evening Elegance',
+                image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=600&h=800&fit=crop',
+              },
+              {
+                title: 'Summer Breeze',
+                image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&h=800&fit=crop',
+              },
+              {
+                title: 'Classic Power',
+                image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=800&fit=crop',
+              },
+            ].map((look, i) => (
+              <AnimatedSection key={look.title} delay={i * 0.15}>
+                <button
+                  onClick={() => navigate('shop')}
+                  className="group relative aspect-[3/4] w-full overflow-hidden block card-luxury card-shine rounded-lg"
+                >
+                  <img
+                    src={look.image}
+                    alt={look.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  {/* Content */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-end pb-10 text-white">
+                    <p className="text-xs tracking-[0.3em] uppercase text-gold-light mb-2">Collection</p>
+                    <h3 className="heading-serif text-2xl font-bold mb-4">{look.title}</h3>
+                    <span className="inline-flex items-center gap-2 text-xs tracking-wider uppercase bg-white/10 backdrop-blur-sm border border-white/20 px-5 py-2.5 rounded-full opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-500">
+                      Shop This Look <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                </button>
+              </AnimatedSection>
+            ))}
           </div>
         </div>
       </section>
@@ -876,24 +959,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══ Trust Badges (Enhanced with Animated Counters) ═══ */}
+      {/* ═══ Trust Badges (Enhanced with Fade-In Stats) ═══ */}
       <section className="py-16 bg-cream dark:bg-card/30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { target: 50, suffix: 'K+', label: 'Happy Customers', sublabel: 'and counting' },
-              { target: 500, suffix: '+', label: 'Products', sublabel: 'curated collection' },
-              { target: 49, suffix: '', label: 'Average Rating', sublabel: 'from 10K+ reviews', isRating: true },
-              { target: 30, suffix: '+', label: 'Countries', sublabel: 'worldwide delivery' },
+              { value: '50K+', label: 'Happy Customers', sublabel: 'and counting' },
+              { value: '500+', label: 'Products', sublabel: 'curated collection' },
+              { value: '4.9★', label: 'Average Rating', sublabel: 'from 10K+ reviews' },
+              { value: '30+', label: 'Countries', sublabel: 'worldwide delivery' },
             ].map((stat, i) => (
               <AnimatedSection key={stat.label} delay={i * 0.1}>
                 <div className="text-center">
                   <p className="mb-1">
-                    {stat.isRating ? (
-                      <RatingCounter target={4.9} />
-                    ) : (
-                      <AnimatedCounter target={stat.target} suffix={stat.suffix} />
-                    )}
+                    <FadeInStat value={stat.value} />
                   </p>
                   <p className="text-sm font-medium">{stat.label}</p>
                   <p className="text-[10px] text-muted-foreground">{stat.sublabel}</p>
@@ -1252,6 +1331,102 @@ export default function HomePage() {
             <Camera className="h-3.5 w-3.5 text-gold/40" />
             <div className="w-8 h-px bg-gold/30" />
           </div>
+        </div>
+      </section>
+
+      {/* ═══ Sustainability Promise ═══ */}
+      <section className="py-24 bg-gradient-to-br from-foreground to-foreground/90 relative overflow-hidden">
+        {/* Subtle gold particle decorations */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            animate={{ y: [0, -20, 0], opacity: [0.2, 0.5, 0.2] }}
+            transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}
+            className="absolute top-[10%] left-[10%] w-1.5 h-1.5 rounded-full bg-gold/40"
+          />
+          <motion.div
+            animate={{ y: [0, -15, 0], opacity: [0.15, 0.4, 0.15] }}
+            transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut', delay: 1 }}
+            className="absolute top-[20%] right-[15%] w-1 h-1 rounded-full bg-gold/30"
+          />
+          <motion.div
+            animate={{ y: [0, -25, 0], opacity: [0.2, 0.45, 0.2] }}
+            transition={{ repeat: Infinity, duration: 7, ease: 'easeInOut', delay: 2 }}
+            className="absolute bottom-[15%] left-[20%] w-2 h-2 rounded-full bg-gold/25"
+          />
+          <motion.div
+            animate={{ y: [0, -18, 0], opacity: [0.1, 0.35, 0.1] }}
+            transition={{ repeat: Infinity, duration: 9, ease: 'easeInOut', delay: 0.5 }}
+            className="absolute top-[50%] left-[80%] w-1.5 h-1.5 rounded-full bg-gold/30"
+          />
+          <motion.div
+            animate={{ y: [0, -12, 0], opacity: [0.15, 0.4, 0.15] }}
+            transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut', delay: 3 }}
+            className="absolute bottom-[25%] right-[25%] w-1 h-1 rounded-full bg-gold/35"
+          />
+          <motion.div
+            animate={{ y: [0, -22, 0], opacity: [0.1, 0.3, 0.1] }}
+            transition={{ repeat: Infinity, duration: 7.5, ease: 'easeInOut', delay: 1.5 }}
+            className="absolute top-[35%] left-[45%] w-1.5 h-1.5 rounded-full bg-gold/20"
+          />
+        </div>
+
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <AnimatedSection className="text-center mb-16">
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-3">Our Commitment</p>
+            <h2 className="heading-serif text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-shimmer">
+              OUR SUSTAINABILITY PROMISE
+            </h2>
+            <div className="separator-diamond w-48 mx-auto">
+              <div className="diamond" />
+            </div>
+            <p className="text-primary-foreground/60 text-sm max-w-xl mx-auto mt-6 leading-relaxed">
+              Luxury should never come at the cost of our planet. We are committed to making every step of our journey sustainable, ethical, and transparent.
+            </p>
+          </AnimatedSection>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+            {[
+              {
+                icon: Leaf,
+                title: 'Ethical Sourcing',
+                description: 'Every material is responsibly sourced from certified suppliers who share our values of fair labor and environmental stewardship.',
+              },
+              {
+                icon: Package,
+                title: 'Eco Packaging',
+                description: 'Our packaging is crafted from recycled and biodegradable materials, designed to be as beautiful as it is kind to the earth.',
+              },
+              {
+                icon: Handshake,
+                title: 'Fair Trade',
+                description: 'We ensure fair wages and safe working conditions for every artisan and craftsman who brings our vision to life.',
+              },
+            ].map((pillar, i) => (
+              <AnimatedSection key={pillar.title} delay={i * 0.2}>
+                <div className="text-center group">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="w-16 h-16 rounded-full border-2 border-gold/30 bg-gold/5 flex items-center justify-center mx-auto mb-6 group-hover:border-gold/60 group-hover:bg-gold/10 transition-all duration-300"
+                  >
+                    <pillar.icon className="h-7 w-7 text-gold" />
+                  </motion.div>
+                  <h3 className="heading-serif text-lg font-semibold text-primary-foreground mb-3">{pillar.title}</h3>
+                  <p className="text-primary-foreground/50 text-sm leading-relaxed">{pillar.description}</p>
+                </div>
+              </AnimatedSection>
+            ))}
+          </div>
+
+          <AnimatedSection className="text-center mt-14" delay={0.6}>
+            <Button
+              onClick={() => navigate('about')}
+              variant="outline"
+              className="border-gold/30 text-gold hover:bg-gold/10 hover:border-gold/60 px-8 py-3 tracking-[0.15em] uppercase text-xs transition-all duration-300"
+            >
+              Learn More About Our Values
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </AnimatedSection>
         </div>
       </section>
 

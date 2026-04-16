@@ -38,9 +38,12 @@ interface StoreState {
 
   // Wishlist
   wishlistIds: string[];
+  wishlistSynced: boolean;
   toggleWishlist: (productId: string) => void;
   setWishlist: (ids: string[]) => void;
   isInWishlist: (productId: string) => boolean;
+  fetchWishlistFromServer: () => Promise<void>;
+  syncWishlistToServer: () => Promise<void>;
 
   // Recently Viewed
   recentlyViewedIds: string[];
@@ -223,21 +226,30 @@ export const useStore = create<StoreState>()(
       isAuthenticated: false,
       isAdmin: false,
 
-      setUser: (user: User | null) =>
+      setUser: (user: User | null) => {
         set({
           user,
           isAuthenticated: !!user && !user.isBlocked,
           isAdmin: user?.role === 'admin',
-        }),
+        });
+        // Auto-fetch server wishlist when user logs in
+        if (user && !user.isBlocked) {
+          // Use setTimeout to avoid calling during render
+          setTimeout(() => {
+            get().fetchWishlistFromServer();
+          }, 100);
+        }
+      },
 
       setToken: (token: string | null) => set({ token }),
       logout: () => {
-        set({ user: null, token: null, isAuthenticated: false, isAdmin: false, cart: [], wishlistIds: [], recentlyViewedIds: [], compareIds: [], notifyProducts: [] });
+        set({ user: null, token: null, isAuthenticated: false, isAdmin: false, cart: [], wishlistIds: [], wishlistSynced: false, recentlyViewedIds: [], compareIds: [], notifyProducts: [] });
         if (typeof window !== 'undefined') localStorage.removeItem('miradeen-token');
       },
 
       // Wishlist — client-side + backend sync
       wishlistIds: [],
+      wishlistSynced: false,
       toggleWishlist: (productId: string) => {
         const state = get();
         const isAdding = !state.wishlistIds.includes(productId);
@@ -261,6 +273,50 @@ export const useStore = create<StoreState>()(
       },
       setWishlist: (ids: string[]) => set({ wishlistIds: ids }),
       isInWishlist: (productId: string) => get().wishlistIds.includes(productId),
+      fetchWishlistFromServer: async () => {
+        const state = get();
+        if (!state.isAuthenticated || !state.token) return;
+        try {
+          const res = await fetch('/api/wishlist', {
+            headers: { Authorization: `Bearer ${state.token}` },
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          const serverIds: string[] = (data.items || []).map(
+            (item: { productId: string }) => item.productId
+          );
+          // Merge: union of local and server IDs
+          set((s) => {
+            const merged = Array.from(new Set([...s.wishlistIds, ...serverIds]));
+            return { wishlistIds: merged, wishlistSynced: true };
+          });
+        } catch {
+          // Silently fail — local state is still valid
+        }
+      },
+      syncWishlistToServer: async () => {
+        const state = get();
+        if (!state.isAuthenticated || !state.token) return;
+        try {
+          const headers = {
+            Authorization: `Bearer ${state.token}`,
+            'Content-Type': 'application/json',
+          };
+          // Add all local wishlist items to server (upsert is idempotent)
+          await Promise.allSettled(
+            state.wishlistIds.map((productId) =>
+              fetch('/api/wishlist', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ productId }),
+              })
+            )
+          );
+          set({ wishlistSynced: true });
+        } catch {
+          // Silently fail
+        }
+      },
 
       // Recently Viewed — client-side + backend sync
       recentlyViewedIds: [],
