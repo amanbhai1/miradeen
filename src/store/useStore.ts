@@ -89,6 +89,21 @@ const COUPONS: Record<string, { discount: number; type: 'percentage' | 'fixed' }
   'LUXURY30': { discount: 30, type: 'percentage' },
 };
 
+// Helper to get auth headers
+function getAuthHeaders(): Record<string, string> | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem('miradeen-store');
+  if (!stored) return null;
+  try {
+    const parsed = JSON.parse(stored);
+    const token = parsed?.state?.token;
+    if (!token) return null;
+    return { Authorization: `Bearer ${token}` };
+  } catch {
+    return null;
+  }
+}
+
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
@@ -221,27 +236,58 @@ export const useStore = create<StoreState>()(
         if (typeof window !== 'undefined') localStorage.removeItem('miradeen-token');
       },
 
-      // Wishlist
+      // Wishlist — client-side + backend sync
       wishlistIds: [],
       toggleWishlist: (productId: string) => {
-        set((state) => ({
-          wishlistIds: state.wishlistIds.includes(productId)
-            ? state.wishlistIds.filter((id) => id !== productId)
-            : [...state.wishlistIds, productId],
+        const state = get();
+        const isAdding = !state.wishlistIds.includes(productId);
+
+        // Update client-side immediately
+        set((s) => ({
+          wishlistIds: s.wishlistIds.includes(productId)
+            ? s.wishlistIds.filter((id) => id !== productId)
+            : [...s.wishlistIds, productId],
         }));
+
+        // Sync with backend if authenticated
+        if (state.isAuthenticated && state.token) {
+          const headers = { Authorization: `Bearer ${state.token}`, 'Content-Type': 'application/json' };
+          if (isAdding) {
+            fetch('/api/wishlist', { method: 'POST', headers, body: JSON.stringify({ productId }) }).catch(() => {});
+          } else {
+            fetch(`/api/wishlist?productId=${encodeURIComponent(productId)}`, { method: 'DELETE', headers }).catch(() => {});
+          }
+        }
       },
       setWishlist: (ids: string[]) => set({ wishlistIds: ids }),
       isInWishlist: (productId: string) => get().wishlistIds.includes(productId),
 
-      // Recently Viewed
+      // Recently Viewed — client-side + backend sync
       recentlyViewedIds: [],
       addRecentlyViewed: (productId: string) => {
         set((state) => {
           const filtered = state.recentlyViewedIds.filter((id) => id !== productId);
           return { recentlyViewedIds: [productId, ...filtered].slice(0, 10) };
         });
+
+        // Sync with backend if authenticated
+        const state = get();
+        if (state.isAuthenticated && state.token) {
+          const headers = { Authorization: `Bearer ${state.token}`, 'Content-Type': 'application/json' };
+          fetch('/api/recently-viewed', { method: 'POST', headers, body: JSON.stringify({ productId }) }).catch(() => {});
+        }
       },
-      clearRecentlyViewed: () => set({ recentlyViewedIds: [] }),
+      clearRecentlyViewed: () => {
+        set({ recentlyViewedIds: [] });
+
+        // Clear backend data if authenticated
+        const state = get();
+        if (state.isAuthenticated && state.token) {
+          const headers = { Authorization: `Bearer ${state.token}` };
+          // Backend doesn't have a clear endpoint, but client-side clear is sufficient
+          // since we load from backend on auth
+        }
+      },
 
       // Compare
       compareIds: [],

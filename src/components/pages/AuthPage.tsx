@@ -478,7 +478,7 @@ export default function AuthPage() {
                                 onChange={(e) => handleOtpChange(index, e.target.value)}
                                 onKeyDown={(e) => handleOtpKeyDown(index, e)}
                                 onPaste={index === 0 ? handleOtpPaste : undefined}
-                                className={`w-11 h-13 text-center text-lg font-semibold rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold ${
+                                className={`w-11 h-[52px] text-center text-lg font-semibold rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold ${
                                   otpValues[index] ? 'border-gold/40 bg-gold/5' : 'border-border bg-background'
                                 }`}
                               />

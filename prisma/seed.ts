@@ -440,6 +440,44 @@ async function seed() {
   }
   console.log('✅ Reviews created');
 
+  // Create size charts
+  const sizeChartData = [
+    // Men's Clothing
+    { category: 'men', type: 'clothing', size: 'XS', measurements: JSON.stringify({ chest: '34"', waist: '28"', shoulder: '16.5"', length: '26"' }) },
+    { category: 'men', type: 'clothing', size: 'S', measurements: JSON.stringify({ chest: '36"', waist: '30"', shoulder: '17"', length: '27"' }) },
+    { category: 'men', type: 'clothing', size: 'M', measurements: JSON.stringify({ chest: '38"', waist: '32"', shoulder: '18"', length: '28"' }) },
+    { category: 'men', type: 'clothing', size: 'L', measurements: JSON.stringify({ chest: '40"', waist: '34"', shoulder: '19"', length: '29"' }) },
+    { category: 'men', type: 'clothing', size: 'XL', measurements: JSON.stringify({ chest: '42"', waist: '36"', shoulder: '20"', length: '30"' }) },
+    { category: 'men', type: 'clothing', size: 'XXL', measurements: JSON.stringify({ chest: '44"', waist: '38"', shoulder: '21"', length: '31"' }) },
+    // Men's Shoes
+    { category: 'men', type: 'shoes', size: 'UK 6 / EU 39', measurements: JSON.stringify({ footLength: '24.5 cm', usSize: '7' }) },
+    { category: 'men', type: 'shoes', size: 'UK 7 / EU 40', measurements: JSON.stringify({ footLength: '25.5 cm', usSize: '8' }) },
+    { category: 'men', type: 'shoes', size: 'UK 8 / EU 41', measurements: JSON.stringify({ footLength: '26 cm', usSize: '9' }) },
+    { category: 'men', type: 'shoes', size: 'UK 9 / EU 42', measurements: JSON.stringify({ footLength: '27 cm', usSize: '10' }) },
+    { category: 'men', type: 'shoes', size: 'UK 10 / EU 43', measurements: JSON.stringify({ footLength: '28 cm', usSize: '11' }) },
+    { category: 'men', type: 'shoes', size: 'UK 11 / EU 44', measurements: JSON.stringify({ footLength: '29 cm', usSize: '12' }) },
+    // Women's Clothing
+    { category: 'women', type: 'clothing', size: 'XS', measurements: JSON.stringify({ bust: '31-32"', waist: '24-25"', hips: '33-34"', length: '24"' }) },
+    { category: 'women', type: 'clothing', size: 'S', measurements: JSON.stringify({ bust: '33-34"', waist: '26-27"', hips: '35-36"', length: '25"' }) },
+    { category: 'women', type: 'clothing', size: 'M', measurements: JSON.stringify({ bust: '35-36"', waist: '28-29"', hips: '37-38"', length: '26"' }) },
+    { category: 'women', type: 'clothing', size: 'L', measurements: JSON.stringify({ bust: '37-38"', waist: '30-31"', hips: '39-40"', length: '27"' }) },
+    { category: 'women', type: 'clothing', size: 'XL', measurements: JSON.stringify({ bust: '39-40"', waist: '32-33"', hips: '41-42"', length: '28"' }) },
+    { category: 'women', type: 'clothing', size: 'XXL', measurements: JSON.stringify({ bust: '41-42"', waist: '34-35"', hips: '43-44"', length: '29"' }) },
+    // Women's Shoes
+    { category: 'women', type: 'shoes', size: 'UK 3 / EU 36', measurements: JSON.stringify({ footLength: '22.5 cm', usSize: '5' }) },
+    { category: 'women', type: 'shoes', size: 'UK 4 / EU 37', measurements: JSON.stringify({ footLength: '23.5 cm', usSize: '6' }) },
+    { category: 'women', type: 'shoes', size: 'UK 5 / EU 38', measurements: JSON.stringify({ footLength: '24 cm', usSize: '7' }) },
+    { category: 'women', type: 'shoes', size: 'UK 6 / EU 39', measurements: JSON.stringify({ footLength: '25 cm', usSize: '8' }) },
+    { category: 'women', type: 'shoes', size: 'UK 7 / EU 40', measurements: JSON.stringify({ footLength: '25.5 cm', usSize: '9' }) },
+    // Accessories (general)
+    { category: 'accessories', type: 'accessories', size: 'One Size', measurements: JSON.stringify({ note: 'Adjustable / Universal fit' }) },
+  ];
+
+  for (const item of sizeChartData) {
+    await db.sizeChart.create({ data: item });
+  }
+  console.log('✅ Size charts created');
+
   console.log('\n🎉 MIRADEEN database seeded successfully!');
   console.log('\n👤 Admin Login: admin@miradeen.com / admin123');
   console.log('👤 Demo User: demo@miradeen.com / user123');

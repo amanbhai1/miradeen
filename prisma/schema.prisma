@@ -28,6 +28,7 @@ model User {
   reviews       Review[]
   wishlist      Wishlist[]
   contactMessages ContactMessage[]
+  recentlyViewed RecentlyViewed[]
 }
 
 model Category {
@@ -68,8 +69,9 @@ model Product {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  reviews       Review[]
-  wishlists     Wishlist[]
+  reviews         Review[]
+  wishlists       Wishlist[]
+  recentlyViewed  RecentlyViewed[]
 }
 
 model Order {
@@ -186,4 +188,25 @@ model SiteSetting {
   value String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SizeChart {
+  id          String   @id @default(cuid())
+  category    String   // "men" | "women" | "accessories"
+  type        String   // "clothing" | "shoes" | "accessories"
+  size        String   // "XS", "S", "M", "L", "XL", "XXL", etc.
+  measurements String  // JSON object: { chest: "38\"", waist: "32\"", ... }
+  createdAt   DateTime @default(now())
+}
+
+model RecentlyViewed {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  viewedAt  DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId, viewedAt])
 }

@@ -3684,3 +3684,448 @@ input:focus::placeholder {
     transparent 80%
   );
 }
+
+/* ========================================
+   PHASE 8: MIRADEEN Styling Detail Pass
+   ======================================== */
+
+/* ── Scrollbar Hide Utility ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Smooth Page Transition ── */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.animate-page-enter {
+  animation: pageEnter 0.6s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes pageExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+.animate-page-exit {
+  animation: pageExit 0.25s ease-in both;
+}
+
+/* ── Enhanced Product Card 3D Tilt ── */
+.card-tilt-3d {
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.card-tilt-3d:hover {
+  transform: perspective(1000px) rotateX(3deg) rotateY(-3deg) translateY(-6px);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.1),
+              0 10px 20px rgba(201, 169, 110, 0.06);
+}
+.dark .card-tilt-3d:hover {
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35),
+              0 10px 20px rgba(201, 169, 110, 0.04);
+}
+/* Subtle gold highlight edge on tilt */
+.card-tilt-3d::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(201, 169, 110, 0);
+  transition: border-color 0.5s ease;
+  pointer-events: none;
+}
+.card-tilt-3d:hover::after {
+  border-color: rgba(201, 169, 110, 0.15);
+}
+
+/* ── Enhanced Loading Skeleton ── */
+@keyframes skeletonWave {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-pulse-gold {
+  background: linear-gradient(
+    90deg,
+    oklch(0.96 0.005 90) 0%,
+    oklch(0.94 0.01 75) 20%,
+    oklch(0.92 0.015 70) 40%,
+    oklch(0.94 0.01 75) 60%,
+    oklch(0.96 0.005 90) 80%
+  );
+  background-size: 200% 100%;
+  animation: skeletonWave 2.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+.dark .skeleton-pulse-gold {
+  background: linear-gradient(
+    90deg,
+    oklch(0.20 0.005 60) 0%,
+    oklch(0.23 0.01 60) 20%,
+    oklch(0.26 0.012 65) 40%,
+    oklch(0.23 0.01 60) 60%,
+    oklch(0.20 0.005 60) 80%
+  );
+  background-size: 200% 100%;
+}
+/* Line skeleton variant */
+.skeleton-line-gold {
+  height: 12px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.96 0.005 90) 0%,
+    oklch(0.93 0.012 75) 50%,
+    oklch(0.96 0.005 90) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonWave 2s ease-in-out infinite;
+  border-radius: 4px;
+}
+.dark .skeleton-line-gold {
+  background: linear-gradient(
+    90deg,
+    oklch(0.20 0.005 60) 0%,
+    oklch(0.24 0.01 65) 50%,
+    oklch(0.20 0.005 60) 100%
+  );
+  background-size: 200% 100%;
+}
+/* Card skeleton block */
+.skeleton-card-gold {
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    oklch(0.96 0.005 90) 0%,
+    oklch(0.94 0.008 80) 100%
+  );
+  overflow: hidden;
+  position: relative;
+}
+.dark .skeleton-card-gold {
+  background: linear-gradient(
+    180deg,
+    oklch(0.20 0.005 60) 0%,
+    oklch(0.22 0.008 60) 100%
+  );
+}
+.skeleton-card-gold::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(201, 169, 110, 0.06) 45%,
+    rgba(201, 169, 110, 0.03) 55%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  animation: skeletonWave 2.5s ease-in-out infinite;
+}
+
+/* ── Luxury Form Input Focus (Gold Glow) ── */
+.input-gold-glow {
+  transition: border-color 0.3s ease,
+              box-shadow 0.3s ease,
+              background-color 0.3s ease;
+}
+.input-gold-glow:focus {
+  border-color: #C9A96E !important;
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.12),
+              0 0 12px rgba(201, 169, 110, 0.08);
+  outline: none;
+}
+.dark .input-gold-glow:focus {
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2),
+              0 0 20px rgba(201, 169, 110, 0.1);
+}
+/* Label floating animation */
+.input-gold-glow:focus + label,
+.input-gold-glow:not(:placeholder-shown) + label {
+  color: #C9A96E;
+}
+/* Textarea gold glow */
+textarea.input-gold-glow:focus {
+  border-color: #C9A96E !important;
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.12);
+  outline: none;
+}
+/* Select gold glow */
+select.input-gold-glow:focus {
+  border-color: #C9A96E !important;
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.12);
+  outline: none;
+}
+
+/* ── Enhanced Button Hover/Active States ── */
+.btn-luxury-press {
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 0.2s ease,
+              background-color 0.2s ease;
+  will-change: transform;
+}
+.btn-luxury-press:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(201, 169, 110, 0.2),
+              0 2px 8px rgba(201, 169, 110, 0.1);
+}
+.btn-luxury-press:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 8px rgba(201, 169, 110, 0.1);
+}
+/* Dark variant */
+.dark .btn-luxury-press:hover {
+  box-shadow: 0 6px 20px rgba(201, 169, 110, 0.15),
+              0 2px 8px rgba(201, 169, 110, 0.08);
+}
+/* Gold button specific press */
+.btn-gold-press {
+  background-color: #C9A96E;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 0.3s ease,
+              background-color 0.2s ease;
+}
+.btn-gold-press:hover {
+  background-color: #D4B87A;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(201, 169, 110, 0.3);
+}
+.btn-gold-press:active {
+  background-color: #B08D4F;
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 8px rgba(201, 169, 110, 0.15);
+}
+
+/* ── Scroll-Triggered Reveal (Pure CSS) ── */
+/* Uses animation-timeline: view() for modern browsers with graceful fallback */
+@keyframes scrollRevealUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes scrollRevealFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scrollRevealScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes scrollRevealLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes scrollRevealRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.scroll-reveal {
+  animation: scrollRevealUp linear both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 30%;
+}
+.scroll-reveal-fade {
+  animation: scrollRevealFade linear both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 25%;
+}
+.scroll-reveal-scale {
+  animation: scrollRevealScale linear both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 25%;
+}
+.scroll-reveal-left {
+  animation: scrollRevealLeft linear both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 30%;
+}
+.scroll-reveal-right {
+  animation: scrollRevealRight linear both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 30%;
+}
+
+/* ── Mobile Responsive Adjustments ── */
+/* Better touch targets on mobile */
+@media (max-width: 640px) {
+  /* Increase touch area for interactive elements */
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+  /* Reduce animation complexity on mobile for performance */
+  .card-tilt-3d:hover {
+    transform: translateY(-4px);
+  }
+  .card-tilt-3d::after {
+    display: none;
+  }
+  /* Tighter padding on mobile */
+  .product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+  }
+  /* Simpler skeleton on mobile */
+  .skeleton-card-gold::after {
+    animation: none;
+  }
+  /* Prevent horizontal overflow from animations */
+  .morph-blob, .morph-blob-slow {
+    display: none;
+  }
+  /* Better mobile text sizing */
+  .heading-serif {
+    letter-spacing: 0.01em;
+  }
+}
+
+/* Safe area padding for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Mobile tap highlight removal */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Disable hover transforms on touch devices */
+  .card-tilt-3d:hover,
+  .card-luxury:hover,
+  .product-card:hover,
+  .hover-lift:hover,
+  .hover-lift-sm:hover,
+  .hover-lift-lg:hover {
+    transform: none;
+  }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 640px) and (orientation: landscape) {
+  .skeleton-card-gold {
+    border-radius: 8px;
+  }
+}
+
+/* ── Gold Pulse Ring Animation ── */
+@keyframes goldRingPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.3);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(201, 169, 110, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 169, 110, 0);
+  }
+}
+.gold-ring-pulse {
+  animation: goldRingPulse 2s ease-in-out infinite;
+}
+
+/* ── Elegant Image Skeleton Loading ── */
+@keyframes imgPlaceholderPulse {
+  0%, 100% {
+    background-position: -200px 0;
+  }
+  50% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+.img-skeleton-gold {
+  background: linear-gradient(
+    110deg,
+    #F5F0E8 8%,
+    #EDE5D5 18%,
+    #F5F0E8 33%
+  );
+  background-size: 400px 100%;
+  animation: imgPlaceholderPulse 1.8s ease-in-out infinite;
+}
+.dark .img-skeleton-gold {
+  background: linear-gradient(
+    110deg,
+    #1A1A1A 8%,
+    #252525 18%,
+    #1A1A1A 33%
+  );
+  background-size: 400px 100%;
+}
+
+/* ── Smooth Scroll Snap for Carousels ── */
+.snap-scroll-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding: 16px;
+}
+.snap-scroll-x > * {
+  scroll-snap-align: start;
+}
+
+/* ── Luxury Focus Within for Form Groups ── */
+.form-group-luxury:focus-within label {
+  color: #C9A96E;
+  transition: color 0.2s ease;
+}
+.form-group-luxury:focus-within .form-group-icon {
+  color: #C9A96E;
+  transition: color 0.2s ease;
+}
+
+/* ── Text Selection Refined ── */
+::selection {
+  background: rgba(201, 169, 110, 0.25);
+  color: inherit;
+}
+::-moz-selection {
+  background: rgba(201, 169, 110, 0.25);
+  color: inherit;
+}
