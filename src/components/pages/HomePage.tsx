@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useInView, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { motion, useInView, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from 'framer-motion';
 import {
   Star, Heart, ShoppingBag, ArrowRight,
   Truck, Shield, RefreshCw, Headphones, Instagram, Sparkles,
   Eye, GitCompareArrows, MessageCircle, Clock, Scissors, Leaf, Landmark, Gift,
   Gem, RotateCcw, Crown, TrendingUp, ChevronLeft, ChevronRight,
-  Quote, ExternalLink, Camera, CheckCircle, Package, Handshake
+  Quote, ExternalLink, Camera, CheckCircle, Package, Handshake, Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -195,6 +195,45 @@ export default function HomePage() {
   const [testimonialHovered, setTestimonialHovered] = useState(false);
   const trendingRef = useRef<HTMLDivElement>(null);
 
+  // Dynamic testimonials from DB
+  const [dbTestimonials, setDbTestimonials] = useState<Array<{
+    id: string;
+    author: string;
+    role: string;
+    company: string;
+    avatar: string | null;
+    rating: number;
+    text: string;
+    isFeatured: boolean;
+  }>[]>([]);
+
+  // Scroll progress bar
+  const { scrollYProgress } = useScroll();
+  const [scrollProgress, setScrollProgress] = useState(0);
+  useMotionValueEvent(scrollYProgress, 'change', (latest) => {
+    setScrollProgress(latest);
+  });
+
+  // Merged testimonials: DB first, fallback to static
+  const testimonials = dbTestimonials.length > 0
+    ? dbTestimonials.map((t) => ({
+        name: t.author,
+        location: t.company || '',
+        role: t.role || '',
+        rating: t.rating,
+        verified: true,
+        text: t.text,
+        avatar: t.avatar,
+      }))
+    : [
+        { name: 'Priya Sharma', location: 'Mumbai', role: 'Fashion Blogger', rating: 5, verified: true, text: 'The quality is beyond anything I\'ve experienced. MIRADEEN has set a new standard for luxury fashion in India. Every piece feels like it was made just for me.' },
+        { name: 'Arjun Mehta', location: 'Delhi', role: 'Creative Director', rating: 5, verified: true, text: 'From the packaging to the fabric quality, everything screams premium. The Sovereign Blazer is now my go-to for every important occasion.' },
+        { name: 'Ananya Patel', location: 'Bangalore', role: 'Interior Designer', rating: 5, verified: false, text: 'I\'ve been a loyal customer for over a year. The craftsmanship is consistently exceptional. MIRADEEN truly redefines luxury fashion.' },
+        { name: 'Vikram Rao', location: 'Chennai', role: 'Entrepreneur', rating: 5, verified: true, text: 'The attention to detail is impeccable. From stitching to fabric choice, every element reflects true luxury. MIRADEEN is my wardrobe staple now.' },
+        { name: 'Meera Kapoor', location: 'Hyderabad', role: 'Style Consultant', rating: 5, verified: false, text: 'I recommend MIRADEEN to all my clients. The timeless designs and premium quality make every outfit feel effortlessly elegant.' },
+        { name: 'Rohan Desai', location: 'Pune', role: 'Photographer', rating: 5, verified: true, text: 'As someone who works in fashion, I appreciate the thought behind each collection. MIRADEEN delivers sophistication with every piece.' },
+      ];
+
   // Countdown timer
   const timeLeft = useCountdown();
 
@@ -225,12 +264,19 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (testimonialHovered) return;
+    fetch('/api/testimonials')
+      .then(res => res.json())
+      .then(data => setDbTestimonials(data.testimonials || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (testimonialHovered || testimonials.length === 0) return;
     const interval = setInterval(() => {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [testimonialHovered]);
+  }, [testimonialHovered, testimonials.length]);
 
   const categories = [
     { name: 'Men', slug: 'men', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=800&fit=crop' },
@@ -238,14 +284,7 @@ export default function HomePage() {
     { name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=800&fit=crop' },
   ];
 
-  const testimonials = [
-    { name: 'Priya Sharma', location: 'Mumbai', role: 'Fashion Blogger', rating: 5, verified: true, text: 'The quality is beyond anything I\'ve experienced. MIRADEEN has set a new standard for luxury fashion in India. Every piece feels like it was made just for me.' },
-    { name: 'Arjun Mehta', location: 'Delhi', role: 'Creative Director', rating: 5, verified: true, text: 'From the packaging to the fabric quality, everything screams premium. The Sovereign Blazer is now my go-to for every important occasion.' },
-    { name: 'Ananya Patel', location: 'Bangalore', role: 'Interior Designer', rating: 5, verified: false, text: 'I\'ve been a loyal customer for over a year. The craftsmanship is consistently exceptional. MIRADEEN truly redefines luxury fashion.' },
-    { name: 'Vikram Rao', location: 'Chennai', role: 'Entrepreneur', rating: 5, verified: true, text: 'The attention to detail is impeccable. From stitching to fabric choice, every element reflects true luxury. MIRADEEN is my wardrobe staple now.' },
-    { name: 'Meera Kapoor', location: 'Hyderabad', role: 'Style Consultant', rating: 5, verified: false, text: 'I recommend MIRADEEN to all my clients. The timeless designs and premium quality make every outfit feel effortlessly elegant.' },
-    { name: 'Rohan Desai', location: 'Pune', role: 'Photographer', rating: 5, verified: true, text: 'As someone who works in fashion, I appreciate the thought behind each collection. MIRADEEN delivers sophistication with every piece.' },
-  ];
+  // testimonials are defined above (DB-first with fallback)
 
   const instagramImages = [
     'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=400&fit=crop',
@@ -355,6 +394,12 @@ export default function HomePage() {
 
   return (
     <div>
+      {/* ═══ Scroll Progress Indicator ═══ */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-gold via-gold-light to-gold z-[9999] origin-left"
+        style={{ scaleX: scrollProgress }}
+      />
+
       {/* ═══ Hero Section ═══ */}
       <section className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
@@ -770,73 +815,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══ Testimonials ═══ */}
-      <section className="py-20 bg-cream dark:bg-card/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AnimatedSection className="text-center mb-12">
-            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Testimonials</p>
-            <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-3">What Our Clients Say</h2>
-            <div className="divider-gold w-20 mx-auto" />
-          </AnimatedSection>
-
-          <div
-            className="max-w-2xl mx-auto relative"
-            onMouseEnter={() => setTestimonialHovered(true)}
-            onMouseLeave={() => setTestimonialHovered(false)}
-          >
-            {/* Navigation Arrows (desktop only) */}
-            <button
-              onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-14 z-10 hidden md:flex w-10 h-10 rounded-full bg-background/60 dark:bg-card/60 backdrop-blur-md border border-gold/20 hover:border-gold/60 hover:bg-gold/10 items-center justify-center transition-all duration-300 shadow-luxury-sm"
-              aria-label="Previous testimonial"
-            >
-              <ChevronLeft className="h-4 w-4 text-gold" />
-            </button>
-            <button
-              onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-14 z-10 hidden md:flex w-10 h-10 rounded-full bg-background/60 dark:bg-card/60 backdrop-blur-md border border-gold/20 hover:border-gold/60 hover:bg-gold/10 items-center justify-center transition-all duration-300 shadow-luxury-sm"
-              aria-label="Next testimonial"
-            >
-              <ChevronRight className="h-4 w-4 text-gold" />
-            </button>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentTestimonial}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.5 }}
-                className="text-center"
-              >
-                <div className="flex justify-center mb-6">
-                  {Array.from({ length: testimonials[currentTestimonial].rating }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-gold text-gold" />
-                  ))}
-                </div>
-                <p className="heading-serif text-xl md:text-2xl leading-relaxed mb-6 italic">
-                  &ldquo;{testimonials[currentTestimonial].text}&rdquo;
-                </p>
-                <p className="font-semibold text-sm">{testimonials[currentTestimonial].name}</p>
-                <p className="text-xs text-muted-foreground">{testimonials[currentTestimonial].location}</p>
-              </motion.div>
-            </AnimatePresence>
-
-            <div className="flex justify-center gap-2 mt-8">
-              {testimonials.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentTestimonial(i)}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    i === currentTestimonial ? 'bg-gold w-6' : 'bg-border hover:bg-gold/50'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ═══ Shop The Look ═══ */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1113,7 +1091,11 @@ export default function HomePage() {
             <div className="divider-gold w-20 mx-auto" />
           </AnimatedSection>
 
-          <div className="max-w-4xl mx-auto relative">
+          <div
+            className="max-w-4xl mx-auto relative"
+            onMouseEnter={() => setTestimonialHovered(true)}
+            onMouseLeave={() => setTestimonialHovered(false)}
+          >
             {/* Navigation Arrows */}
             <button
               onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
@@ -1426,6 +1408,71 @@ export default function HomePage() {
               Learn More About Our Values
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* ═══ Our Promise — Trust Badges ═══ */}
+      <section className="py-16 border-y border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { icon: Lock, title: 'Secure Payments', desc: '256-bit SSL encryption for every transaction' },
+              { icon: Truck, title: 'Free Shipping', desc: 'Complimentary delivery on all orders over ₹2,000' },
+              { icon: RotateCcw, title: 'Easy Returns', desc: '30-day hassle-free returns with free pickup' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Dedicated style advisors via chat & call' },
+            ].map((badge, i) => (
+              <AnimatedSection key={badge.title} delay={i * 0.1}>
+                <div className="glass-card rounded-xl p-5 md:p-6 text-center group cursor-default hover:border-gold/30 transition-all duration-300">
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    className="w-14 h-14 rounded-full bg-gold/10 border border-gold/25 flex items-center justify-center mx-auto mb-4 group-hover:bg-gold/20 group-hover:border-gold/50 transition-all duration-300"
+                  >
+                    <badge.icon className="h-6 w-6 text-gold" />
+                  </motion.div>
+                  <h3 className="text-xs font-semibold tracking-wider uppercase mb-1.5">{badge.title}</h3>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">{badge.desc}</p>
+                </div>
+              </AnimatedSection>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Our Promise — Trust Section ═══ */}
+      <section className="py-16 md:py-20 bg-gradient-to-b from-muted/50 to-background">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <AnimatedSection>
+            <div className="text-center mb-10">
+              <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Our Promise</p>
+              <h2 className="heading-serif text-2xl md:text-3xl font-bold">
+                Shopping with <span className="text-gold-gradient">Confidence</span>
+              </h2>
+              <div className="h-px w-16 bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mt-4" />
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              {[
+                { icon: Shield, title: 'Secure Payments', desc: '256-bit SSL encrypted transactions for your safety' },
+                { icon: Truck, title: 'Free Shipping', desc: 'Complimentary delivery on orders above ₹2,000' },
+                { icon: RotateCcw, title: 'Easy Returns', desc: 'Hassle-free 30-day return policy on all items' },
+                { icon: Headphones, title: '24/7 Support', desc: 'Dedicated style consultants at your service' },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1, duration: 0.5 }}
+                  className="glass-card rounded-xl p-5 md:p-6 text-center hover-lift-sm group cursor-default"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-3 group-hover:bg-gold/20 transition-colors duration-300">
+                    <item.icon className="h-5 w-5 text-gold" />
+                  </div>
+                  <h3 className="text-sm font-semibold mb-1.5">{item.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                </motion.div>
+              ))}
+            </div>
           </AnimatedSection>
         </div>
       </section>

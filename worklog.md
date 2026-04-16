@@ -708,6 +708,60 @@ Task: Enhance NotificationToast component with more notification types, social p
 - `src/components/shared/NotificationToast.tsx` — REWRITTEN: ~365 lines (from ~88 lines), enhanced with new types, glass card design, progress bar, social proof system, hover pause, improved animations
 
 ---
+
+Task ID: 11-a
+Agent: Enhancement Developer
+Task: Enhance HomePage with dynamic testimonials, trust badges, scroll progress, and micro-interactions
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+
+### Changes Made
+
+#### 1. Public Testimonials API Endpoint (NEW)
+- Created `src/app/api/testimonials/route.ts` — GET handler
+- Queries active testimonials from Prisma, ordered by sortOrder ascending, limited to 8
+- Returns formatted testimonials with id, author, role, company, avatar, rating, text, isFeatured
+- Graceful error handling — returns empty array on failure
+
+#### 2. Dynamic Testimonials with DB-first + Fallback
+- Added `dbTestimonials` state to fetch testimonials from `/api/testimonials`
+- `testimonials` const is now a derived merge: DB data if available, else static hardcoded fallbacks
+- Removed duplicate first "Testimonials" section (the simpler one), keeping the enhanced "Customer Love" carousel
+- Added hover-pause (`onMouseEnter`/`onMouseLeave`) to Customer Love carousel container
+- Auto-rotate interval now depends on `testimonials.length` to prevent edge cases
+- Testimonials include optional avatar field for image support
+
+#### 3. Scroll Progress Indicator
+- Added fixed 3px gold gradient bar at top of page (z-[9999])
+- Uses `useScroll` + `useMotionValueEvent` from Framer Motion for performant scroll tracking
+- Scales from left (0) to right (1) using `scaleX` transform with `origin-left`
+- Uses `.scroll-progress` CSS class styling (gold gradient)
+
+#### 4. "Our Promise" Trust Badges Section (NEW)
+- Added before Bottom CTA section (after Sustainability section)
+- 4 trust badges in responsive grid: Secure Payments (Lock), Free Shipping (Truck), Easy Returns (RotateCcw), 24/7 Support (Headphones)
+- Glass-card styling with gold accents on each badge
+- Animated gold icon circles with `whileHover` scale effect
+- 2x2 grid on mobile, 4 across on desktop
+- Staggered entrance animations via AnimatedSection
+
+#### 5. Product Card Micro-interactions (Already Present)
+- ProductCard component already has Quick View overlay (Eye icon + "Quick View" button) on hover
+- Wishlist heart button already appears on product card hover
+- No additional changes needed — existing QuickAddOverlay handles both interactions
+
+#### 6. Smooth Section Reveals (Already Present)
+- All major sections already wrapped in AnimatedSection with IntersectionObserver fade-in
+- AnimatedSection uses `useInView` with `once: true` and `-50px` margin for early trigger
+- Framer Motion handles the opacity + y-translate animation (0.8s duration)
+
+### Files Created/Modified
+- `src/app/api/testimonials/route.ts` — NEW: Public testimonials GET endpoint
+- `src/components/pages/HomePage.tsx` — ENHANCED: Dynamic testimonials, scroll progress, trust badges, removed duplicate section
+
+---
 Task ID: 8-1
 Agent: Phase 8 Development Team
 Task: New pages (Collections, Sale), Phase 8 CSS animations, Navigation updates
@@ -2305,3 +2359,209 @@ Stage Summary:
 4. Implement OAuth social login (Google, Facebook)
 5. Performance optimization: lazy loading, code splitting, image optimization
 6. PWA support: service worker, manifest, offline capability
+
+---
+Task ID: 11-b
+Agent: Frontend Developer
+Task: Enhance BlogPage with rich luxury content, improve UX, and add reading features
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+
+### Changes Made
+
+#### 1. Complete BlogPage Rewrite (`src/components/pages/BlogPage.tsx`)
+- **File**: Fully rewritten from ~893 lines to ~1,080 lines
+
+#### A. Hero Section
+- Full-width parallax hero using `useScroll` + `useTransform`
+- "THE JOURNAL" heading with `text-shimmer` gold animation
+- Gold diamond decorations with BookOpen icon
+- Subtitle: "Stories, Style & Inspiration from MIRADEEN"
+- Scroll indicator with bouncing gold dot
+
+#### B. Featured Article (Full-Width Hero Card)
+- Full-height hero card with parallax image background
+- Gradient overlay (left-to-right: from-black/75 via-black/50 to-transparent)
+- Category badge (gold), reading time, date, author with avatar initials
+- Title, excerpt, "Read Article" CTA button
+- Featured tag in top-right corner
+- Click navigates to blog detail view (not toast)
+
+#### C. Category Filter (Horizontal Scrollable Pills)
+- 6 categories: All, Style Guides, Behind the Scenes, Fashion Trends, Care Tips, Brand Stories
+- Gold active state with shadow, transparent inactive with gold hover
+- Fade edges on both sides
+- Resets visible article count to 3 when category changes
+
+#### D. Blog Grid (Responsive)
+- 3-column on desktop (lg), 2 on tablet (sm), 1 on mobile
+- Staggered entrance animation (0.1s delay per card)
+- Each card: image with aspect-[3/4], category badge, date, reading time, title, excerpt, author with avatar initials
+- Hover effects: card lift (`hover-lift-sm`) + shadow + image scale (110%) + gold hover arrow overlay + title color change to gold
+- Gold border glow on hover
+
+#### E. 6 Blog Articles (Hardcoded with Full Content)
+All articles by "MIRADEEN Editorial Team" (initials "ME"):
+
+1. **"The Art of Minimalist Luxury"** — Style Guides — 5 min read — June 15, 2024
+   - Excerpt about quiet revolution in luxury fashion
+   - 4 full paragraphs about minimalist philosophy, premium materials, colour palette, and MIRADEEN's commitment
+
+2. **"Behind the Seams: Our Craftsmanship Process"** — Behind the Scenes — 7 min read — June 10, 2024
+   - Excerpt about atelier and hand-embroidery techniques
+   - 4 paragraphs about master artisans, embroidery, pattern-making, and quality control culture
+
+3. **"5 Ways to Style a Blazer for Every Occasion"** — Fashion Trends — 4 min read — June 5, 2024
+   - Excerpt about the blazer as sartorial chameleon
+   - 3 paragraphs covering office, weekend, and evening styling
+
+4. **"Caring for Your Premium Fabrics"** — Care Tips — 6 min read — May 28, 2024
+   - Excerpt about luxury garment care
+   - 3 paragraphs covering silk, cashmere, and wool care
+
+5. **"The MIRADEEN Story: From Vision to Reality"** — Brand Stories — 8 min read — May 20, 2024
+   - Excerpt about brand founding conviction
+   - 4 paragraphs about founder's vision, first collection, deliberate growth, and current operations
+
+6. **"Summer 2024: Trends That Define Luxury Fashion"** — Fashion Trends — 5 min read — May 12, 2024
+   - Excerpt about Summer 2024 confidence
+   - 4 paragraphs about fluid silhouettes, warm colour palette, metallics, and conscious consumerism
+
+All articles use real Unsplash URLs for images.
+
+#### F. Newsletter CTA Section ("Stay Inspired")
+- Gold gradient background (`from-gold/10 via-background to-gold/5`)
+- Gold accent lines (top and bottom)
+- Decorative gold corner accents (desktop only)
+- "Stay Inspired" heading, gold divider
+- Description text about subscribing for luxury fashion content
+- Email input + Subscribe button with gold styling
+- Success state with sparkle animation
+- Privacy note
+- Newsletter API integration (POST /api/newsletter)
+
+#### G. Load More Button
+- Shows first 3 articles by default
+- "Load More Articles" button with bouncing ChevronDown animation
+- Reveals 3 more articles on each click
+- Hidden when all articles are visible
+- Resets to 3 when category filter changes
+
+#### H. Blog Detail View (NEW)
+- Local `selectedArticle` state (not in Zustand store)
+- Clicking any "Read Article" or article card opens detail view
+- Full-width hero image (50vh mobile, 65vh desktop) with gradient overlay
+- "Back to Journal" ghost button in top-left with ArrowLeft icon
+- Category badge, title, author/date/reading time meta
+- 3-4 full paragraphs with staggered fade-in animations
+- Gold divider lines above and below content
+- Author section card with gold-bordered avatar circle, name, and editorial team description
+- "Back to Journal" button at bottom
+- Auto-scrolls to top on entry
+- Back button returns to journal list view
+
+#### I. Removed / Changed
+- Removed: Toast notification placeholders (was "Full article view coming soon!")
+- Removed: Duplicate Load More section at page bottom
+- Removed: Second Load More section (was always visible)
+- Changed: Categories from old set (Trend Reports, Interviews, Lookbooks, Seasonal) to new set (Fashion Trends, Care Tips, Brand Stories)
+- Changed: All articles from individual authors to unified "MIRADEEN Editorial Team"
+- Changed: All article content to match task specification
+- Changed: Initial visible count from 6 to 3
+- Changed: Load More increment from 6 to 3
+
+### Design Features
+- Uses existing CSS utilities: `text-shimmer`, `card-shine`, `heading-serif`, `btn-luxury`, `shadow-luxury-sm`, `hover-lift-sm`, `divider-gold`
+- Framer Motion animations throughout (parallax, staggered entrance, hover effects)
+- Responsive design with proper breakpoints
+- shadcn/ui components: Button, Badge, Input
+
+### Files Modified
+- `src/components/pages/BlogPage.tsx` — REWRITTEN: ~1,080 lines with rich luxury content, blog detail view, enhanced UX
+
+---
+Task ID: 11-c
+Agent: Enhancement Developer
+Task: Enhance OrderTrackingPage with visual timeline, delivery map placeholder, and status notifications
+
+### QA Assessment
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server compiles successfully ✅
+
+### Changes Made
+
+#### A. Hero Section (Enhanced)
+- "Track Your Order" heading now uses `text-gold-gradient` for luxurious gold gradient text
+- Subtitle: "Stay updated on your MIRADEEN delivery"
+- Decorative gold elements: L-shaped corner borders, 3 floating gold dots with staggered float animations
+- Larger hero (h-56 md:h-72) with Package icon in gold-tinted circle
+
+#### B. Order Search Section (Enhanced)
+- Large centered search input with Package icon inside gold circle
+- Placeholder: "Enter your order number (e.g., MRD-1234)"
+- Full-width "Track Order" button with gold styling and btn-luxury effect
+- "Or" divider with decorative gradient lines
+- "Log in to view all orders" link with LogIn icon, navigates to auth page via `navigate('auth')`
+
+#### C. Tracking Result Display (Enhanced)
+
+**1. Order Summary Card:**
+- Order number with text-gold-gradient, copy button, colored status badge
+- Grid: Order Date, Items count, Total (gold), Payment status with green/amber indicator
+
+**2. Visual Timeline (Enhanced with staggered Framer Motion reveal):**
+- 5 steps: Order Placed → Confirmed → Processing → Shipped → Delivered
+- Completed steps: gold circle with white CheckCircle icon + gold connecting line
+- Current step: double pulsing gold ring animation + gold filled circle with step icon
+- Upcoming steps: dashed border muted circle with muted icon
+- Full timestamps with formatFull (month, day, year, hour:minute)
+- Staggered reveal: `delay: i * 0.15` for each step
+
+**3. Delivery Map Placeholder (NEW):**
+- SVG-based stylized map visual with:
+  - Gradient background (emerald/blue/amber tones)
+  - Grid lines simulating a map
+  - Animated route path (SVG dashed + solid gold line with pathLength animation)
+  - Origin pin with Warehouse icon + "Origin" label
+  - Destination pin with double pulsing ring animation + MapPin icon + "Your Address" label
+  - Moving truck indicator (for shipped orders) with floating animation
+- Info overlay: estimated delivery date range, carrier info (BlueDart Express)
+- Route labels: "MIRADEEN Warehouse → Your Address" with gold ArrowDownRight icon
+- Timeline and Map displayed side-by-side on lg screens (2-col grid)
+
+**4. Shipping Details Card (NEW, replaces old Shipping Info Card):**
+- Shipping address with MapPin icon
+- 2x2 info grid: Contact Number, Shipping Method ("Express Delivery, 2–4 business days"), Package Weight (~0.3–1.0 kg based on item count), Carrier
+- Tracking number with copy button (if available)
+
+**5. Need Help Section (Enhanced):**
+- "Need help with your order?" heading with HelpCircle icon
+- 3 contact cards: Email (merajkhan6188@gmail.com), Phone (+91 9319084050), WhatsApp (wa.me/919319084050)
+- FAQ links section: Return Policy, Shipping Info, Track Package, Size Guide → navigate to contact page
+
+#### D. Empty/No Result State (Enhanced)
+- Animated package icon with floating y-axis animation
+- Pulsing gold border ring
+- "No Order Found" heading with descriptive message
+- Suggestions with gold CheckCircle icons: "Check your order number", "Make sure you're using the correct format"
+- 3 CTA buttons: Try Again, Browse Our Shop, Contact Support
+
+#### E. Loading State (NEW: GoldLoadingRing component)
+- Dual spinning gold rings (outer: clockwise 1.5s, inner: counter-clockwise 2s)
+- Package icon in center
+- "Tracking your order..." / "Loading your orders..." text
+- Used for both guest search loading and authenticated orders loading
+
+### Sub-Components Created/Enhanced
+- `GoldLoadingRing` — New dual-ring gold loading spinner with package icon
+- `DeliveryMapPlaceholder` — New SVG-based map placeholder with animated route, pins, and truck
+- `ShippingDetailsCard` — New detailed shipping info card extracted from OrderDetailView
+- `NeedHelpSection` — New enhanced help section with correct contact info and FAQ links
+- `OrderTimeline` — Enhanced with double-ring pulse on current step, staggered delays (0.15s), formatFull timestamps
+- `OrderItemsList` — Enhanced with staggered entrance animation delay (0.4s)
+- `OrderDetailView` — Restructured: summary → (timeline + map side-by-side) → shipping → items → help
+
+### Files Modified
+- `src/components/pages/OrderTrackingPage.tsx` — REWRITTEN: ~900 lines with enhanced hero, search, map placeholder, shipping details, loading states, help section

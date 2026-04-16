@@ -7,14 +7,15 @@ import {
   XCircle, Phone, Mail, MessageCircle, Copy, ExternalLink,
   ShieldCheck, Calendar, CreditCard, PackageCheck, Warehouse,
   ArrowLeft, Filter, ShoppingBag, User, ChevronRight,
-  Hash, ArrowDownRight,
+  Hash, ArrowDownRight, Navigation, Weight, HelpCircle,
+  ChevronDown, Loader2, LogIn,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/hooks/use-toast';
 import type { Order } from '@/types';
@@ -50,15 +51,18 @@ function getTimelineSteps(order: Order): TimelineStep[] {
   const createdDate = new Date(order.createdAt);
   const formatDate = (d: Date) =>
     d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
-  const formatTime = (d: Date, h: number) => {
-    const copy = new Date(d);
-    copy.setHours(copy.getHours() + h);
-    return copy.toLocaleString('en-IN', {
+  const formatFull = (d: Date) =>
+    d.toLocaleString('en-IN', {
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
+  const formatTime = (d: Date, h: number) => {
+    const copy = new Date(d);
+    copy.setHours(copy.getHours() + h);
+    return formatFull(copy);
   };
 
   const currentIdx = STATUS_ORDER.indexOf(order.status);
@@ -67,28 +71,28 @@ function getTimelineSteps(order: Order): TimelineStep[] {
     {
       key: 'placed',
       label: 'Order Placed',
-      description: 'Your order has been received and confirmed',
+      description: 'Your order has been confirmed',
       icon: CheckCircle,
-      date: formatDate(createdDate),
+      date: formatFull(createdDate),
     },
     {
       key: 'confirmed',
       label: 'Confirmed',
-      description: 'Payment verified and order confirmed by MIRADEEN',
+      description: 'Payment verified, preparing your order',
       icon: CreditCard,
       date: currentIdx >= 1 ? formatTime(createdDate, 2) : '',
     },
     {
       key: 'processing',
       label: 'Processing',
-      description: 'Your items are being carefully packed and inspected',
+      description: 'Your items are being carefully packaged',
       icon: Warehouse,
       date: currentIdx >= 2 ? formatTime(createdDate, 24) : '',
     },
     {
       key: 'shipped',
       label: 'Shipped',
-      description: 'Package handed to courier — in transit to your city',
+      description: 'Package in transit via BlueDart',
       icon: Truck,
       date: currentIdx >= 3 ? formatTime(createdDate, 48) : '',
     },
@@ -98,8 +102,9 @@ function getTimelineSteps(order: Order): TimelineStep[] {
       description:
         currentIdx >= 4
           ? 'Package delivered successfully'
-          : 'Estimated delivery by ' +
-            formatDate(new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000)),
+          : 'Estimated delivery: ' +
+            formatDate(new Date(createdDate.getTime() + 4 * 24 * 60 * 60 * 1000)) + ' – ' +
+            formatDate(new Date(createdDate.getTime() + 6 * 24 * 60 * 60 * 1000)),
       icon: PackageCheck,
       date: currentIdx >= 4 ? formatTime(createdDate, 120) : '',
     },
@@ -116,7 +121,7 @@ function getStepStatus(stepIndex: number, orderStatus: string): StepStatus {
 
 /* ── Sub-Components ── */
 
-/** Animated Status Timeline */
+/** Animated Status Timeline with staggered reveal */
 function OrderTimeline({ order }: { order: Order }) {
   const steps = getTimelineSteps(order);
   const isCancelled = order.status === 'cancelled';
@@ -124,7 +129,12 @@ function OrderTimeline({ order }: { order: Order }) {
   if (isCancelled) return null;
 
   return (
-    <div className="border border-border rounded-xl p-5 sm:p-6 bg-card overflow-hidden relative card-luxury">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+      className="border border-border rounded-xl p-5 sm:p-6 bg-card overflow-hidden relative card-luxury"
+    >
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
       <h3 className="heading-serif font-semibold mb-6 flex items-center gap-2 text-base">
         <Clock className="h-4 w-4 text-gold" />
@@ -142,7 +152,7 @@ function OrderTimeline({ order }: { order: Order }) {
               key={step.key}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.12, duration: 0.45, ease: 'easeOut' }}
+              transition={{ delay: i * 0.15, duration: 0.45, ease: 'easeOut' }}
               className="relative flex gap-4 sm:gap-6 pb-8 last:pb-0"
             >
               {/* Connecting line */}
@@ -151,7 +161,7 @@ function OrderTimeline({ order }: { order: Order }) {
                   <motion.div
                     initial={{ scaleY: 0 }}
                     animate={{ scaleY: 1 }}
-                    transition={{ delay: i * 0.12 + 0.3, duration: 0.4, ease: 'easeOut' }}
+                    transition={{ delay: i * 0.15 + 0.3, duration: 0.4, ease: 'easeOut' }}
                     style={{ originY: 0 }}
                     className={`w-full h-full ${
                       status === 'completed'
@@ -170,17 +180,22 @@ function OrderTimeline({ order }: { order: Order }) {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    transition={{ delay: i * 0.12, type: 'spring', stiffness: 300, damping: 20 }}
+                    transition={{ delay: i * 0.15, type: 'spring', stiffness: 300, damping: 20 }}
                     className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gold flex items-center justify-center shadow-lg shadow-gold/25"
                   >
-                    <StepIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white" strokeWidth={2.5} />
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" strokeWidth={2.5} />
                   </motion.div>
                 ) : status === 'current' ? (
                   <div className="relative">
                     <motion.div
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                      className="absolute inset-[-8px] rounded-full bg-gold/20"
+                    />
+                    <motion.div
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                      className="absolute inset-[-5px] rounded-full bg-gold/25"
+                      className="absolute inset-[-4px] rounded-full bg-gold/15"
                     />
                     <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gold flex items-center justify-center shadow-lg shadow-gold/30 relative z-10">
                       <StepIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white" strokeWidth={2.5} />
@@ -238,14 +253,150 @@ function OrderTimeline({ order }: { order: Order }) {
           );
         })}
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+/** Delivery Map Placeholder */
+function DeliveryMapPlaceholder({ order }: { order: Order }) {
+  const isShipped = ['shipped', 'delivered'].includes(order.status);
+  const createdDate = new Date(order.createdAt);
+  const estStart = new Date(createdDate.getTime() + 4 * 24 * 60 * 60 * 1000);
+  const estEnd = new Date(createdDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const fmtEst = (d: Date) =>
+    d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.15 }}
+      className="border border-border rounded-xl overflow-hidden relative card-luxury"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent z-10" />
+
+      {/* Map visual */}
+      <div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-50 via-blue-50/50 to-amber-50 dark:from-emerald-950/40 dark:via-blue-950/30 dark:to-amber-950/40 overflow-hidden">
+        {/* Grid lines to simulate map */}
+        <div className="absolute inset-0 opacity-[0.08]" style={{
+          backgroundImage: 'linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }} />
+        {/* Decorative route path */}
+        <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+          <motion.path
+            d="M 80 40 C 200 20, 300 100, 400 50 S 550 120, 620 80"
+            stroke="currentColor"
+            className="text-gold/30"
+            strokeWidth="2"
+            fill="none"
+            strokeDasharray="8 4"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 2, delay: 0.5, ease: 'easeInOut' }}
+          />
+          <motion.path
+            d="M 80 40 C 200 20, 300 100, 400 50 S 550 120, 620 80"
+            stroke="currentColor"
+            className="text-gold"
+            strokeWidth="2.5"
+            fill="none"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: isShipped ? 1 : 0.5 }}
+            transition={{ duration: 2.5, delay: 0.8, ease: 'easeInOut' }}
+          />
+        </svg>
+
+        {/* Origin pin */}
+        <div className="absolute left-[10%] top-[35%] flex flex-col items-center">
+          <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center">
+            <Warehouse className="h-3.5 w-3.5 text-gold" />
+          </div>
+          <span className="text-[9px] text-muted-foreground mt-1 font-medium bg-background/80 dark:bg-card/80 px-1.5 py-0.5 rounded">Origin</span>
+        </div>
+
+        {/* Destination pin with pulse */}
+        <div className="absolute right-[12%] top-[30%] flex flex-col items-center">
+          <motion.div
+            animate={{ scale: [1, 1.6, 1], opacity: [0.4, 0, 0.4] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -top-1 w-10 h-10 rounded-full bg-gold/20"
+          />
+          <motion.div
+            animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+            className="absolute -top-0.5 w-8 h-8 rounded-full bg-gold/15"
+          />
+          <div className="relative w-8 h-8 rounded-full bg-gold flex items-center justify-center shadow-lg shadow-gold/30">
+            <MapPin className="h-4 w-4 text-white" />
+          </div>
+          <span className="text-[9px] text-muted-foreground mt-1.5 font-medium bg-background/80 dark:bg-card/80 px-1.5 py-0.5 rounded">Your Address</span>
+        </div>
+
+        {/* Moving truck indicator */}
+        {isShipped && order.status !== 'delivered' && (
+          <motion.div
+            animate={{ x: [0, 10, 0], y: [0, -5, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute left-[45%] top-[38%]"
+          >
+            <div className="w-10 h-10 rounded-full bg-background shadow-lg border border-gold/30 flex items-center justify-center">
+              <Truck className="h-5 w-5 text-gold" />
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Info overlay */}
+      <div className="bg-card p-4 sm:p-5 space-y-4">
+        {/* Estimated delivery */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center shrink-0">
+            <Calendar className="h-5 w-5 text-gold" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">
+              {order.status === 'delivered' ? 'Delivered on' : 'Estimated delivery'}
+            </p>
+            <p className="text-sm font-semibold">
+              {order.status === 'delivered'
+                ? fmtEst(new Date(createdDate.getTime() + 5 * 24 * 60 * 60 * 1000))
+                : `${fmtEst(estStart)} – ${fmtEst(estEnd)}`}
+            </p>
+          </div>
+        </div>
+
+        {/* Carrier info */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center shrink-0">
+            <Truck className="h-5 w-5 text-gold" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Carrier</p>
+            <p className="text-sm font-semibold">BlueDart Express</p>
+          </div>
+        </div>
+
+        {/* Route labels */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
+          <span className="flex items-center gap-1"><Warehouse className="h-3.5 w-3.5 text-gold" /> MIRADEEN Warehouse</span>
+          <ArrowDownRight className="h-3.5 w-3.5 text-gold" />
+          <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-gold" /> {order.shippingCity || 'Your Address'}</span>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
 /** Order items list with images, prices, and details */
 function OrderItemsList({ order }: { order: Order }) {
   return (
-    <div className="border border-border rounded-xl p-5 sm:p-6 bg-card overflow-hidden relative card-luxury">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.4 }}
+      className="border border-border rounded-xl p-5 sm:p-6 bg-card overflow-hidden relative card-luxury"
+    >
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
       <h3 className="heading-serif font-semibold mb-4 flex items-center gap-2 text-base">
         <ShoppingBag className="h-4 w-4 text-gold" />
@@ -319,7 +470,195 @@ function OrderItemsList({ order }: { order: Order }) {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+/** Shipping Details Card */
+function ShippingDetailsCard({ order }: { order: Order }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState('');
+
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(label);
+      toast({ title: 'Copied!', description: `${label} copied to clipboard.` });
+      setTimeout(() => setCopied(''), 2000);
+    });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.1 }}
+    >
+      <Card className="overflow-hidden border-border card-luxury relative">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
+        <CardHeader className="pb-3">
+          <CardTitle className="heading-serif font-semibold text-base flex items-center gap-2">
+            <Truck className="h-4 w-4 text-gold" />
+            Shipping Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          {/* Shipping Address */}
+          <div>
+            <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-2">Shipping Address</p>
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 text-gold shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">{order.shippingName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {order.shippingAddress}, {order.shippingCity}, {order.shippingState} {order.shippingZip}
+                </p>
+                <p className="text-xs text-muted-foreground">{order.shippingCountry}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Info grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">Contact Number</p>
+              <p className="text-sm font-medium">{order.shippingPhone}</p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">Shipping Method</p>
+              <p className="text-sm font-medium">Express Delivery</p>
+              <p className="text-[10px] text-muted-foreground">2–4 business days</p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">Package Weight</p>
+              <div className="flex items-center gap-1.5">
+                <Weight className="h-3.5 w-3.5 text-gold" />
+                <p className="text-sm font-medium">~{Math.max(0.3, order.items.length * 0.2).toFixed(1)} kg</p>
+              </div>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">Carrier</p>
+              <div className="flex items-center gap-1.5">
+                <Truck className="h-3.5 w-3.5 text-gold" />
+                <p className="text-sm font-medium">BlueDart Express</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tracking number */}
+          {order.trackingNumber && (
+            <div className="bg-gold/5 border border-gold/20 rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">Tracking Number</p>
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-sm font-semibold text-gold flex-1">{order.trackingNumber}</p>
+                <button
+                  onClick={() => handleCopy(order.trackingNumber!, 'Tracking number')}
+                  className="text-xs text-muted-foreground hover:text-gold transition-colors flex items-center gap-1"
+                >
+                  {copied === 'Tracking number' ? (
+                    <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {copied === 'Tracking number' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+/** Enhanced Need Help Section */
+function NeedHelpSection() {
+  const { navigate } = useStore();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.5 }}
+    >
+      <Card className="overflow-hidden border-border card-luxury relative">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
+        <CardHeader className="pb-2">
+          <CardTitle className="heading-serif font-semibold text-base flex items-center gap-2">
+            <HelpCircle className="h-4 w-4 text-gold" />
+            Need help with your order?
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Our support team is here to assist you. Reach out through any of the channels below.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Email */}
+            <a
+              href="mailto:merajkhan6188@gmail.com"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-gold/50 hover:bg-gold/[0.02] transition-all duration-200 group"
+            >
+              <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center shrink-0 group-hover:bg-gold/20 transition-colors">
+                <Mail className="h-5 w-5 text-gold" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Email</p>
+                <p className="text-[10px] text-muted-foreground truncate">merajkhan6188@gmail.com</p>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
+            </a>
+
+            {/* Phone */}
+            <a
+              href="tel:+919319084050"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-gold/50 hover:bg-gold/[0.02] transition-all duration-200 group"
+            >
+              <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center shrink-0 group-hover:bg-gold/20 transition-colors">
+                <Phone className="h-5 w-5 text-gold" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Phone</p>
+                <p className="text-[10px] text-muted-foreground">+91 9319084050</p>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
+            </a>
+
+            {/* WhatsApp */}
+            <a
+              href="https://wa.me/919319084050"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-green-500/50 hover:bg-green-50/50 dark:hover:bg-green-950/10 transition-all duration-200 group"
+            >
+              <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 group-hover:bg-green-500/20 transition-colors">
+                <MessageCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">WhatsApp</p>
+                <p className="text-[10px] text-muted-foreground">Chat with us instantly</p>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
+            </a>
+          </div>
+
+          {/* FAQ Links */}
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-3">Frequently Asked</p>
+            <div className="flex flex-wrap gap-2">
+              {['Return Policy', 'Shipping Info', 'Track Package', 'Size Guide'].map((faq) => (
+                <button
+                  key={faq}
+                  onClick={() => navigate('contact')}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border hover:border-gold/30 hover:text-gold hover:bg-gold/5 text-muted-foreground transition-all duration-200"
+                >
+                  {faq}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -328,19 +667,7 @@ function OrderDetailView({ order, onBack }: { order: Order; onBack: () => void }
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const isCancelled = order.status === 'cancelled';
-  const isDelivered = order.status === 'delivered';
   const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-
-  const getEstDelivery = () => {
-    const created = new Date(order.createdAt);
-    const est = new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return est.toLocaleDateString('en-IN', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -367,72 +694,78 @@ function OrderDetailView({ order, onBack }: { order: Order; onBack: () => void }
         Back to orders
       </button>
 
-      {/* Order Details Header Card */}
-      <Card className="overflow-hidden border-border card-luxury relative">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
-        <CardHeader className="pb-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Order Number</p>
-              <div className="flex items-center gap-2">
-                <p className="heading-serif text-xl font-bold text-gold-gradient">{order.orderNumber}</p>
-                <button
-                  onClick={() => handleCopy(order.orderNumber, 'Order number')}
-                  className="text-muted-foreground hover:text-gold transition-colors p-0.5"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
+      {/* Order Summary Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card className="overflow-hidden border-border card-luxury relative">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
+          <CardHeader className="pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Order Number</p>
+                <div className="flex items-center gap-2">
+                  <p className="heading-serif text-xl font-bold text-gold-gradient">{order.orderNumber}</p>
+                  <button
+                    onClick={() => handleCopy(order.orderNumber, 'Order number')}
+                    className="text-muted-foreground hover:text-gold transition-colors p-0.5"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <Badge className={`${statusCfg.bgColor} ${statusCfg.color} ${statusCfg.borderColor} border`}>
+                {statusCfg.label}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="divider-gold mb-4" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">
+                  Order Date
+                </p>
+                <p className="font-medium flex items-center gap-1.5 text-xs">
+                  <Calendar className="h-3.5 w-3.5 text-gold" />
+                  {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">Items</p>
+                <p className="font-medium flex items-center gap-1.5 text-xs">
+                  <Package className="h-3.5 w-3.5 text-gold" />
+                  {order.items.length} item(s)
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">Total</p>
+                <p className="font-semibold text-gold flex items-center gap-1.5 text-xs">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  ₹{order.total.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">Payment</p>
+                <p className="font-medium capitalize flex items-center gap-1.5 text-xs">
+                  <ShieldCheck
+                    className={`h-3.5 w-3.5 ${
+                      order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-500'
+                    }`}
+                  />
+                  {order.paymentStatus}
+                </p>
               </div>
             </div>
-            <Badge className={`${statusCfg.bgColor} ${statusCfg.color} ${statusCfg.borderColor} border`}>
-              {statusCfg.label}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="divider-gold mb-4" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">
-                Order Date
-              </p>
-              <p className="font-medium flex items-center gap-1.5 text-xs">
-                <Calendar className="h-3.5 w-3.5 text-gold" />
-                {new Date(order.createdAt).toLocaleDateString('en-IN', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">Items</p>
-              <p className="font-medium flex items-center gap-1.5 text-xs">
-                <Package className="h-3.5 w-3.5 text-gold" />
-                {order.items.length} item(s)
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">Total</p>
-              <p className="font-semibold text-gold flex items-center gap-1.5 text-xs">
-                <CreditCard className="h-3.5 w-3.5" />
-                ₹{order.total.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-0.5">Payment</p>
-              <p className="font-medium capitalize flex items-center gap-1.5 text-xs">
-                <ShieldCheck
-                  className={`h-3.5 w-3.5 ${
-                    order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-500'
-                  }`}
-                />
-                {order.paymentStatus}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Cancelled State */}
       {isCancelled && (
@@ -458,156 +791,22 @@ function OrderDetailView({ order, onBack }: { order: Order; onBack: () => void }
         </motion.div>
       )}
 
-      {/* Shipping Info Card */}
+      {/* Timeline + Map (side by side on lg) */}
       {!isCancelled && (
-        <Card className="overflow-hidden border-border card-luxury relative">
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
-          <CardHeader className="pb-3">
-            <CardTitle className="heading-serif font-semibold text-base flex items-center gap-2">
-              <Truck className="h-4 w-4 text-gold" />
-              Shipping Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {order.trackingNumber && (
-                <div className="sm:col-span-2 bg-gold/5 border border-gold/20 rounded-lg p-4">
-                  <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">
-                    Tracking Number
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <p className="font-mono text-sm font-semibold text-gold flex-1">{order.trackingNumber}</p>
-                    <button
-                      onClick={() => handleCopy(order.trackingNumber!, 'Tracking number')}
-                      className="text-xs text-muted-foreground hover:text-gold transition-colors flex items-center gap-1"
-                    >
-                      {copied ? (
-                        <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                      {copied ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-muted/50 rounded-lg p-4">
-                <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">Carrier</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded bg-gold/10 flex items-center justify-center">
-                    <Truck className="h-4 w-4 text-gold" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">BlueDart Express</p>
-                    <p className="text-[10px] text-muted-foreground">Premium Shipping</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-muted/50 rounded-lg p-4">
-                <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-1">
-                  {isDelivered ? 'Delivered On' : 'Estimated Delivery'}
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded bg-gold/10 flex items-center justify-center">
-                    <Calendar className="h-4 w-4 text-gold" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{getEstDelivery()}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {isDelivered ? 'Delivered successfully' : '7 business days from order'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Shipping Address */}
-            <div className="mt-4 pt-4 border-t border-border">
-              <p className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mb-2">Shipping to</p>
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 text-gold shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">{order.shippingName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {order.shippingAddress}, {order.shippingCity}, {order.shippingState} {order.shippingZip}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{order.shippingCountry}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{order.shippingPhone}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <OrderTimeline order={order} />
+          <DeliveryMapPlaceholder order={order} />
+        </div>
       )}
 
-      {/* Timeline */}
-      {!isCancelled && <OrderTimeline order={order} />}
+      {/* Shipping Details */}
+      {!isCancelled && <ShippingDetailsCard order={order} />}
 
       {/* Items */}
       <OrderItemsList order={order} />
 
-      {/* Help Section */}
-      <Card className="overflow-hidden border-border card-luxury relative">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
-        <CardHeader className="pb-2">
-          <CardTitle className="heading-serif font-semibold text-base flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-gold" />
-            Need Help?
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Our support team is available to assist you with any questions about your order.
-          </p>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <a
-              href="https://wa.me/919876543210"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-green-500/50 hover:bg-green-50/50 dark:hover:bg-green-950/10 transition-all duration-200 group"
-            >
-              <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 group-hover:bg-green-500/20 transition-colors">
-                <MessageCircle className="h-5 w-5 text-green-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">WhatsApp</p>
-                <p className="text-[10px] text-muted-foreground">Chat with us instantly</p>
-              </div>
-              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
-            </a>
-
-            <a
-              href="mailto:support@miradeen.com"
-              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-gold/50 hover:bg-gold/[0.02] transition-all duration-200 group"
-            >
-              <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center shrink-0 group-hover:bg-gold/20 transition-colors">
-                <Mail className="h-5 w-5 text-gold" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Email</p>
-                <p className="text-[10px] text-muted-foreground">support@miradeen.com</p>
-              </div>
-              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
-            </a>
-
-            <a
-              href="tel:+919876543210"
-              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-gold/50 hover:bg-gold/[0.02] transition-all duration-200 group"
-            >
-              <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center shrink-0 group-hover:bg-gold/20 transition-colors">
-                <Phone className="h-5 w-5 text-gold" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Phone</p>
-                <p className="text-[10px] text-muted-foreground">+91 98765 43210</p>
-              </div>
-              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Need Help */}
+      <NeedHelpSection />
     </motion.div>
   );
 }
@@ -662,6 +861,36 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
         <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-gold group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
       </div>
     </motion.button>
+  );
+}
+
+/** Gold Loading Ring */
+function GoldLoadingRing({ text }: { text: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="flex flex-col items-center justify-center py-20"
+    >
+      <div className="relative w-16 h-16 mb-5">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+          className="absolute inset-0 rounded-full border-3 border-transparent border-t-gold"
+          style={{ borderWidth: '3px' }}
+        />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="absolute inset-2 rounded-full border-2 border-transparent border-b-gold/50"
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Package className="h-5 w-5 text-gold/60" />
+        </div>
+      </div>
+      <p className="text-sm text-muted-foreground">{text}</p>
+    </motion.div>
   );
 }
 
@@ -750,8 +979,8 @@ export default function OrderTrackingPage() {
   /* ── Render ── */
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative h-52 md:h-64 flex items-center justify-center overflow-hidden">
+      {/* ── A. Hero Section ── */}
+      <section className="relative h-56 md:h-72 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-charcoal/95 to-charcoal/90" />
         <div
           className="absolute inset-0 opacity-[0.03]"
@@ -760,21 +989,41 @@ export default function OrderTrackingPage() {
             backgroundSize: '24px 24px',
           }}
         />
+        {/* Decorative gold corner elements */}
+        <div className="absolute top-6 left-6 w-16 h-16 border-l-2 border-t-2 border-gold/20 rounded-tl-lg" />
+        <div className="absolute bottom-6 right-6 w-16 h-16 border-r-2 border-b-2 border-gold/20 rounded-br-lg" />
+        {/* Floating gold dots */}
+        <motion.div
+          animate={{ y: [-8, 8, -8], opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute top-12 right-20 w-2 h-2 rounded-full bg-gold/40"
+        />
+        <motion.div
+          animate={{ y: [6, -6, 6], opacity: [0.2, 0.5, 0.2] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          className="absolute bottom-16 left-24 w-1.5 h-1.5 rounded-full bg-gold/30"
+        />
+        <motion.div
+          animate={{ y: [-5, 5, -5] }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+          className="absolute top-20 left-[40%] w-1 h-1 rounded-full bg-gold/25"
+        />
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="relative z-10 text-center text-white px-4"
         >
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
-            <Package className="h-8 w-8 text-gold" />
+          <div className="w-18 h-18 mx-auto mb-5 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
+            <Package className="h-9 w-9 text-gold" />
           </div>
-          <p className="text-xs tracking-[0.3em] uppercase text-gold-light mb-2">Real-Time Tracking</p>
-          <h1 className="heading-serif text-3xl md:text-4xl font-bold mb-2">Track Your Order</h1>
-          <p className="text-sm text-white/60 max-w-md mx-auto">
-            {isAuthenticated
-              ? `Welcome back, ${user?.name || 'there'}! View all your orders below.`
-              : 'Enter your order number to get real-time updates on your delivery'}
+          <p className="text-xs tracking-[0.3em] uppercase text-gold-light mb-3">Real-Time Tracking</p>
+          <h1 className="heading-serif text-3xl md:text-5xl font-bold mb-3 text-gold-gradient">
+            Track Your Order
+          </h1>
+          <p className="text-sm text-white/60 max-w-lg mx-auto">
+            Stay updated on your MIRADEEN delivery
           </p>
         </motion.div>
       </section>
@@ -793,50 +1042,151 @@ export default function OrderTrackingPage() {
         {/* ── List / Search View ── */}
         {!selectedOrder && (
           <>
-            {/* Guest Search Bar (always visible, but emphasized when not authenticated) */}
+            {/* ── B. Order Search Section (Guest) ── */}
             {!isAuthenticated && (
-              <motion.form
-                onSubmit={handleGuestTrack}
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.4 }}
                 className="relative mb-8"
               >
-                <div className="flex gap-2 sm:gap-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Enter order number (e.g., MRD-XXXXXX)"
-                      value={searchInput}
-                      onChange={(e) => {
-                        setSearchInput(e.target.value);
-                        setGuestError('');
-                        setNotFound(false);
-                      }}
-                      className="h-12 pl-10 text-sm border-border focus:border-gold focus:ring-gold/20 focus:ring-2 transition-all input-luxury"
-                    />
+                <form onSubmit={handleGuestTrack} className="mb-6">
+                  <div className="max-w-2xl mx-auto">
+                    {/* Search input with Package icon */}
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center pointer-events-none">
+                        <Package className="h-5 w-5 text-gold" />
+                      </div>
+                      <Input
+                        placeholder="Enter your order number (e.g., MRD-1234)"
+                        value={searchInput}
+                        onChange={(e) => {
+                          setSearchInput(e.target.value);
+                          setGuestError('');
+                          setNotFound(false);
+                        }}
+                        className="h-14 pl-14 pr-4 text-sm border-border focus:border-gold focus:ring-gold/20 focus:ring-2 transition-all input-luxury rounded-xl text-center text-base"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={guestLoading || !searchInput.trim()}
+                      className="w-full mt-3 h-12 px-6 sm:px-8 bg-gold text-background hover:bg-gold-dark tracking-wider uppercase text-xs font-semibold transition-all duration-300 btn-luxury rounded-xl"
+                    >
+                      {guestLoading ? (
+                        <GoldLoadingRing text="" />
+                      ) : (
+                        <>
+                          <Search className="mr-2 h-4 w-4" />
+                          Track Order
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    type="submit"
-                    disabled={guestLoading || !searchInput.trim()}
-                    className="h-12 px-6 sm:px-8 bg-gold text-background hover:bg-gold-dark tracking-wider uppercase text-xs font-semibold transition-all duration-300 shrink-0 btn-luxury"
-                  >
-                    {guestLoading ? (
-                      <div className="h-5 w-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Search className="mr-2 h-4 w-4" />
-                        Track
-                      </>
-                    )}
-                  </Button>
-                </div>
+                </form>
+
                 {guestError && (
-                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-destructive text-xs mt-2">
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-destructive text-xs mt-2 text-center">
                     {guestError}
                   </motion.p>
                 )}
-              </motion.form>
+
+                {/* "Or" divider with login link */}
+                <div className="flex items-center gap-4 max-w-sm mx-auto mt-6">
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent to-border" />
+                  <span className="text-xs text-muted-foreground uppercase tracking-widest">Or</span>
+                  <div className="flex-1 h-px bg-gradient-to-l from-transparent to-border" />
+                </div>
+                <div className="text-center mt-4">
+                  <button
+                    onClick={() => navigate('auth')}
+                    className="inline-flex items-center gap-2 text-sm text-gold hover:text-gold-dark transition-colors group"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    <span className="link-underline-gold">Log in to view all orders</span>
+                  </button>
+                </div>
+
+                {/* Loading State */}
+                <AnimatePresence>
+                  {guestLoading && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="mt-8"
+                    >
+                      <GoldLoadingRing text="Tracking your order..." />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
+            {/* ── D. No Result State (Guest) ── */}
+            {!isAuthenticated && notFound && !guestLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-center py-16"
+              >
+                <div className="relative w-28 h-28 mx-auto mb-6">
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-20 h-20 mx-auto rounded-2xl bg-muted/80 border border-border flex items-center justify-center"
+                  >
+                    <Package className="h-10 w-10 text-muted-foreground/50" />
+                  </motion.div>
+                  <motion.div
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute inset-0 rounded-2xl border-2 border-gold/20"
+                  />
+                </div>
+                <h3 className="heading-serif text-xl font-bold mb-2">No Order Found</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+                  We couldn&apos;t find an order with that number. Please check and try again.
+                </p>
+                <div className="space-y-3 max-w-xs mx-auto">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                    <CheckCircle className="h-3.5 w-3.5 text-gold" />
+                    Check your order number for typos
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                    <CheckCircle className="h-3.5 w-3.5 text-gold" />
+                    Make sure you&apos;re using the correct format
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setNotFound(false);
+                      setGuestError('');
+                      setSearchInput('');
+                    }}
+                    className="h-11 px-6 hover:border-gold hover:text-gold transition-colors text-xs rounded-xl"
+                  >
+                    Try Again
+                  </Button>
+                  <Button
+                    onClick={() => navigate('shop')}
+                    className="h-11 px-6 bg-gold text-background hover:bg-gold-dark text-xs btn-luxury rounded-xl"
+                  >
+                    <ShoppingBag className="mr-2 h-4 w-4" />
+                    Browse Our Shop
+                  </Button>
+                  <Button
+                    onClick={() => navigate('contact')}
+                    variant="ghost"
+                    className="h-11 px-6 text-xs text-muted-foreground hover:text-gold rounded-xl"
+                  >
+                    Contact Support
+                  </Button>
+                </div>
+              </motion.div>
             )}
 
             {/* Authenticated User: Orders List with Tabs */}
@@ -856,7 +1206,7 @@ export default function OrderTrackingPage() {
                       <div className="relative flex-1">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         <Input
-                          placeholder="Search by order number (e.g., MRD-XXXXXX)"
+                          placeholder="Search by order number (e.g., MRD-1234)"
                           value={searchInput}
                           onChange={(e) => {
                             setSearchInput(e.target.value);
@@ -923,11 +1273,7 @@ export default function OrderTrackingPage() {
 
                 {/* Loading state */}
                 {authLoading && (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-20 w-full rounded-xl" />
-                    ))}
-                  </div>
+                  <GoldLoadingRing text="Loading your orders..." />
                 )}
 
                 {/* Error state */}
@@ -954,13 +1300,17 @@ export default function OrderTrackingPage() {
                   >
                     <div className="relative w-28 h-28 mx-auto mb-6">
                       <motion.div
+                        animate={{ y: [0, -8, 0] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                        className="absolute inset-4 rounded-full bg-gold/5 flex items-center justify-center"
+                      >
+                        <ShoppingBag className="h-8 w-8 text-gold/60" />
+                      </motion.div>
+                      <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
                         className="absolute inset-0 rounded-full border-2 border-dashed border-gold/20"
                       />
-                      <div className="absolute inset-4 rounded-full bg-gold/5 flex items-center justify-center">
-                        <ShoppingBag className="h-8 w-8 text-gold/60" />
-                      </div>
                     </div>
                     <h3 className="heading-serif text-xl font-bold mb-2">No Orders Yet</h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
@@ -969,7 +1319,7 @@ export default function OrderTrackingPage() {
                     </p>
                     <Button
                       onClick={() => navigate('shop')}
-                      className="bg-gold text-background hover:bg-gold-dark text-xs tracking-wider uppercase btn-luxury"
+                      className="bg-gold text-background hover:bg-gold-dark text-xs tracking-wider uppercase btn-luxury rounded-xl"
                     >
                       Start Shopping
                     </Button>
@@ -1034,63 +1384,8 @@ export default function OrderTrackingPage() {
                 )}
               </motion.div>
             ) : (
-              /* ── Guest-only: Not Found / Empty states ── */
+              /* ── Guest-only: Empty state (no search yet) ── */
               <>
-                {/* Guest loading */}
-                <AnimatePresence>
-                  {guestLoading && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="space-y-6"
-                    >
-                      <Skeleton className="h-32 w-full rounded-xl" />
-                      <Skeleton className="h-64 w-full rounded-xl" />
-                      <Skeleton className="h-48 w-full rounded-xl" />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Not Found */}
-                <AnimatePresence>
-                  {notFound && !guestLoading && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="text-center py-16"
-                    >
-                      <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
-                        <Package className="h-10 w-10 text-muted-foreground" />
-                      </div>
-                      <h3 className="heading-serif text-xl font-bold mb-2">Order Not Found</h3>
-                      <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                        We couldn&apos;t find an order with that number. Please double-check and try again.
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <Button
-                          variant="outline"
-                          onClick={() => navigate('shop')}
-                          className="h-11 px-6 hover:border-gold hover:text-gold transition-colors text-xs"
-                        >
-                          Continue Shopping
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setNotFound(false);
-                            setGuestError('');
-                          }}
-                          className="h-11 px-6 bg-gold text-background hover:bg-gold-dark text-xs btn-luxury"
-                        >
-                          Try Again
-                        </Button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Empty state (no search yet) */}
                 {!guestLoading && !notFound && !guestError && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -1109,9 +1404,13 @@ export default function OrderTrackingPage() {
                         transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
                         className="absolute inset-3 rounded-full border border-gold/10"
                       />
-                      <div className="absolute inset-6 rounded-full bg-gold/5 flex items-center justify-center">
+                      <motion.div
+                        animate={{ y: [0, -6, 0] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                        className="absolute inset-6 rounded-full bg-gold/5 flex items-center justify-center"
+                      >
                         <Truck className="h-10 w-10 text-gold/60" />
-                      </div>
+                      </motion.div>
                     </div>
                     <h3 className="heading-serif text-xl font-bold mb-2">Track Your Package</h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
@@ -1132,7 +1431,7 @@ export default function OrderTrackingPage() {
                       </div>
                       <Button
                         onClick={() => navigate('auth')}
-                        className="w-full bg-gold text-background hover:bg-gold-dark text-xs tracking-wider uppercase btn-luxury"
+                        className="w-full bg-gold text-background hover:bg-gold-dark text-xs tracking-wider uppercase btn-luxury rounded-xl"
                       >
                         Sign In / Register
                       </Button>
