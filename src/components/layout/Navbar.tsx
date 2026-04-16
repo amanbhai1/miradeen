@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import {
-  Search, ShoppingBag, Heart, User, Menu, X, Sun, Moon,
-  ChevronDown, LogOut, Shield, Package, Settings, MapPin
+  Search, Heart, User, Menu, X, Sun, Moon,
+  LogOut, Shield, Package, Settings, MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Sheet, SheetContent, SheetTrigger, SheetTitle
@@ -18,6 +17,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { useStore } from '@/store/useStore';
+import CartDrawer from '@/components/shared/CartDrawer';
+import SearchOverlay from '@/components/shared/SearchOverlay';
 
 const announcements = [
   'Complimentary Shipping on Orders Over ₹2,000',
@@ -29,15 +30,13 @@ const announcements = [
 export default function Navbar() {
   const {
     currentPage, navigate, isAuthenticated, isAdmin, user,
-    cart, getCartCount, wishlistIds, searchQuery,
-    setSearchQuery, isMobileMenuOpen, setMobileMenuOpen, logout
+    wishlistIds, isMobileMenuOpen, setMobileMenuOpen, logout
   } = useStore();
   const { theme, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [announcementVisible, setAnnouncementVisible] = useState(true);
-  const cartCount = getCartCount();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -45,7 +44,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Announcement carousel
   useEffect(() => {
     const interval = setInterval(() => {
       setAnnouncementVisible(false);
@@ -57,20 +55,24 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for keyboard shortcut to open search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const navLinks = [
     { label: 'Home', page: 'home' as const },
     { label: 'Shop', page: 'shop' as const },
     { label: 'About', page: 'about' as const },
     { label: 'Contact', page: 'contact' as const },
   ];
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate('shop');
-      setSearchOpen(false);
-    }
-  };
 
   return (
     <>
@@ -193,38 +195,24 @@ export default function Navbar() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-1 md:gap-2">
-              {/* Search */}
-              <AnimatePresence>
-                {searchOpen && (
-                  <motion.div
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: 200, opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
-                  >
-                    <form onSubmit={handleSearch}>
-                      <Input
-                        type="text"
-                        placeholder="Search..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-9 text-sm border-gold/30 focus:border-gold"
-                        autoFocus
-                      />
-                    </form>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
+              {/* Search Button - Opens Search Overlay */}
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setSearchOpen(!searchOpen)}
+                onClick={() => setSearchOpen(true)}
                 className="hover:text-gold transition-colors"
               >
-                {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+                <Search className="h-5 w-5" />
               </Button>
+              {/* Search shortcut badge on desktop */}
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 border border-border rounded-md hover:border-gold/50 hover:bg-muted/50 transition-all duration-200"
+              >
+                <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Search...</span>
+                <kbd className="text-[10px] text-muted-foreground bg-muted px-1 py-0.5 rounded ml-3">⌘K</kbd>
+              </button>
 
               {/* Theme Toggle */}
               <Button
@@ -251,26 +239,8 @@ export default function Navbar() {
                 )}
               </Button>
 
-              {/* Cart */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('cart')}
-                className="hover:text-gold transition-colors relative"
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {cartCount > 0 && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1"
-                  >
-                    <Badge className="h-4 w-4 p-0 flex items-center justify-center bg-gold text-background text-[10px]">
-                      {cartCount}
-                    </Badge>
-                  </motion.div>
-                )}
-              </Button>
+              {/* Cart Drawer */}
+              <CartDrawer />
 
               {/* User */}
               {isAuthenticated && user ? (
@@ -325,6 +295,9 @@ export default function Navbar() {
       </motion.header>
       {/* Spacer for fixed navbar */}
       <div className="h-[calc(2rem+4rem)] md:h-[calc(2rem+5rem)]" />
+
+      {/* Search Overlay */}
+      <SearchOverlay />
     </>
   );
 }

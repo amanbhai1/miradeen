@@ -157,36 +157,50 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-[100]">
+        <div className="absolute inset-0 noise-overlay pointer-events-none" />
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8 }}
-          className="text-center"
+          className="text-center relative z-10"
         >
-          <h1 className="heading-serif text-5xl md:text-6xl font-bold tracking-[0.3em] mb-4">
+          <motion.div
+            initial={{ opacity: 0, rotate: 0 }}
+            animate={{ opacity: 1, rotate: 180 }}
+            transition={{ duration: 2, delay: 0.2 }}
+            className="mx-auto mb-6"
+          >
+            <div className="w-8 h-8 border border-gold/40 rotate-45 mx-auto" />
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="heading-serif text-5xl md:text-7xl font-bold tracking-[0.3em] mb-4 text-gold-gradient"
+          >
             MIRADEEN
-          </h1>
+          </motion.h1>
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: 120 }}
-            transition={{ duration: 1.5, delay: 0.5 }}
-            className="h-px bg-gold mx-auto"
+            animate={{ width: 160 }}
+            transition={{ duration: 1.5, delay: 0.8 }}
+            className="h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto"
           />
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
+            transition={{ delay: 1.2 }}
             className="text-xs tracking-[0.4em] uppercase text-muted-foreground mt-4"
           >
             Redefining Luxury Fashion
           </motion.p>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.5 }}
-            className="mt-8"
-          >
-            <Loader2 className="h-5 w-5 animate-spin text-gold mx-auto" />
+          <motion.div className="mt-8 w-32 h-0.5 bg-muted rounded-full mx-auto overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}>
+            <motion.div
+              className="h-full bg-gold rounded-full"
+              initial={{ width: '0%' }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 1.8, delay: 1.4, ease: 'easeInOut' }}
+            />
           </motion.div>
         </motion.div>
       </div>
@@ -468,23 +482,58 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Trust Badges */}
+      <section className="py-16 bg-cream dark:bg-card/30">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { number: '50K+', label: 'Happy Customers', sublabel: 'and counting' },
+              { number: '500+', label: 'Products', sublabel: 'curated collection' },
+              { number: '4.9★', label: 'Average Rating', sublabel: 'from 10K+ reviews' },
+              { number: '30+', label: 'Countries', sublabel: 'worldwide delivery' },
+            ].map((stat, i) => (
+              <AnimatedSection key={stat.label} delay={i * 0.1}>
+                <div className="text-center">
+                  <p className="heading-serif text-2xl md:text-3xl font-bold text-gold mb-1">{stat.number}</p>
+                  <p className="text-sm font-medium">{stat.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{stat.sublabel}</p>
+                </div>
+              </AnimatedSection>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Bottom CTA */}
-      <section className="py-20">
-        <div className="max-w-3xl mx-auto px-4 text-center">
+      <section className="py-20 relative overflow-hidden">
+        <div className="absolute inset-0 noise-overlay pointer-events-none" />
+        <div className="max-w-3xl mx-auto px-4 text-center relative z-10">
           <AnimatedSection>
-            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Limited Time</p>
+            <div className="w-12 h-px bg-gold mx-auto mb-6" />
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-3">Limited Time Offer</p>
             <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-4">
               Get 20% Off Your First Order
             </h2>
-            <p className="text-muted-foreground text-sm mb-8">
-              Use code <span className="font-semibold text-foreground bg-gold/10 px-2 py-0.5 rounded">MIRADEEN20</span> at checkout
+            <p className="text-muted-foreground text-sm mb-8 max-w-md mx-auto">
+              Join the MIRADEEN family and enjoy exclusive savings on your first purchase. Use code{' '}
+              <span className="font-semibold text-gold bg-gold/10 px-2 py-0.5 rounded border border-gold/20">MIRADEEN20</span>{' '}
+              at checkout
             </p>
-            <Button
-              onClick={() => navigate('shop')}
-              className="bg-foreground text-background hover:bg-foreground/90 px-8 py-3 tracking-[0.15em] uppercase text-xs font-semibold btn-luxury"
-            >
-              Shop Now <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                onClick={() => navigate('shop')}
+                className="bg-foreground text-background hover:bg-foreground/90 px-8 py-3 tracking-[0.15em] uppercase text-xs font-semibold btn-luxury"
+              >
+                Shop Now <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate('auth')}
+                className="border-border hover:border-gold hover:text-gold px-8 py-3 tracking-[0.15em] uppercase text-xs transition-all duration-300"
+              >
+                Create Account
+              </Button>
+            </div>
           </AnimatedSection>
         </div>
       </section>

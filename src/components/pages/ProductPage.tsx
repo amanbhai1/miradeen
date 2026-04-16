@@ -14,6 +14,103 @@ import type { Product, Review } from '@/types';
 import { parseJsonField } from '@/types';
 import SizeGuideModal from '@/components/shared/SizeGuideModal';
 
+function ReviewForm({ productId, onSubmitted }: { productId: string | null; onSubmitted: () => void }) {
+  const { isAuthenticated, user, token, navigate } = useStore();
+  const { toast } = useToast();
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [title, setTitle] = useState('');
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!productId) return null;
+
+  const handleSubmit = async () => {
+    if (!isAuthenticated) {
+      toast({ title: 'Please login', description: 'Sign in to write a review', variant: 'destructive' });
+      navigate('auth');
+      return;
+    }
+    if (rating === 0) {
+      toast({ title: 'Please select a rating', variant: 'destructive' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId, rating, title, comment }),
+      });
+      if (!res.ok) throw new Error('Failed to submit review');
+      toast({ title: 'Review submitted!', description: 'Thank you for your feedback.' });
+      setRating(0); setTitle(''); setComment('');
+      onSubmitted();
+    } catch {
+      toast({ title: 'Failed to submit', description: 'Please try again.', variant: 'destructive' });
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-4 bg-muted/30">
+      <h4 className="text-sm font-semibold mb-3">Write a Review</h4>
+      {isAuthenticated ? (
+        <>
+          <p className="text-xs text-muted-foreground mb-3">Reviewing as {user?.name}</p>
+          {/* Star Rating */}
+          <div className="flex items-center gap-1 mb-3">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+                onMouseLeave={() => setHoverRating(0)}
+                className="transition-transform hover:scale-110"
+              >
+                <Star className={`h-5 w-5 transition-colors ${
+                  star <= (hoverRating || rating) ? 'fill-gold text-gold' : 'text-border hover:text-gold/50'
+                }`} />
+              </button>
+            ))}
+            {rating > 0 && (
+              <span className="text-xs text-muted-foreground ml-2">{rating === 1 ? 'Poor' : rating === 2 ? 'Fair' : rating === 3 ? 'Good' : rating === 4 ? 'Very Good' : 'Excellent'}</span>
+            )}
+          </div>
+          <input
+            type="text"
+            placeholder="Review title (optional)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-gold mb-2"
+          />
+          <textarea
+            placeholder="Share your experience with this product..."
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-gold mb-3 resize-none"
+          />
+          <Button size="sm" onClick={handleSubmit} disabled={submitting || rating === 0} className="bg-gold text-background hover:bg-gold-dark text-xs">
+            {submitting ? 'Submitting...' : 'Submit Review'}
+          </Button>
+        </>
+      ) : (
+        <div className="text-center py-3">
+          <p className="text-sm text-muted-foreground mb-2">Sign in to write a review</p>
+          <Button size="sm" variant="outline" onClick={() => navigate('auth')} className="hover:border-gold hover:text-gold text-xs transition-colors">
+            Sign In
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProductPage() {
   const {
     navigate, addToCart, toggleWishlist, wishlistIds, selectedProductId,
@@ -371,33 +468,39 @@ export default function ProductPage() {
                 </div>
 
                 {/* Review list */}
-                <div className="md:col-span-2 max-h-96 overflow-y-auto custom-scrollbar">
-                  {reviews.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No reviews yet. Be the first to review this product.</p>
-                  ) : (
-                    <div className="space-y-6">
-                      {reviews.map((review) => (
-                        <div key={review.id} className="border-b border-border pb-6 last:border-0">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-xs font-semibold text-gold">
-                              {review.user?.name?.charAt(0) || 'U'}
+                <div className="md:col-span-2">
+                  <div className="max-h-96 overflow-y-auto custom-scrollbar mb-6">
+                    {reviews.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">No reviews yet. Be the first to review this product.</p>
+                    ) : (
+                      <div className="space-y-6">
+                        {reviews.map((review) => (
+                          <div key={review.id} className="border-b border-border pb-6 last:border-0">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-xs font-semibold text-gold">
+                                {review.user?.name?.charAt(0) || 'U'}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">{review.user?.name || 'Anonymous'}</p>
+                                <p className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</p>
+                              </div>
+                              <div className="flex ml-auto">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-gold text-gold' : 'text-border'}`} />
+                                ))}
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium">{review.user?.name || 'Anonymous'}</p>
-                              <p className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</p>
-                            </div>
-                            <div className="flex ml-auto">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-gold text-gold' : 'text-border'}`} />
-                              ))}
-                            </div>
+                            {review.title && <p className="text-sm font-medium mb-1">{review.title}</p>}
+                            {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
                           </div>
-                          {review.title && <p className="text-sm font-medium mb-1">{review.title}</p>}
-                          {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Write a Review */}
+                  <ReviewForm productId={selectedProductId} onSubmitted={() => {
+                    fetch(`/api/reviews?productId=${selectedProductId}`).then(r => r.json()).then(data => setReviews(data.reviews || []));
+                  }} />
                 </div>
               </div>
             </TabsContent>

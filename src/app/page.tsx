@@ -23,6 +23,7 @@ import QuickViewModal from '@/components/shared/QuickViewModal';
 import CompareDrawer from '@/components/shared/CompareDrawer';
 import SizeGuideModal from '@/components/shared/SizeGuideModal';
 import RecentlyViewedSection from '@/components/shared/RecentlyViewedSection';
+import WhatsAppButton from '@/components/shared/WhatsAppButton';
 import type { PageType } from '@/types';
 
 function PageRenderer({ page }: { page: PageType }) {
@@ -124,6 +125,8 @@ export default function App() {
         productId={quickViewProductId}
       />
       <CompareDrawer />
+      {/* WhatsApp floating button - only on non-admin pages */}
+      {!isAdminPage && <WhatsAppButton />}
     </div>
   );
 }
