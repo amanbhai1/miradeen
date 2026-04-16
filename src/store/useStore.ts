@@ -45,6 +45,7 @@ interface StoreState {
   // Recently Viewed
   recentlyViewedIds: string[];
   addRecentlyViewed: (productId: string) => void;
+  clearRecentlyViewed: () => void;
 
   // Compare
   compareIds: string[];
@@ -221,6 +222,7 @@ export const useStore = create<StoreState>()(
           return { recentlyViewedIds: [productId, ...filtered].slice(0, 10) };
         });
       },
+      clearRecentlyViewed: () => set({ recentlyViewedIds: [] }),
 
       // Compare
       compareIds: [],
