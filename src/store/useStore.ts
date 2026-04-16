@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PageType, CartItem, Product, User } from '@/types';
+import type { PageType, CartItem, Product, User, LoyaltyReward, StyleQuizResult } from '@/types';
 
 interface StoreState {
   // Navigation
@@ -61,6 +61,19 @@ interface StoreState {
   // Quick View
   quickViewProductId: string | null;
   setQuickViewProductId: (id: string | null) => void;
+
+  // Loyalty Rewards
+  loyaltyPoints: number;
+  redeemableRewards: LoyaltyReward[];
+  addLoyaltyPoints: (points: number) => void;
+  redeemReward: (rewardId: string) => boolean;
+  getLoyaltyTier: () => string;
+  getLoyaltyProgress: () => { current: number; target: number; percentage: number };
+
+  // Style Quiz
+  styleQuizCompleted: boolean;
+  styleQuizResult: StyleQuizResult | null;
+  setStyleQuizResult: (result: StyleQuizResult) => void;
 
   // UI
   isMobileMenuOpen: boolean;
@@ -127,6 +140,12 @@ export const useStore = create<StoreState>()(
             cart: [...state.cart, { product, quantity, size, color }],
           };
         });
+
+        // Earn loyalty points: 10 points per ₹1000 spent
+        const pointsEarned = Math.floor((product.price * quantity) / 1000) * 10;
+        if (pointsEarned > 0) {
+          get().addLoyaltyPoints(pointsEarned);
+        }
       },
 
       removeFromCart: (productId: string, size?: string) => {
@@ -253,6 +272,58 @@ export const useStore = create<StoreState>()(
       quickViewProductId: null,
       setQuickViewProductId: (id: string | null) => set({ quickViewProductId: id }),
 
+      // Loyalty Rewards
+      loyaltyPoints: 0,
+      redeemableRewards: [
+        { id: '1', title: '10% Off', description: 'Get 10% off your next order', pointsRequired: 100, discountType: 'percentage', discountValue: 10, isActive: true },
+        { id: '2', title: '₹500 Off', description: 'Get ₹500 off on orders above ₹2000', pointsRequired: 200, discountType: 'fixed', discountValue: 500, isActive: true },
+        { id: '3', title: 'Free Shipping', description: 'Free shipping on your next order', pointsRequired: 50, discountType: 'fixed', discountValue: 200, isActive: true },
+      ],
+
+      addLoyaltyPoints: (points: number) => {
+        set((state) => ({
+          loyaltyPoints: state.loyaltyPoints + points,
+        }));
+      },
+
+      redeemReward: (rewardId: string) => {
+        const state = get();
+        const reward = state.redeemableRewards.find((r) => r.id === rewardId);
+        if (!reward || !reward.isActive) return false;
+        if (state.loyaltyPoints < reward.pointsRequired) return false;
+        set({ loyaltyPoints: state.loyaltyPoints - reward.pointsRequired });
+        return true;
+      },
+
+      getLoyaltyTier: () => {
+        const points = get().loyaltyPoints;
+        if (points >= 500) return 'Platinum';
+        if (points >= 300) return 'Gold';
+        if (points >= 100) return 'Silver';
+        return 'Bronze';
+      },
+
+      getLoyaltyProgress: () => {
+        const points = get().loyaltyPoints;
+        let current = 0;
+        let target = 100;
+        if (points >= 500) { current = 500; target = 500; }
+        else if (points >= 300) { current = 300; target = 500; }
+        else if (points >= 100) { current = 100; target = 300; }
+        else { current = 0; target = 100; }
+        const range = target - current;
+        const earned = points - current;
+        const percentage = points >= 500 ? 100 : Math.round((earned / range) * 100);
+        return { current: points, target, percentage };
+      },
+
+      // Style Quiz
+      styleQuizCompleted: false,
+      styleQuizResult: null,
+      setStyleQuizResult: (result: StyleQuizResult) => {
+        set({ styleQuizResult: result, styleQuizCompleted: true });
+      },
+
       // UI
       isMobileMenuOpen: false,
       setMobileMenuOpen: (open: boolean) => set({ isMobileMenuOpen: open }),
@@ -271,6 +342,8 @@ export const useStore = create<StoreState>()(
         recentlyViewedIds: state.recentlyViewedIds,
         compareIds: state.compareIds,
         notifyProducts: state.notifyProducts,
+        loyaltyPoints: state.loyaltyPoints,
+        styleQuizResult: state.styleQuizResult,
       }),
     }
   )

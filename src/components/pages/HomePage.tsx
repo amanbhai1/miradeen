@@ -5,7 +5,7 @@ import { motion, useInView, AnimatePresence, useScroll, useTransform } from 'fra
 import {
   Star, Heart, ShoppingBag, ArrowRight,
   Truck, Shield, RefreshCw, Headphones, Instagram, Sparkles,
-  Eye, GitCompareArrows, MessageCircle, Clock, Scissors, Leaf, Landmark
+  Eye, GitCompareArrows, MessageCircle, Clock, Scissors, Leaf, Landmark, Gift
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -248,7 +248,7 @@ function InstagramGridItem({ src, index }: { src: string; index: number }) {
    ═════════════════════════════════════════════════════════════════════ */
 
 export default function HomePage() {
-  const { navigate } = useStore();
+  const { navigate, loyaltyPoints, getLoyaltyTier, getLoyaltyProgress, redeemableRewards } = useStore();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
@@ -303,6 +303,24 @@ export default function HomePage() {
     'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop',
     'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=400&fit=crop',
   ];
+
+  const tierColors: Record<string, string> = {
+    Bronze: '#CD7F32',
+    Silver: '#C0C0C0',
+    Gold: '#C9A96E',
+    Platinum: '#E5E4E2',
+  };
+
+  const tierEmojis: Record<string, string> = {
+    Bronze: '🥉',
+    Silver: '🥈',
+    Gold: '🥇',
+    Platinum: '💎',
+  };
+
+  const loyaltyTier = getLoyaltyTier();
+  const loyaltyProgress = getLoyaltyProgress();
+  const nextTier = loyaltyTier === 'Bronze' ? 'Silver' : loyaltyTier === 'Silver' ? 'Gold' : loyaltyTier === 'Gold' ? 'Platinum' : null;
 
   const features = [
     { icon: Truck, title: 'Free Shipping', desc: 'On orders over ₹2,000' },
@@ -649,6 +667,47 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ═══ Style Quiz CTA ═══ */}
+      <section className="py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection>
+            <div className="card-luxury grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">
+              {/* Left - Image */}
+              <div className="relative h-64 md:h-auto">
+                <img
+                  src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&h=500&fit=crop"
+                  alt="Discover Your Style"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-background/20 md:bg-gradient-to-l md:from-transparent md:to-background/20" />
+              </div>
+              {/* Right - Content */}
+              <div className="p-8 md:p-12 flex flex-col justify-center">
+                <div className="inline-flex items-center gap-2 bg-gold/10 border border-gold/20 rounded-full px-4 py-1.5 mb-5 w-fit">
+                  <Sparkles className="h-3.5 w-3.5 text-gold" />
+                  <span className="text-gold text-xs tracking-[0.15em] uppercase font-medium">Personalized</span>
+                </div>
+                <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-4">
+                  Discover Your <span className="text-gold">Style</span>
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                  Take our curated style quiz and let us help you find the perfect pieces that match your personality. Answer a few simple questions and receive personalized recommendations crafted just for you.
+                </p>
+                <div>
+                  <Button
+                    onClick={() => navigate('style-quiz')}
+                    className="bg-gold text-background hover:bg-gold-dark px-8 py-3 tracking-[0.15em] uppercase text-xs font-semibold btn-luxury"
+                  >
+                    Take the Quiz
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
       {/* ═══ Testimonials ═══ */}
       <section className="py-20 bg-cream dark:bg-card/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -714,6 +773,56 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ═══ Gift Guide ═══ */}
+      <section className="py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-12">
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Curated Gifts</p>
+            <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-3">Gift Guide</h2>
+            <div className="divider-gold w-20 mx-auto" />
+          </AnimatedSection>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {[
+              { title: 'For Him', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=400&fit=crop' },
+              { title: 'For Her', image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=400&h=400&fit=crop' },
+              { title: 'Accessories', image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop' },
+              { title: 'Gift Cards', image: null },
+            ].map((gift, i) => (
+              <AnimatedSection key={gift.title} delay={i * 0.1}>
+                <button
+                  onClick={() => navigate('shop')}
+                  className="group relative aspect-square w-full overflow-hidden block rounded-lg"
+                >
+                  {gift.image ? (
+                    <img
+                      src={gift.image}
+                      alt={gift.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A96E 0%, #E8D5A3 40%, #C9A96E 70%, #A68B4B 100%)' }}>
+                      <Gift className="h-12 w-12 text-background" />
+                    </div>
+                  )}
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-500 flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center gap-2 text-white">
+                      <span className="text-xs tracking-[0.15em] uppercase font-medium">Shop Gifts</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </div>
+                  </div>
+                  {/* Title bar */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                    <h3 className="heading-serif text-sm md:text-base font-semibold text-white">{gift.title}</h3>
+                  </div>
+                </button>
+              </AnimatedSection>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══ Trust Badges (Enhanced with Animated Counters) ═══ */}
       <section className="py-16 bg-cream dark:bg-card/30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -739,6 +848,127 @@ export default function HomePage() {
               </AnimatedSection>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ═══ Loyalty Rewards Section ═══ */}
+      <section className="py-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection>
+            <div
+              className="relative rounded-2xl overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
+              }}
+            >
+              {/* Gold accent border glow */}
+              <div className="absolute inset-0 rounded-2xl border border-gold/20 pointer-events-none" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-gold/10 blur-[80px] rounded-full pointer-events-none" />
+
+              <div className="relative z-10 p-8 md:p-12">
+                {/* Header */}
+                <div className="text-center mb-10">
+                  <div className="inline-flex items-center gap-2 bg-gold/10 border border-gold/20 rounded-full px-4 py-1.5 mb-4">
+                    <span className="text-gold text-xs tracking-[0.2em] uppercase font-medium">Loyalty Rewards</span>
+                  </div>
+                  <h2 className="heading-serif text-3xl md:text-4xl font-bold text-white mb-3">
+                    Earn Points. <span className="text-gold">Unlock Rewards.</span>
+                  </h2>
+                  <p className="text-white/60 text-sm max-w-lg mx-auto">
+                    Every purchase earns you loyalty points. Redeem them for exclusive discounts and free shipping.
+                  </p>
+                </div>
+
+                {/* Tier & Progress */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                  {/* Current Tier Card */}
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center">
+                    <p className="text-xs tracking-[0.2em] uppercase text-white/50 mb-3">Your Tier</p>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-2xl">{tierEmojis[loyaltyTier]}</span>
+                      <h3
+                        className="heading-serif text-2xl md:text-3xl font-bold"
+                        style={{ color: tierColors[loyaltyTier] }}
+                      >
+                        {loyaltyTier}
+                      </h3>
+                    </div>
+                    <p className="text-gold text-sm font-medium">{loyaltyPoints} Points</p>
+                  </div>
+
+                  {/* Progress to Next Tier */}
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs tracking-[0.2em] uppercase text-white/50">Progress</p>
+                      {nextTier && (
+                        <span className="text-xs text-gold/70">Next: {nextTier}</span>
+                      )}
+                    </div>
+                    {nextTier ? (
+                      <>
+                        <p className="text-white text-sm mb-3">
+                          <span className="font-semibold text-gold">{loyaltyProgress.current}</span>
+                          <span className="text-white/40"> / {loyaltyProgress.target} points</span>
+                        </p>
+                        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${loyaltyProgress.percentage}%`,
+                              background: `linear-gradient(90deg, ${tierColors[loyaltyTier]}, ${tierColors[nextTier]})`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-white/30 mt-1.5">{loyaltyProgress.percentage}% to next tier</p>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">👑</span>
+                        <p className="text-white text-sm">Maximum tier achieved!</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Available Rewards */}
+                <div className="mb-8">
+                  <p className="text-xs tracking-[0.2em] uppercase text-white/50 mb-4 text-center">Available Rewards</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {redeemableRewards.filter((r) => r.isActive).map((reward) => {
+                      const canRedeem = loyaltyPoints >= reward.pointsRequired;
+                      return (
+                        <div
+                          key={reward.id}
+                          className={`relative bg-white/5 border rounded-xl p-4 text-center transition-all duration-300 ${
+                            canRedeem
+                              ? 'border-gold/30 hover:border-gold/60 hover:bg-gold/5'
+                              : 'border-white/10 opacity-60'
+                          }`}
+                        >
+                          <h4 className="text-white font-semibold text-sm mb-1">{reward.title}</h4>
+                          <p className="text-white/40 text-[10px] mb-3">{reward.description}</p>
+                          <div className="inline-flex items-center gap-1 bg-gold/10 border border-gold/20 rounded-full px-3 py-1">
+                            <span className="text-gold text-xs font-medium">{reward.pointsRequired} pts</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <div className="text-center">
+                  <Button
+                    onClick={() => navigate('shop')}
+                    className="bg-gold text-background hover:bg-gold-dark px-8 py-3 tracking-[0.15em] uppercase text-xs font-semibold btn-luxury"
+                  >
+                    {loyaltyPoints > 0 ? 'View Rewards' : 'Join Rewards'}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </AnimatedSection>
         </div>
       </section>
 

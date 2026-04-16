@@ -18,6 +18,8 @@ import WishlistPage from '@/components/pages/WishlistPage';
 import ProfilePage from '@/components/pages/ProfilePage';
 import AdminDashboard from '@/components/pages/AdminPages';
 import OrderTrackingPage from '@/components/pages/OrderTrackingPage';
+import StyleQuizPage from '@/components/pages/StyleQuizPage';
+import LookbookPage from '@/components/pages/LookbookPage';
 import BreadcrumbNav from '@/components/shared/BreadcrumbNav';
 import QuickViewModal from '@/components/shared/QuickViewModal';
 import CompareDrawer from '@/components/shared/CompareDrawer';
@@ -42,6 +44,8 @@ function PageRenderer({ page }: { page: PageType }) {
     case 'profile': return <ProfilePage />;
     case 'orders': return <ProfilePage />;
     case 'order-tracking': return <OrderTrackingPage />;
+    case 'style-quiz': return <StyleQuizPage />;
+    case 'lookbook': return <LookbookPage />;
     case 'admin-dashboard':
     case 'admin-products':
     case 'admin-orders':
@@ -68,6 +72,8 @@ function getBreadcrumbItems(page: PageType, productName?: string): { label: stri
     case 'profile': return [...base, { label: 'My Account' }];
     case 'orders': return [...base, { label: 'My Orders' }];
     case 'order-tracking': return [...base, { label: 'Order Tracking' }];
+    case 'lookbook': return [...base, { label: 'Lookbook' }];
+    case 'style-quiz': return [...base, { label: 'Style Quiz' }];
     default: return base;
   }
 }

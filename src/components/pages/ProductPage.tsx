@@ -1,13 +1,15 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Heart, ShoppingBag, Minus, Plus, Star, Share2, Truck, Shield, RefreshCw, ChevronLeft, Check, Bell, Ruler, GitCompareArrows, Eye, ArrowRight, AlertTriangle, Camera, ThumbsUp, ThumbsDown, ArrowUpDown, BadgeCheck } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, useInView } from 'framer-motion';
+import { Heart, ShoppingBag, Minus, Plus, Star, Share2, Truck, Shield, RefreshCw, ChevronLeft, Check, Bell, Ruler, GitCompareArrows, Eye, ArrowRight, AlertTriangle, Camera, ThumbsUp, ThumbsDown, ArrowUpDown, BadgeCheck, Package, Clock, RotateCcw, Info, Sparkles, Feather, Globe, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/hooks/use-toast';
 import type { Product, Review } from '@/types';
@@ -58,6 +60,23 @@ function getColorHex(name: string): string {
 function getColorBorderClass(name: string): string {
   const lower = name.toLowerCase().trim();
   return (lower === 'white' || lower === 'cream' || lower === 'ivory') ? 'border border-border' : '';
+}
+
+// AnimatedSection: scroll-triggered fade-in animation
+function AnimatedSection({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: '-50px' });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 40 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.8, delay, ease: 'easeOut' }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 function ReviewForm({ productId, onSubmitted }: { productId: string | null; onSubmitted: () => void }) {
@@ -196,6 +215,9 @@ export default function ProductPage() {
   const [votedReviews, setVotedReviews] = useState<Set<string>>(new Set());
   const [helpfulVotes, setHelpfulVotes] = useState<Record<string, { up: number; down: number }>>({});
   const [verifiedUserIds, setVerifiedUserIds] = useState<Set<string>>(new Set());
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [outfitProducts, setOutfitProducts] = useState<Product[]>([]);
+  const [outfitLoading, setOutfitLoading] = useState(true);
 
   useEffect(() => {
     if (!selectedProductId) return;
@@ -262,6 +284,22 @@ export default function ProductPage() {
         });
         setVerifiedUserIds(demoVerified);
       }
+    });
+  }, [selectedProductId]);
+
+  // Fetch outfit suggestion products (complementary, different category)
+  useEffect(() => {
+    if (!selectedProductId) return;
+    setOutfitLoading(true);
+    fetch('/api/products?limit=100').then(r => r.json()).then(data => {
+      const products = (data.products || []).filter((p: Product) => p.id !== selectedProductId && p.isActive);
+      // Pick 4 complementary products (mix of different categories)
+      const shuffled = products.sort(() => Math.random() - 0.5);
+      setOutfitProducts(shuffled.slice(0, 4));
+      setOutfitLoading(false);
+    }).catch(() => {
+      setOutfitProducts([]);
+      setOutfitLoading(false);
     });
   }, [selectedProductId]);
 
@@ -377,6 +415,25 @@ export default function ProductPage() {
   return (
     <div className="min-h-screen">
       <SizeGuideModal open={sizeGuideOpen} onOpenChange={setSizeGuideOpen} />
+
+      {/* Review Modal Dialog */}
+      <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="heading-serif text-xl flex items-center gap-2">
+              <Star className="h-5 w-5 text-gold fill-gold" />
+              Write a Review
+            </DialogTitle>
+            <DialogDescription>
+              Share your experience with {product.name}
+            </DialogDescription>
+          </DialogHeader>
+          <ReviewForm productId={selectedProductId} onSubmitted={() => {
+            fetch(`/api/reviews?productId=${selectedProductId}`).then(r => r.json()).then(data => setReviews(data.reviews || []));
+            setReviewModalOpen(false);
+          }} />
+        </DialogContent>
+      </Dialog>
 
       {/* Back button */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -658,18 +715,64 @@ export default function ProductPage() {
           </motion.div>
         </div>
 
-        {/* Tabs: Description / Reviews / Shipping */}
+        {/* Tabs: Description / Details / Reviews / Shipping */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="mt-16">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start border-b bg-transparent rounded-none h-auto p-0">
-              {['Description', `Reviews (${reviews.length})`, 'Shipping'].map((tab) => (
-                <TabsTrigger key={tab} value={tab.toLowerCase().split(' ')[0]} className="px-6 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-gold data-[state=active]:bg-transparent data-[state=active]:shadow-none text-sm tracking-wider uppercase hover:text-gold transition-colors">
+            <TabsList className="w-full justify-start border-b bg-transparent rounded-none h-auto p-0 overflow-x-auto">
+              {['Description', 'Details', `Reviews (${reviews.length})`, 'Shipping'].map((tab) => (
+                <TabsTrigger key={tab} value={tab.toLowerCase().split(' ')[0]} className="px-6 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-gold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gold text-sm tracking-wider uppercase text-muted-foreground hover:text-gold transition-colors whitespace-nowrap">
                   {tab}
                 </TabsTrigger>
               ))}
             </TabsList>
             <TabsContent value="description" className="pt-6">
               <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: product.description?.replace(/\n/g, '<br/>') || 'No description available.' }} />
+            </TabsContent>
+            <TabsContent value="details" className="pt-6">
+              <div className="max-w-2xl">
+                <h3 className="heading-serif text-lg font-semibold mb-4 text-foreground">Product Details</h3>
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {[
+                        { label: 'Material', value: product.category?.name === 'Jewellery' || product.category?.name === 'Accessories' ? 'Sterling Silver / 18K Gold Plated' : 'Premium Cotton Silk Blend' },
+                        { label: 'Care Instructions', value: product.category?.name === 'Jewellery' || product.category?.name === 'Accessories' ? 'Avoid contact with water and perfume. Store in the provided pouch.' : 'Dry clean recommended. Iron on low heat. Do not bleach.' },
+                        { label: 'Weight', value: product.category?.name === 'Jewellery' || product.category?.name === 'Accessories' ? '12g approx.' : '280g approx.' },
+                        { label: 'Origin', value: 'India' },
+                        { label: 'Season', value: 'All Season' },
+                        { label: 'SKU', value: `MRD-${product.id.slice(0, 8).toUpperCase()}` },
+                      ].map((row, i) => (
+                        <tr key={row.label} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
+                          <td className="px-4 py-3 font-medium text-foreground w-40 border-r border-border">{row.label}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{row.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Key Features */}
+                <div className="mt-6">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-foreground">
+                    <Sparkles className="h-4 w-4 text-gold" />
+                    Key Features
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { icon: Feather, text: 'Crafted with premium materials' },
+                      { icon: Gem, text: 'Timeless elegant design' },
+                      { icon: Globe, text: 'Sustainably sourced from India' },
+                      { icon: Package, text: 'Luxury gift packaging included' },
+                    ].map(({ icon: Icon, text }) => (
+                      <div key={text} className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 border border-border/50">
+                        <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center shrink-0">
+                          <Icon className="h-4 w-4 text-gold" />
+                        </div>
+                        <span className="text-xs text-muted-foreground">{text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </TabsContent>
             <TabsContent value="reviews" className="pt-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -811,7 +914,15 @@ export default function ProductPage() {
                       </div>
                     )}
                   </div>
-                  {/* Write a Review */}
+                  {/* Write a Review Button + Inline Form */}
+                  <Button
+                    onClick={() => setReviewModalOpen(true)}
+                    variant="outline"
+                    className="w-full border-gold/30 text-gold hover:bg-gold hover:text-background hover:border-gold transition-all duration-300 mb-4"
+                  >
+                    <Star className="h-4 w-4 mr-2" />
+                    Write a Review
+                  </Button>
                   <ReviewForm productId={selectedProductId} onSubmitted={() => {
                     fetch(`/api/reviews?productId=${selectedProductId}`).then(r => r.json()).then(data => setReviews(data.reviews || []));
                   }} />
@@ -819,14 +930,167 @@ export default function ProductPage() {
               </div>
             </TabsContent>
             <TabsContent value="shipping" className="pt-6">
-              <div className="space-y-4 text-sm text-muted-foreground">
-                <div><p className="font-medium text-foreground mb-1">Shipping</p><p>Free shipping on orders over ₹2,000. Standard delivery within 5-7 business days. Express delivery available at checkout.</p></div>
-                <div><p className="font-medium text-foreground mb-1">Returns</p><p>We accept returns within 30 days of delivery. Items must be unused and in original packaging with all tags attached.</p></div>
-                <div><p className="font-medium text-foreground mb-1">Care Instructions</p><p>Please refer to the care label on each garment for specific washing and maintenance instructions.</p></div>
+              <div className="max-w-2xl space-y-6">
+                <h3 className="heading-serif text-lg font-semibold text-foreground">Shipping & Returns</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    {
+                      icon: Truck,
+                      title: 'Free Shipping',
+                      desc: 'Enjoy free standard shipping on all orders over ₹2,000. For orders below this amount, a nominal shipping fee applies.',
+                      accent: true,
+                    },
+                    {
+                      icon: Clock,
+                      title: 'Standard Delivery',
+                      desc: '5-7 business days across India. Track your order in real-time through your account dashboard.',
+                    },
+                    {
+                      icon: Sparkles,
+                      title: 'Express Delivery',
+                      desc: '2-3 business days for select metro cities. Available at checkout for an additional fee.',
+                    },
+                    {
+                      icon: RotateCcw,
+                      title: 'Easy 30-Day Returns',
+                      desc: 'Not satisfied? Return within 30 days for a full refund. Items must be unused with original tags attached.',
+                    },
+                  ].map(({ icon: Icon, title, desc, accent }) => (
+                    <div key={title} className={`p-4 rounded-lg border ${accent ? 'border-gold/30 bg-gold/5' : 'border-border bg-muted/20'} transition-colors hover:border-gold/40`}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${accent ? 'bg-gold/20' : 'bg-muted'}`}>
+                          <Icon className={`h-4 w-4 ${accent ? 'text-gold' : 'text-muted-foreground'}`} />
+                        </div>
+                        <h4 className={`text-sm font-semibold ${accent ? 'text-gold' : 'text-foreground'}`}>{title}</h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed pl-12">{desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-4 rounded-lg bg-muted/20 border border-border/50">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-4 w-4 text-gold mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-foreground mb-1">International Shipping</p>
+                      <p className="text-xs text-muted-foreground">We currently ship within India only. International shipping coming soon. For queries, contact our support team.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
         </motion.div>
+
+        {/* Complete the Look - Outfit Suggestions */}
+        <AnimatedSection className="mt-20">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <p className="text-xs tracking-[0.3em] uppercase text-gold mb-1">Curated for you</p>
+              <h2 className="heading-serif text-2xl md:text-3xl font-bold">
+                Complete the <span className="text-gold">Look</span>
+              </h2>
+              <div className="divider-gold w-16 mt-2" />
+            </div>
+            <button
+              onClick={() => navigate('shop')}
+              className="hidden sm:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gold transition-colors group"
+            >
+              View All
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </button>
+          </div>
+
+          {outfitLoading ? (
+            /* Skeleton Loading */
+            <div className="flex lg:grid lg:grid-cols-4 gap-4 md:gap-6 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="min-w-[200px] sm:min-w-[220px] lg:min-w-0 flex-shrink-0 snap-start">
+                  <Skeleton className="aspect-[3/4] rounded-lg w-full" />
+                  <div className="mt-3 space-y-2">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : outfitProducts.length > 0 ? (
+            /* Product Cards */
+            <div className="flex lg:grid lg:grid-cols-4 gap-4 md:gap-6 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 snap-x snap-mandatory scrollbar-hide">
+              {outfitProducts.map((item, i) => {
+                const itemImages = parseJsonField<string>(item.images);
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 + i * 0.1 }}
+                    className="group cursor-pointer bg-background dark:bg-card rounded-lg overflow-hidden border border-border product-card min-w-[200px] sm:min-w-[220px] lg:min-w-0 flex-shrink-0 snap-start hover:border-gold/30 transition-colors duration-300"
+                    onClick={() => navigate('product', item.id)}
+                  >
+                    <div className="relative aspect-[3/4] img-zoom">
+                      <img src={itemImages[0] || '/placeholder.jpg'} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleWishlist(item.id); }}
+                        className="absolute top-2 right-2 w-8 h-8 bg-background/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
+                      >
+                        <Heart className={`h-4 w-4 ${wishlistIds.includes(item.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                      </button>
+                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-1">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickViewProductId(item.id);
+                          }}
+                          size="sm"
+                          className="flex-1 h-8 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
+                        >
+                          <Eye className="h-3 w-3 mr-0.5" /> Quick View
+                        </Button>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const itemSizes = parseJsonField<string>(item.sizes);
+                            addToCart(item, 1, itemSizes[0]);
+                          }}
+                          size="sm"
+                          className="flex-1 h-8 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
+                        >
+                          <ShoppingBag className="h-3 w-3 mr-0.5" /> Add to Cart
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[10px] text-muted-foreground tracking-wider uppercase mb-1">{item.category?.name}</p>
+                      <h3 className="text-sm font-medium truncate group-hover:text-gold transition-colors">{item.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm font-semibold">₹{item.price.toLocaleString()}</span>
+                        {item.comparePrice && (
+                          <span className="text-xs text-muted-foreground line-through">₹{item.comparePrice.toLocaleString()}</span>
+                        )}
+                      </div>
+                      {item.rating > 0 && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Star className="h-3 w-3 fill-gold text-gold" />
+                          <span className="text-[10px] text-muted-foreground">{item.rating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {/* Mobile View All link */}
+          <button
+            onClick={() => navigate('shop')}
+            className="sm:hidden flex items-center justify-center gap-1 text-sm text-gold hover:underline mt-4 w-full"
+          >
+            View All Products
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </AnimatedSection>
 
         {/* You May Also Like */}
         {recommendations.length > 0 && (

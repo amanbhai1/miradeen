@@ -168,6 +168,8 @@ export default function Navbar() {
   const navLinks = [
     { label: 'Home', page: 'home' as const },
     { label: 'Shop', page: 'shop' as const },
+    { label: 'Lookbook', page: 'lookbook' as const },
+    { label: 'Style Quiz', page: 'style-quiz' as const },
     { label: 'About', page: 'about' as const },
     { label: 'Contact', page: 'contact' as const },
   ];

@@ -153,6 +153,23 @@ export interface CartItem {
   color?: string;
 }
 
+export interface LoyaltyReward {
+  id: string;
+  title: string;
+  description: string;
+  pointsRequired: number;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  isActive: boolean;
+}
+
+export interface StyleQuizResult {
+  styleProfile: string;
+  description: string;
+  recommendedCategories: string[];
+  colorPalette: string[];
+}
+
 export interface SiteSetting {
   id: string;
   key: string;
@@ -187,4 +204,6 @@ export type PageType =
   | 'admin-users'
   | 'admin-messages'
   | 'admin-cms'
-  | 'admin-settings';
+  | 'admin-settings'
+  | 'lookbook'
+  | 'style-quiz';
