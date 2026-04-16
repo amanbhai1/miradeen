@@ -21,6 +21,8 @@ import OrderTrackingPage from '@/components/pages/OrderTrackingPage';
 import StyleQuizPage from '@/components/pages/StyleQuizPage';
 import LookbookPage from '@/components/pages/LookbookPage';
 import GiftGuidePage from '@/components/pages/GiftGuidePage';
+import CollectionsPage from '@/components/pages/CollectionsPage';
+import SalePage from '@/components/pages/SalePage';
 import BreadcrumbNav from '@/components/shared/BreadcrumbNav';
 import QuickViewModal from '@/components/shared/QuickViewModal';
 import CompareDrawer from '@/components/shared/CompareDrawer';
@@ -51,6 +53,8 @@ function PageRenderer({ page }: { page: PageType }) {
     case 'style-quiz': return <StyleQuizPage />;
     case 'lookbook': return <LookbookPage />;
     case 'gift-guide': return <GiftGuidePage />;
+    case 'collections': return <CollectionsPage />;
+    case 'sale': return <SalePage />;
     case 'admin-dashboard':
     case 'admin-products':
     case 'admin-orders':
@@ -80,6 +84,8 @@ function getBreadcrumbItems(page: PageType, productName?: string): { label: stri
     case 'lookbook': return [...base, { label: 'Lookbook' }];
     case 'style-quiz': return [...base, { label: 'Style Quiz' }];
     case 'gift-guide': return [...base, { label: 'Gift Guide' }];
+    case 'collections': return [...base, { label: 'Collections' }];
+    case 'sale': return [...base, { label: 'Sale' }];
     default: return base;
   }
 }

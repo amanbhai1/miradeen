@@ -201,6 +201,8 @@ export default function Footer() {
   const quickLinks = [
     { label: 'Shop All', page: 'shop' },
     { label: 'New Arrivals', page: 'shop' },
+    { label: 'Collections', page: 'collections' },
+    { label: 'Sale', page: 'sale' },
     { label: 'Bestsellers', page: 'shop' },
     { label: 'Gift Guide', page: 'gift-guide' },
     { label: 'Lookbook', page: 'lookbook' },

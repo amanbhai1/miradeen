@@ -8,7 +8,7 @@ import {
   LogOut, Shield, Package, Settings, MapPin,
   ChevronDown, ChevronRight, LogIn, ShoppingBag,
   Shirt, Crown, Watch, Sparkles, Star, Gem,
-  Palette, Gift, Ruler, PenTool, BookOpen
+  Palette, Gift, Ruler, PenTool, BookOpen, Tag, Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +60,8 @@ const megaMenuCollections = [
 ];
 
 const megaMenuQuickLinks = [
+  { label: 'Collections', icon: Layers, page: 'collections' as const },
+  { label: 'Sale', icon: Tag, page: 'sale' as const },
   { label: 'Gift Guide', icon: Gift, page: 'gift-guide' as const },
   { label: 'Size Guide', icon: Ruler, page: 'size-guide' as const },
   { label: 'Style Quiz', icon: PenTool, page: 'style-quiz' as const },
@@ -242,6 +244,8 @@ export default function Navbar() {
   const navLinks = [
     { label: 'Home', page: 'home' as const },
     { label: 'Shop', page: 'shop' as const },
+    { label: 'Collections', page: 'collections' as const },
+    { label: 'Sale', page: 'sale' as const },
     { label: 'Gift Guide', page: 'gift-guide' as const },
     { label: 'Lookbook', page: 'lookbook' as const },
     { label: 'Style Quiz', page: 'style-quiz' as const },

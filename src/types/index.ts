@@ -207,4 +207,6 @@ export type PageType =
   | 'admin-settings'
   | 'lookbook'
   | 'style-quiz'
-  | 'gift-guide';
+  | 'gift-guide'
+  | 'sale'
+  | 'collections';
