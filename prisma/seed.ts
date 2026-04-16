@@ -1,5 +1,7 @@
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+
+const db = new PrismaClient();
 
 async function seed() {
   console.log('🌱 Seeding MIRADEEN database...');
