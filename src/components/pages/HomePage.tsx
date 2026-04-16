@@ -6,7 +6,8 @@ import {
   Star, Heart, ShoppingBag, ArrowRight,
   Truck, Shield, RefreshCw, Headphones, Instagram, Sparkles,
   Eye, GitCompareArrows, MessageCircle, Clock, Scissors, Leaf, Landmark, Gift,
-  Gem, RotateCcw, Crown, TrendingUp, ChevronLeft, ChevronRight
+  Gem, RotateCcw, Crown, TrendingUp, ChevronLeft, ChevronRight,
+  Quote, ExternalLink, Camera, CheckCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useStore } from '@/store/useStore';
 import type { Product } from '@/types';
 import { parseJsonField } from '@/types';
+import ProductCard from '@/components/shared/ProductCard';
 
 /* ─── Animated Section Wrapper ──────────────────────────────────────── */
 
@@ -117,78 +119,6 @@ function ParallaxImage({ src, alt, speed = 0.3 }: { src: string; alt: string; sp
   );
 }
 
-/* ─── Product Card ──────────────────────────────────────────────────── */
-
-function ProductCard({ product, index }: { product: Product; index: number }) {
-  const { navigate, addToCart, toggleWishlist, wishlistIds, setQuickViewProductId, toggleCompare, compareIds } = useStore();
-  const images = parseJsonField<string>(product.images);
-  return (
-    <AnimatedSection delay={index * 0.08}>
-      <div className="product-card group cursor-pointer bg-background dark:bg-card rounded-lg overflow-hidden border border-border" onClick={() => navigate('product', product.id)}>
-        <div className="relative aspect-[3/4] img-zoom">
-          <img
-            src={images[0] || '/placeholder.jpg'}
-            alt={product.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {product.isNewArrival && <Badge className="bg-gold text-background text-[9px] px-1.5 py-0">New</Badge>}
-            {product.isBestseller && <Badge className="bg-foreground text-primary-foreground text-[9px] px-1.5 py-0">Bestseller</Badge>}
-          </div>
-          <div className="absolute top-2 right-2 flex flex-col gap-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
-              className="w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
-            >
-              <Heart className={`h-4 w-4 ${wishlistIds.includes(product.id) ? 'fill-red-500 text-red-500' : ''}`} />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); toggleCompare(product.id); }}
-              className={`w-8 h-8 bg-background/80 dark:bg-card/80 backdrop-blur rounded-full flex items-center justify-center transition-colors ${compareIds.includes(product.id) ? 'bg-gold text-background' : 'hover:bg-gold hover:text-background'}`}
-            >
-              <GitCompareArrows className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-1">
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                setQuickViewProductId(product.id);
-              }}
-              size="sm"
-              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
-            >
-              <Eye className="h-3 w-3 mr-0.5" /> Quick View
-            </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                const sizes = parseJsonField<string>(product.sizes);
-                addToCart(product, 1, sizes[0]);
-              }}
-              size="sm"
-              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
-            >
-              <ShoppingBag className="h-3 w-3 mr-0.5" /> Add to Cart
-            </Button>
-          </div>
-        </div>
-        <div className="p-3">
-          <p className="text-[10px] text-muted-foreground tracking-wider uppercase mb-1">{product.category?.name}</p>
-          <h3 className="text-sm font-medium truncate group-hover:text-gold transition-colors">{product.name}</h3>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm font-semibold">₹{product.price.toLocaleString()}</span>
-            {product.comparePrice && (
-              <span className="text-xs text-muted-foreground line-through">₹{product.comparePrice.toLocaleString()}</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </AnimatedSection>
-  );
-}
-
 /* ─── Animated Counter Badge ────────────────────────────────────────── */
 
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
@@ -289,7 +219,7 @@ export default function HomePage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(interval);
   }, []);
 
@@ -300,9 +230,12 @@ export default function HomePage() {
   ];
 
   const testimonials = [
-    { name: 'Priya Sharma', location: 'Mumbai', rating: 5, text: 'The quality is beyond anything I\'ve experienced. MIRADEEN has set a new standard for luxury fashion in India. Every piece feels like it was made just for me.' },
-    { name: 'Arjun Mehta', location: 'Delhi', rating: 5, text: 'From the packaging to the fabric quality, everything screams premium. The Sovereign Blazer is now my go-to for every important occasion.' },
-    { name: 'Ananya Patel', location: 'Bangalore', rating: 5, text: 'I\'ve been a loyal customer for over a year. The craftsmanship is consistently exceptional. MIRADEEN truly redefines luxury fashion.' },
+    { name: 'Priya Sharma', location: 'Mumbai', role: 'Fashion Blogger', rating: 5, verified: true, text: 'The quality is beyond anything I\'ve experienced. MIRADEEN has set a new standard for luxury fashion in India. Every piece feels like it was made just for me.' },
+    { name: 'Arjun Mehta', location: 'Delhi', role: 'Creative Director', rating: 5, verified: true, text: 'From the packaging to the fabric quality, everything screams premium. The Sovereign Blazer is now my go-to for every important occasion.' },
+    { name: 'Ananya Patel', location: 'Bangalore', role: 'Interior Designer', rating: 5, verified: false, text: 'I\'ve been a loyal customer for over a year. The craftsmanship is consistently exceptional. MIRADEEN truly redefines luxury fashion.' },
+    { name: 'Vikram Rao', location: 'Chennai', role: 'Entrepreneur', rating: 5, verified: true, text: 'The attention to detail is impeccable. From stitching to fabric choice, every element reflects true luxury. MIRADEEN is my wardrobe staple now.' },
+    { name: 'Meera Kapoor', location: 'Hyderabad', role: 'Style Consultant', rating: 5, verified: false, text: 'I recommend MIRADEEN to all my clients. The timeless designs and premium quality make every outfit feel effortlessly elegant.' },
+    { name: 'Rohan Desai', location: 'Pune', role: 'Photographer', rating: 5, verified: true, text: 'As someone who works in fashion, I appreciate the thought behind each collection. MIRADEEN delivers sophistication with every piece.' },
   ];
 
   const instagramImages = [
@@ -622,7 +555,9 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {newArrivals.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} />
+                <AnimatedSection key={product.id} delay={i * 0.08}>
+                  <ProductCard product={product} />
+                </AnimatedSection>
               ))}
             </div>
           )}
@@ -667,60 +602,11 @@ export default function HomePage() {
                   ))}
                 </>
               ) : (
-                trendingProducts.map((product, i) => {
-                  const images = parseJsonField<string>(product.images);
-                  const avgRating = product.rating || 0;
-                  return (
+                trendingProducts.map((product, i) => (
                     <AnimatedSection key={product.id} delay={i * 0.1}>
-                      <div className="min-w-[260px] lg:min-w-0 shrink-0 snap-start group">
-                        <div className="product-card bg-background dark:bg-card rounded-lg overflow-hidden border border-border">
-                          <div className="relative aspect-[3/4] img-zoom">
-                            <img
-                              src={images[0] || '/placeholder.jpg'}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                            {product.isBestseller && (
-                              <Badge className="absolute top-2 left-2 bg-gold text-background text-[9px] px-1.5 py-0">Bestseller</Badge>
-                            )}
-                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const sizes = parseJsonField<string>(product.sizes);
-                                  addToCart(product, 1, sizes[0]);
-                                }}
-                                size="sm"
-                                className="w-full h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
-                              >
-                                <ShoppingBag className="h-3 w-3 mr-1" /> Add to Cart
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="p-3 cursor-pointer" onClick={() => navigate('product', product.id)}>
-                            <p className="text-[10px] text-muted-foreground tracking-wider uppercase mb-1">{product.category?.name}</p>
-                            <h3 className="text-sm font-medium truncate group-hover:text-gold transition-colors">{product.name}</h3>
-                            <div className="flex items-center gap-1 mt-1">
-                              {avgRating > 0 && (
-                                <div className="flex items-center gap-0.5">
-                                  <Star className="h-3 w-3 fill-gold text-gold" />
-                                  <span className="text-[11px] text-muted-foreground">{avgRating.toFixed(1)}</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-sm font-semibold">₹{product.price.toLocaleString()}</span>
-                              {product.comparePrice && (
-                                <span className="text-xs text-muted-foreground line-through">₹{product.comparePrice.toLocaleString()}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <ProductCard product={product} variant="horizontal" />
                     </AnimatedSection>
-                  );
-                })
+                  ))
               )}
               {/* View All card */}
               <AnimatedSection delay={0.4}>
@@ -762,7 +648,9 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {products.slice(0, 8).map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} />
+                <AnimatedSection key={product.id} delay={i * 0.08}>
+                  <ProductCard product={product} />
+                </AnimatedSection>
               ))}
             </div>
           )}
@@ -1137,62 +1025,232 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══ Customer Love ═══ */}
+      {/* ═══ Customer Love (Enhanced Carousel) ═══ */}
       <section className="py-20 bg-cream dark:bg-card/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-12">
-            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Testimonials</p>
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Customer Love</p>
             <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-3">What Our Customers Say</h2>
             <div className="divider-gold w-20 mx-auto" />
           </AnimatedSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+          <div className="max-w-4xl mx-auto relative">
+            {/* Navigation Arrows */}
+            <button
+              onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 md:-translate-x-12 z-10 w-10 h-10 rounded-full bg-background dark:bg-card border border-border hover:border-gold hover:bg-gold/10 flex items-center justify-center transition-all duration-300 shadow-luxury-sm"
+              aria-label="Previous testimonial"
+            >
+              <ChevronLeft className="h-4 w-4 text-gold" />
+            </button>
+            <button
+              onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 md:translate-x-12 z-10 w-10 h-10 rounded-full bg-background dark:bg-card border border-border hover:border-gold hover:bg-gold/10 flex items-center justify-center transition-all duration-300 shadow-luxury-sm"
+              aria-label="Next testimonial"
+            >
+              <ChevronRight className="h-4 w-4 text-gold" />
+            </button>
+
+            {/* Carousel */}
+            <div className="overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentTestimonial}
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  transition={{ duration: 0.5, ease: 'easeInOut' }}
+                >
+                  <div className="border-l-2 border-gold bg-background dark:bg-card rounded-r-lg p-6 md:p-8 shadow-luxury-sm relative overflow-hidden">
+                    {/* Decorative quote mark */}
+                    <div className="absolute top-3 right-4 text-gold/10 text-7xl heading-serif leading-none select-none pointer-events-none">
+                      <Quote className="w-16 h-16" />
+                    </div>
+
+                    <div className="relative z-10">
+                      {/* Star rating */}
+                      <div className="flex items-center gap-0.5 mb-4">
+                        {Array.from({ length: testimonials[currentTestimonial].rating }).map((_, j) => (
+                          <Star key={j} className="h-4 w-4 fill-gold text-gold" />
+                        ))}
+                      </div>
+
+                      {/* Quote text */}
+                      <p className="heading-serif text-base md:text-lg leading-relaxed text-foreground/80 italic mb-5">
+                        <span className="text-gold text-2xl mr-1">&ldquo;</span>
+                        {testimonials[currentTestimonial].text}
+                        <span className="text-gold text-2xl ml-1">&rdquo;</span>
+                      </p>
+
+                      {/* Author info */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center text-gold text-sm font-semibold heading-serif">
+                          {testimonials[currentTestimonial].name.charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold">{testimonials[currentTestimonial].name}</p>
+                            {testimonials[currentTestimonial].verified && (
+                              <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-[9px] px-1.5 py-0 gap-0.5">
+                                <CheckCircle className="h-2.5 w-2.5" />
+                                Verified Purchase
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {testimonials[currentTestimonial].role}, {testimonials[currentTestimonial].location}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Dot Indicators */}
+            <div className="flex justify-center gap-2 mt-8">
+              {testimonials.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentTestimonial(i)}
+                  className={`rounded-full transition-all duration-300 ${
+                    i === currentTestimonial
+                      ? 'bg-gold w-8 h-2'
+                      : 'bg-border hover:bg-gold/50 w-2 h-2'
+                  }`}
+                  aria-label={`Go to testimonial ${i + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Brand Partners (Our Partners) ═══ */}
+      <section className="py-16 bg-foreground text-background relative overflow-hidden">
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-10">
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Trusted Worldwide</p>
+            <h2 className="heading-serif text-2xl md:text-3xl font-bold mb-3">Our Partners</h2>
+            <p className="text-sm text-background/50 max-w-md mx-auto">As featured in the world&rsquo;s leading fashion and lifestyle publications</p>
+          </AnimatedSection>
+        </div>
+
+        {/* Marquee row 1 */}
+        <div className="relative mb-4">
+          <div className="absolute left-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-r from-foreground to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-l from-foreground to-transparent z-10 pointer-events-none" />
+
+          <div className="flex animate-marquee whitespace-nowrap gap-6 md:gap-8">
+            {['VOGUE', "Harper's BAZAAR", 'ELLE', 'GQ', 'ESQUIRE', "L'Officiel", 'Forbes', 'Tatler', 'VOGUE', "Harper's BAZAAR", 'ELLE', 'GQ', 'ESQUIRE', "L'Officiel", 'Forbes', 'Tatler'].map((brand, i) => (
+              <div
+                key={`r1-${i}`}
+                className="glass-card border border-white/10 rounded-lg px-6 md:px-8 py-3 md:py-4 shrink-0 flex items-center justify-center hover:border-gold/30 transition-colors duration-300"
+              >
+                <span className="text-xs md:text-sm tracking-[0.2em] uppercase text-background/70 font-light whitespace-nowrap">{brand}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Marquee row 2 (reverse) */}
+        <div className="relative">
+          <div className="absolute left-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-r from-foreground to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-l from-foreground to-transparent z-10 pointer-events-none" />
+
+          <div className="flex animate-marquee whitespace-nowrap gap-6 md:gap-8" style={{ animationDirection: 'reverse' }}>
+            {['Tatler', 'Forbes', "L'Officiel", 'ESQUIRE', 'GQ', 'ELLE', "Harper's BAZAAR", 'VOGUE', 'Tatler', 'Forbes', "L'Officiel", 'ESQUIRE', 'GQ', 'ELLE', "Harper's BAZAAR", 'VOGUE'].map((brand, i) => (
+              <div
+                key={`r2-${i}`}
+                className="glass-card border border-white/10 rounded-lg px-6 md:px-8 py-3 md:py-4 shrink-0 flex items-center justify-center hover:border-gold/30 transition-colors duration-300"
+              >
+                <span className="text-xs md:text-sm tracking-[0.2em] uppercase text-background/70 font-light whitespace-nowrap">{brand}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Gold accent line */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+          <div className="h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+        </div>
+      </section>
+
+      {/* ═══ Instagram Feed (Enhanced Masonry) ═══ */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 mb-3">
+              <Instagram className="h-6 w-6 text-gold" />
+              <span className="text-xs tracking-[0.2em] uppercase text-gold font-medium">@MIRADEEN</span>
+            </div>
+            <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-3">Follow Us on Instagram</h2>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">Stay inspired with our latest looks, behind-the-scenes moments, and curated style inspiration</p>
+            <div className="divider-gold w-20 mx-auto mt-4" />
+          </AnimatedSection>
+
+          {/* Masonry-like grid: 2 rows, varying heights */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             {[
-              {
-                text: 'The quality of MIRADEEN\'s clothing is exceptional. Every piece feels luxurious and well-crafted.',
-                name: 'Priya M.',
-                location: 'Mumbai',
-              },
-              {
-                text: 'I\'ve been a loyal customer for 2 years. The attention to detail and customer service is unmatched.',
-                name: 'Arjun S.',
-                location: 'Delhi',
-              },
-              {
-                text: 'The Style Quiz helped me discover my perfect look. Now my wardrobe is curated and cohesive!',
-                name: 'Neha K.',
-                location: 'Bangalore',
-              },
-              {
-                text: 'Fast delivery, beautiful packaging, and the clothes fit perfectly. What more could you ask for?',
-                name: 'Rahul T.',
-                location: 'Hyderabad',
-              },
-            ].map((t, i) => (
-              <AnimatedSection key={t.name} delay={i * 0.15}>
-                <div className="border-l-2 border-gold bg-background dark:bg-card rounded-r-lg p-6 hover:shadow-luxury-sm transition-shadow duration-300 h-full flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-0.5 mb-4">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <Star key={j} className="h-3.5 w-3.5 fill-gold text-gold" />
-                      ))}
+              { src: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&h=750&fit=crop', likes: '2.4K', comments: '89', tall: true },
+              { src: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=600&fit=crop', likes: '1.8K', comments: '52', tall: false },
+              { src: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=600&h=750&fit=crop', likes: '3.1K', comments: '124', tall: true },
+              { src: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=600&fit=crop', likes: '1.5K', comments: '38', tall: false },
+              { src: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=600&h=750&fit=crop', likes: '2.7K', comments: '97', tall: true },
+              { src: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&h=600&fit=crop', likes: '2.0K', comments: '63', tall: false },
+            ].map((post, i) => (
+              <AnimatedSection key={i} delay={i * 0.1}>
+                <div className={`group relative overflow-hidden cursor-pointer ${post.tall ? 'aspect-[4/5]' : 'aspect-square'} rounded-lg`}>
+                  <img
+                    src={post.src}
+                    alt={`MIRADEEN Instagram post ${i + 1}`}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-end pb-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-1.5 text-white">
+                        <Heart className="h-4 w-4 fill-white" />
+                        <span className="text-xs font-semibold">{post.likes}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-white">
+                        <MessageCircle className="h-4 w-4 fill-white" />
+                        <span className="text-xs font-semibold">{post.comments}</span>
+                      </div>
                     </div>
-                    <p className="text-sm leading-relaxed text-foreground/80 italic mb-4">
-                      &ldquo;{t.text}&rdquo;
-                    </p>
+                    <Instagram className="h-5 w-5 text-white/80" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold text-xs font-semibold heading-serif">
-                      {t.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold">{t.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{t.location}</p>
-                    </div>
-                  </div>
+                  {/* Gold corner accent on hover */}
+                  <div className="absolute top-0 left-0 w-0 h-0 border-t-2 border-l-2 border-transparent group-hover:border-gold group-hover:w-6 group-hover:h-6 transition-all duration-300" />
+                  <div className="absolute bottom-0 right-0 w-0 h-0 border-b-2 border-r-2 border-transparent group-hover:border-gold group-hover:w-6 group-hover:h-6 transition-all duration-300" />
                 </div>
               </AnimatedSection>
             ))}
+          </div>
+
+          {/* CTA Button */}
+          <AnimatedSection className="text-center mt-10" delay={0.6}>
+            <Button
+              onClick={() => window.open('https://instagram.com/miradeen', '_blank')}
+              className="bg-gold text-background hover:bg-gold-dark px-8 py-3 tracking-[0.15em] uppercase text-xs font-semibold btn-luxury gap-2"
+            >
+              <Instagram className="h-4 w-4" />
+              Follow Us on Instagram
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </AnimatedSection>
+
+          {/* Decorative gold elements */}
+          <div className="flex items-center justify-center gap-3 mt-8">
+            <div className="w-8 h-px bg-gold/30" />
+            <Camera className="h-3.5 w-3.5 text-gold/40" />
+            <div className="w-8 h-px bg-gold/30" />
           </div>
         </div>
       </section>

@@ -209,4 +209,5 @@ export type PageType =
   | 'style-quiz'
   | 'gift-guide'
   | 'sale'
-  | 'collections';
+  | 'collections'
+  | 'blog';
