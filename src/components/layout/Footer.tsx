@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Instagram, Facebook, Twitter, Mail, Phone, MessageCircle, MapPin, Send, Heart, ArrowUp,
   Shield, ShieldCheck, Truck, RotateCcw, Smartphone, Lock, Globe, ChevronDown,
-  Youtube, Linkedin, PinIcon,
+  Youtube, Linkedin, PinIcon, Gem, BadgeCheck, Award,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -240,6 +240,12 @@ export default function Footer() {
     { icon: RuPayIcon, label: 'RuPay' },
   ];
 
+  const ourPromise = [
+    { icon: Gem, title: 'Quality', desc: 'Crafted with the finest materials' },
+    { icon: BadgeCheck, title: 'Authenticity', desc: 'Every piece is genuine & certified' },
+    { icon: Award, title: 'Trust', desc: 'Trusted by thousands worldwide' },
+  ];
+
   return (
     <footer className="bg-foreground text-primary-foreground mt-auto relative">
       {/* ===== Scroll Progress Indicator ===== */}
@@ -261,27 +267,33 @@ export default function Footer() {
             </div>
             <div className="w-full md:w-auto">
               <form onSubmit={handleSubscribe} className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="Your email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/40 h-12 w-full md:w-72 focus:border-gold"
-                  required
-                />
+                <div className="relative flex-1 md:flex-none">
+                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 ${subscribed ? 'text-green-400 scale-110' : 'text-primary-foreground/40'}`} />
+                  <Input
+                    type="email"
+                    placeholder="Your email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/40 h-12 w-full md:w-72 focus:border-gold pl-10"
+                    required
+                  />
+                </div>
                 <Button
                   type="submit"
                   disabled={loading}
-                  className={`h-12 px-6 tracking-wider uppercase text-xs font-semibold whitespace-nowrap transition-all duration-300 min-w-[120px] ${
+                  className={`h-12 px-6 tracking-wider uppercase text-xs font-semibold whitespace-nowrap transition-all duration-500 min-w-[120px] ${
                     subscribed
-                      ? 'bg-green-600 text-white hover:bg-green-600'
+                      ? 'bg-green-600 text-white hover:bg-green-600 animate-scale-in'
                       : 'bg-gold text-background hover:bg-gold-dark'
                   }`}
                 >
                   {loading ? (
                     <div className="h-4 w-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
                   ) : subscribed ? (
-                    '✓ Subscribed'
+                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 15 }} className="flex items-center gap-2">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      Subscribed!
+                    </motion.span>
                   ) : (
                     <><Send className="mr-2 h-4 w-4" /> Subscribe</>
                   )}
@@ -296,6 +308,33 @@ export default function Footer() {
                 and consent to receive updates.
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== Our Promise Section ===== */}
+      <div className="border-b border-primary-foreground/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-6 text-gold text-center">Our Promise</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+            {ourPromise.map(({ icon: Icon, title, desc }, i) => (
+              <motion.div
+                key={title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.15 }}
+                className="flex items-center gap-4 p-4 rounded-xl border border-primary-foreground/8 hover:border-gold/25 bg-primary-foreground/[0.02] hover:bg-gold/[0.03] transition-all duration-300 group"
+              >
+                <div className="w-11 h-11 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0 group-hover:bg-gold/20 group-hover:scale-110 transition-all duration-300">
+                  <Icon className="h-5 w-5 text-gold" />
+                </div>
+                <div>
+                  <h5 className="text-sm font-semibold text-primary-foreground/90 mb-0.5">{title}</h5>
+                  <p className="text-xs text-primary-foreground/45 leading-relaxed">{desc}</p>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </div>
@@ -332,7 +371,7 @@ export default function Footer() {
             <p className="text-primary-foreground/50 text-sm leading-relaxed mb-6">
               Redefining Luxury Fashion — Where fluid fabric meets artistic craftsmanship. Every piece tells a story of uncompromising quality.
             </p>
-            {/* Enhanced Social Links */}
+            {/* Enhanced Social Links with Tooltips */}
             <div className="flex flex-wrap gap-2.5">
               {socialLinks.map(({ icon: Icon, label, href }) => (
                 <a
@@ -341,9 +380,14 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="w-10 h-10 rounded-full border border-primary-foreground/20 flex items-center justify-center text-primary-foreground/60 hover:text-gold hover:border-gold hover:bg-gold/10 hover:scale-110 hover:ring-2 hover:ring-gold/30 transition-all duration-300"
+                  className="group relative w-10 h-10 rounded-full border border-primary-foreground/20 flex items-center justify-center text-primary-foreground/60 hover:text-gold hover:border-gold hover:bg-gold/10 hover:scale-110 hover:ring-2 hover:ring-gold/30 transition-all duration-300"
                 >
                   <Icon className="h-4 w-4" />
+                  {/* Tooltip */}
+                  <span className="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-foreground border border-primary-foreground/15 text-[10px] font-medium text-primary-foreground/80 whitespace-nowrap opacity-0 group-hover:opacity-100 -translate-y-1 group-hover:translate-y-0 transition-all duration-200 pointer-events-none shadow-lg z-30">
+                    Follow us on {label}
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-foreground border-r border-b border-primary-foreground/15" />
+                  </span>
                 </a>
               ))}
             </div>
@@ -357,7 +401,7 @@ export default function Footer() {
                 <li key={link.label}>
                   <button
                     onClick={() => navigate(link.page as 'shop' | 'about' | 'contact' | 'lookbook' | 'style-quiz')}
-                    className="text-sm text-primary-foreground/50 hover:text-gold hover:pl-1 transition-all duration-200"
+                    className="text-sm text-primary-foreground/50 hover:text-gold hover:pl-1 transition-all duration-200 link-underline-gold"
                   >
                     {link.label}
                   </button>
@@ -374,7 +418,7 @@ export default function Footer() {
                 <li key={item.label}>
                   <button
                     onClick={() => navigate(item.page as 'contact' | 'about' | 'order-tracking' | 'shop')}
-                    className="text-sm text-primary-foreground/50 hover:text-gold hover:pl-1 transition-all duration-200"
+                    className="text-sm text-primary-foreground/50 hover:text-gold hover:pl-1 transition-all duration-200 link-underline-gold"
                   >
                     {item.label}
                   </button>
@@ -390,7 +434,7 @@ export default function Footer() {
               {contactInfo.map(({ icon: Icon, href, value }) => (
                 <li key={value} className="flex items-start gap-3">
                   <Icon className="h-4 w-4 text-gold mt-0.5 shrink-0" />
-                  <a href={href} className="text-sm text-primary-foreground/50 hover:text-gold transition-colors">
+                  <a href={href} className="text-sm text-primary-foreground/50 hover:text-gold transition-colors link-underline-gold">
                     {value}
                   </a>
                 </li>
@@ -414,26 +458,29 @@ export default function Footer() {
       {/* ===== Payment Methods + Secure Badge ===== */}
       <div className="border-t border-primary-foreground/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-            {/* Payment icons */}
-            <div className="flex items-center gap-3 flex-wrap justify-center">
-              <span className="text-xs text-primary-foreground/40 uppercase tracking-wider font-medium shrink-0">We Accept</span>
-              <div className="flex gap-2 flex-wrap justify-center">
-                {paymentMethods.map(({ icon: PIcon, label }) => (
-                  <div
-                    key={label}
-                    className="rounded-md overflow-hidden border border-primary-foreground/10 hover:border-gold/30 transition-all duration-300 hover:scale-105"
-                    title={label}
-                  >
-                    <PIcon />
-                  </div>
-                ))}
+          <div className="rounded-xl border border-gold/15 bg-gold/[0.03] px-6 py-5">
+            <div className="flex flex-col items-center gap-4">
+              {/* Secure Payments Heading */}
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-gold" />
+                <h4 className="text-sm font-semibold text-gold tracking-wide">100% Secure Payments</h4>
+                <Lock className="h-4 w-4 text-gold" />
               </div>
-            </div>
-            {/* Secure Payments Badge */}
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 border border-gold/20 shrink-0">
-              <Lock className="h-3.5 w-3.5 text-gold" />
-              <span className="text-xs font-semibold text-gold tracking-wide">100% Secure Payments</span>
+              {/* Payment icons */}
+              <div className="flex items-center gap-3 flex-wrap justify-center">
+                <span className="text-xs text-primary-foreground/40 uppercase tracking-wider font-medium shrink-0">We Accept</span>
+                <div className="flex gap-2 flex-wrap justify-center">
+                  {paymentMethods.map(({ icon: PIcon, label }) => (
+                    <div
+                      key={label}
+                      className="rounded-md overflow-hidden border border-primary-foreground/10 hover:border-gold/40 hover:shadow-[0_0_12px_rgba(201,169,110,0.15)] transition-all duration-300 hover:scale-105"
+                      title={label}
+                    >
+                      <PIcon />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

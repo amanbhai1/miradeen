@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, Phone, Eye, EyeOff, ArrowRight, Sparkles, Shield, Truck } from 'lucide-react';
+import { Mail, Lock, User, Phone, Eye, EyeOff, ArrowRight, ArrowLeft, KeyRound, ShieldCheck, Sparkles, Shield, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,9 +35,12 @@ function getPasswordStrength(password: string): { score: number; label: string; 
 export default function AuthPage() {
   const { setUser, setToken, isAuthenticated, navigate } = useStore();
   const { toast } = useToast();
-  const [isLogin, setIsLogin] = useState(true);
+  const [authStep, setAuthStep] = useState<'login' | 'register' | 'forgot'>('login');
+  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginErrors, setLoginErrors] = useState<FormErrors>({});
   const [registerErrors, setRegisterErrors] = useState<FormErrors>({});
@@ -46,8 +49,57 @@ export default function AuthPage() {
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [forgotForm, setForgotForm] = useState({ email: '', code: '', newPassword: '', confirmPassword: '' });
+
+  // OTP input state
+  const [otpValues, setOtpValues] = useState<string[]>(['', '', '', '', '', '']);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const passwordStrength = useMemo(() => getPasswordStrength(registerForm.password), [registerForm.password]);
+  const forgotPasswordStrength = useMemo(() => getPasswordStrength(forgotForm.newPassword), [forgotForm.newPassword]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // OTP input handler
+  const handleOtpChange = useCallback((index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newValues = [...otpValues];
+    newValues[index] = value.slice(-1);
+    setOtpValues(newValues);
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  }, [otpValues]);
+
+  const handleOtpKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  }, [otpValues]);
+
+  const handleOtpPaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pastedData.length === 0) return;
+    const newValues = [...otpValues];
+    for (let i = 0; i < pastedData.length; i++) {
+      newValues[i] = pastedData[i];
+    }
+    setOtpValues(newValues);
+    const nextEmpty = pastedData.length < 6 ? pastedData.length : 5;
+    otpRefs.current[nextEmpty]?.focus();
+  }, [otpValues]);
+
+  const isLogin = authStep === 'login';
 
   if (isAuthenticated) {
     navigate('profile');
@@ -153,6 +205,68 @@ export default function AuthPage() {
     setLoading(false);
   };
 
+  const handleForgotStep1 = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotForm.email.trim() || !validateEmail(forgotForm.email)) {
+      toast({ title: 'Invalid email', description: 'Please enter a valid email address', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast({ title: 'Reset code sent', description: `Reset code sent to ${forgotForm.email}` });
+      setForgotStep(2);
+      setResendCooldown(60);
+      setOtpValues(['', '', '', '', '', '']);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    }, 1000);
+  };
+
+  const handleForgotStep2 = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otpValues.join('');
+    if (code.length !== 6) {
+      toast({ title: 'Incomplete code', description: 'Please enter all 6 digits', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setForgotForm(prev => ({ ...prev, code }));
+      toast({ title: 'Code verified', description: 'Your identity has been confirmed' });
+      setForgotStep(3);
+    }, 1000);
+  };
+
+  const handleForgotStep3 = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotForm.newPassword.length < 6) {
+      toast({ title: 'Weak password', description: 'Password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
+    if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+      toast({ title: 'Passwords don\'t match', description: 'Please confirm your password correctly', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast({ title: 'Password reset successfully!', description: 'Please sign in with your new password' });
+      setAuthStep('login');
+      setForgotStep(1);
+      setForgotForm({ email: '', code: '', newPassword: '', confirmPassword: '' });
+      setOtpValues(['', '', '', '', '', '']);
+    }, 1000);
+  };
+
+  const handleResendCode = () => {
+    if (resendCooldown > 0) return;
+    toast({ title: 'Code resent', description: `A new code has been sent to ${forgotForm.email}` });
+    setResendCooldown(60);
+    setOtpValues(['', '', '', '', '', '']);
+    setTimeout(() => otpRefs.current[0]?.focus(), 100);
+  };
+
   const showLoginError = (field: string) => touched[`login-${field}`] && loginErrors[field];
   const showRegisterError = (field: string) => touched[`register-${field}`] && registerErrors[field];
 
@@ -169,6 +283,9 @@ export default function AuthPage() {
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" />
           </div>
+          {/* morph-blob decoration */}
+          <div className="morph-blob absolute w-96 h-96 bg-gold/10 rounded-full blur-3xl -top-20 -left-20 animate-pulse" />
+          <div className="morph-blob absolute w-72 h-72 bg-gold/5 rounded-full blur-3xl bottom-20 right-10 animate-pulse" style={{ animationDelay: '2s' }} />
           <div className="relative z-10 flex flex-col justify-between p-12 text-white">
             <div>
               <h1 className="heading-serif text-4xl font-bold tracking-[0.15em] mb-2">MIRADEEN</h1>
@@ -178,13 +295,23 @@ export default function AuthPage() {
             <div className="max-w-sm">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={isLogin ? 'login-brand' : 'register-brand'}
+                  key={authStep === 'forgot' ? 'forgot-brand' : authStep === 'login' ? 'login-brand' : 'register-brand'}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.5 }}
                 >
-                  {isLogin ? (
+                  {authStep === 'forgot' ? (
+                    <>
+                      <p className="text-xs tracking-[0.3em] uppercase text-gold-light mb-4">Account Recovery</p>
+                      <h2 className="heading-serif text-3xl font-bold mb-4 leading-tight">
+                        Reset your password and regain access
+                      </h2>
+                      <p className="text-sm text-white/70 leading-relaxed">
+                        We'll help you securely reset your password in just a few simple steps. Your account security is our top priority.
+                      </p>
+                    </>
+                  ) : isLogin ? (
                     <>
                       <p className="text-xs tracking-[0.3em] uppercase text-gold-light mb-4">Welcome Home</p>
                       <h2 className="heading-serif text-3xl font-bold mb-4 leading-tight">
@@ -237,24 +364,232 @@ export default function AuthPage() {
               <div className="h-px w-12 bg-gold mx-auto" />
             </div>
 
-            <div className="mb-8">
-              <h2 className="heading-serif text-2xl md:text-3xl font-bold mb-2">
-                {isLogin ? 'Welcome Back' : 'Create Account'}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {isLogin ? 'Sign in to your MIRADEEN account' : 'Join the world of luxury fashion'}
-              </p>
-            </div>
+            <div className="border border-border hover:border-gold/20 transition-colors rounded-xl p-8 card-shine">
+              {/* Header */}
+              {authStep === 'forgot' ? (
+                <div className="mb-8">
+                  <button
+                    type="button"
+                    onClick={() => { setAuthStep('login'); setForgotStep(1); setForgotForm({ email: '', code: '', newPassword: '', confirmPassword: '' }); }}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-gold transition-colors mb-4 group"
+                  >
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                    Back to Sign In
+                  </button>
+                  <h2 className="heading-serif text-2xl md:text-3xl font-bold mb-2">
+                    {forgotStep === 1 && 'Reset Your Password'}
+                    {forgotStep === 2 && 'Enter Verification Code'}
+                    {forgotStep === 3 && 'Set New Password'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {forgotStep === 1 && "Enter your email address and we'll send you a reset code"}
+                    {forgotStep === 2 && `We've sent a 6-digit code to ${forgotForm.email}`}
+                    {forgotStep === 3 && 'Choose a strong new password for your account'}
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-8">
+                  <h2 className="heading-serif text-2xl md:text-3xl font-bold mb-2">
+                    {isLogin ? 'Welcome Back' : 'Create Account'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {isLogin ? 'Sign in to your MIRADEEN account' : 'Join the world of luxury fashion'}
+                  </p>
+                </div>
+              )}
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={isLogin ? 'login' : 'register'}
-                initial={{ opacity: 0, x: isLogin ? -20 : 20 }}
+                key={authStep === 'forgot' ? `forgot-${forgotStep}` : isLogin ? 'login' : 'register'}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: isLogin ? 20 : -20 }}
+                exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                {isLogin ? (
+                {authStep === 'forgot' ? (
+                  <>
+                    {/* Forgot Password Step Indicator */}
+                    <div className="flex items-center justify-center gap-2 mb-6">
+                      {[1, 2, 3].map((step) => (
+                        <div key={step} className="flex items-center gap-2">
+                          <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-300 ${
+                            forgotStep >= step
+                              ? 'bg-gold text-black'
+                              : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {forgotStep > step ? <ShieldCheck className="h-3.5 w-3.5" /> : step}
+                          </div>
+                          {step < 3 && (
+                            <div className={`w-8 h-px transition-colors duration-300 ${
+                              forgotStep > step ? 'bg-gold' : 'bg-border'
+                            }`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-center gap-3 mb-6 text-[10px] text-muted-foreground">
+                      <span className={forgotStep >= 1 ? 'text-gold font-medium' : ''}>Email</span>
+                      <span>→</span>
+                      <span className={forgotStep >= 2 ? 'text-gold font-medium' : ''}>Verify</span>
+                      <span>→</span>
+                      <span className={forgotStep >= 3 ? 'text-gold font-medium' : ''}>New Password</span>
+                    </div>
+
+                    {/* Step 1: Enter Email */}
+                    {forgotStep === 1 && (
+                      <form onSubmit={handleForgotStep1} className="space-y-4">
+                        <div>
+                          <Label className="text-xs tracking-wider uppercase">Email Address</Label>
+                          <div className="relative mt-1.5">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type="email"
+                              required
+                              value={forgotForm.email}
+                              onChange={(e) => setForgotForm({ ...forgotForm, email: e.target.value })}
+                              className="pl-10 h-11 border-border focus:border-gold transition-colors"
+                              placeholder="your@email.com"
+                            />
+                          </div>
+                        </div>
+                        <Button type="submit" disabled={loading} className="w-full h-12 bg-gold text-black hover:bg-gold/90 tracking-[0.15em] uppercase text-xs font-semibold transition-all duration-300">
+                          {loading ? (
+                            <div className="h-5 w-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                          ) : (
+                            <>Send Reset Code <ArrowRight className="ml-2 h-4 w-4" /></>
+                          )}
+                        </Button>
+                      </form>
+                    )}
+
+                    {/* Step 2: Enter OTP Code */}
+                    {forgotStep === 2 && (
+                      <form onSubmit={handleForgotStep2} className="space-y-6">
+                        <div>
+                          <div className="flex items-center justify-center gap-2 mt-2">
+                            {[0, 1, 2, 3, 4, 5].map((index) => (
+                              <input
+                                key={index}
+                                ref={(el) => { otpRefs.current[index] = el; }}
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={1}
+                                value={otpValues[index]}
+                                onChange={(e) => handleOtpChange(index, e.target.value)}
+                                onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                                onPaste={index === 0 ? handleOtpPaste : undefined}
+                                className={`w-11 h-13 text-center text-lg font-semibold rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold ${
+                                  otpValues[index] ? 'border-gold/40 bg-gold/5' : 'border-border bg-background'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <Button type="submit" disabled={loading || otpValues.join('').length !== 6} className="w-full h-12 bg-gold text-black hover:bg-gold/90 tracking-[0.15em] uppercase text-xs font-semibold transition-all duration-300">
+                          {loading ? (
+                            <div className="h-5 w-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                          ) : (
+                            <><KeyRound className="mr-2 h-4 w-4" /> Verify Code</>
+                          )}
+                        </Button>
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground">
+                            Didn't receive the code?{' '}
+                            <button
+                              type="button"
+                              onClick={handleResendCode}
+                              disabled={resendCooldown > 0}
+                              className={`font-medium transition-colors ${
+                                resendCooldown > 0
+                                  ? 'text-muted-foreground cursor-not-allowed'
+                                  : 'text-gold hover:text-gold/80'
+                              }`}
+                            >
+                              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
+                            </button>
+                          </p>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* Step 3: New Password */}
+                    {forgotStep === 3 && (
+                      <form onSubmit={handleForgotStep3} className="space-y-4">
+                        <div>
+                          <Label className="text-xs tracking-wider uppercase">New Password</Label>
+                          <div className="relative mt-1.5">
+                            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type={showForgotPassword ? 'text' : 'password'}
+                              required
+                              minLength={6}
+                              value={forgotForm.newPassword}
+                              onChange={(e) => setForgotForm({ ...forgotForm, newPassword: e.target.value })}
+                              className="pl-10 pr-10 h-11 border-border focus:border-gold transition-colors"
+                              placeholder="Min 6 characters"
+                            />
+                            <button type="button" onClick={() => setShowForgotPassword(!showForgotPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors">
+                              {showForgotPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+
+                          {/* Password Strength Meter */}
+                          {forgotForm.newPassword.length > 0 && (
+                            <div className="mt-2">
+                              <div className="relative h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ease-out ${forgotPasswordStrength.color}`}
+                                  style={{ width: `${forgotPasswordStrength.score}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between mt-1.5">
+                                <span className={`text-xs font-medium ${
+                                  forgotPasswordStrength.score <= 20 ? 'text-red-500' :
+                                  forgotPasswordStrength.score <= 40 ? 'text-orange-500' :
+                                  forgotPasswordStrength.score <= 60 ? 'text-yellow-600' :
+                                  'text-green-600'
+                                }`}>
+                                  {forgotPasswordStrength.label}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">{forgotForm.newPassword.length} characters</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs tracking-wider uppercase">Confirm Password</Label>
+                          <div className="relative mt-1.5">
+                            <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type={showForgotConfirmPassword ? 'text' : 'password'}
+                              required
+                              minLength={6}
+                              value={forgotForm.confirmPassword}
+                              onChange={(e) => setForgotForm({ ...forgotForm, confirmPassword: e.target.value })}
+                              className={`pl-10 pr-10 h-11 border-border focus:border-gold transition-colors ${
+                                forgotForm.confirmPassword && forgotForm.newPassword !== forgotForm.confirmPassword ? 'border-destructive focus:border-destructive' : ''
+                              }`}
+                              placeholder="Re-enter password"
+                            />
+                            <button type="button" onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors">
+                              {showForgotConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                          {forgotForm.confirmPassword && forgotForm.newPassword !== forgotForm.confirmPassword && (
+                            <p className="text-xs text-destructive mt-1.5">Passwords don't match</p>
+                          )}
+                        </div>
+                        <Button type="submit" disabled={loading} className="w-full h-12 bg-gold text-black hover:bg-gold/90 tracking-[0.15em] uppercase text-xs font-semibold transition-all duration-300">
+                          {loading ? (
+                            <div className="h-5 w-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                          ) : (
+                            <><ShieldCheck className="mr-2 h-4 w-4" /> Reset Password</>
+                          )}
+                        </Button>
+                      </form>
+                    )}
+                  </>
+                ) : isLogin ? (
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div>
                       <Label className="text-xs tracking-wider uppercase">Email</Label>
@@ -284,7 +619,10 @@ export default function AuthPage() {
                     <div>
                       <div className="flex items-center justify-between">
                         <Label className="text-xs tracking-wider uppercase">Password</Label>
-                        <button type="button" className="text-[10px] text-gold hover:underline transition-colors">Forgot Password?</button>
+                        <button type="button" onClick={() => setAuthStep('forgot')} className="text-[10px] text-gold hover:underline relative group transition-colors">
+                          Forgot Password?
+                          <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-gold group-hover:w-full transition-all duration-300" />
+                        </button>
                       </div>
                       <div className="relative mt-1.5">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -538,22 +876,24 @@ export default function AuthPage() {
             </AnimatePresence>
 
             <div className="text-center mt-6">
-              <p className="text-sm text-muted-foreground">
-                {isLogin ? "Don't have an account?" : 'Already have an account?'}
-                <button onClick={() => { setIsLogin(!isLogin); setLoginErrors({}); setRegisterErrors({}); setTouched({}); }} className="text-gold font-medium ml-1 hover:underline transition-colors">
-                  {isLogin ? 'Sign Up' : 'Sign In'}
-                </button>
-              </p>
+              {authStep !== 'forgot' && (
+                <p className="text-sm text-muted-foreground">
+                  {isLogin ? "Don't have an account?" : 'Already have an account?'}
+                  <button onClick={() => { setAuthStep(isLogin ? 'register' : 'login'); setLoginErrors({}); setRegisterErrors({}); setTouched({}); }} className="text-gold font-medium ml-1 hover:underline transition-colors">
+                    {isLogin ? 'Sign Up' : 'Sign In'}
+                  </button>
+                </p>
+              )}
             </div>
 
             {/* Demo Accounts */}
-            <div className="mt-8 p-4 bg-cream dark:bg-card rounded-lg border border-border">
-              <p className="text-xs font-semibold mb-2 tracking-wider uppercase">Demo Accounts</p>
+            <div className="mt-8 p-4 bg-cream dark:bg-card rounded-lg border border-gold/20 glass-card">
+              <p className="text-xs font-semibold mb-2 tracking-wider uppercase text-gold">Demo Accounts</p>
               <div className="space-y-1.5">
                 <button
                   onClick={() => {
                     setLoginForm({ email: 'admin@miradeen.com', password: 'admin123' });
-                    if (!isLogin) setIsLogin(true);
+                    if (authStep !== 'login') setAuthStep('login');
                   }}
                   className="block w-full text-left text-xs text-muted-foreground hover:text-gold transition-colors py-0.5"
                 >
@@ -562,7 +902,7 @@ export default function AuthPage() {
                 <button
                   onClick={() => {
                     setLoginForm({ email: 'demo@miradeen.com', password: 'user123' });
-                    if (!isLogin) setIsLogin(true);
+                    if (authStep !== 'login') setAuthStep('login');
                   }}
                   className="block w-full text-left text-xs text-muted-foreground hover:text-gold transition-colors py-0.5"
                 >
@@ -575,6 +915,7 @@ export default function AuthPage() {
             <p className="text-[10px] text-muted-foreground text-center mt-6">
               By continuing, you agree to MIRADEEN&apos;s Terms of Service and Privacy Policy.
             </p>
+            </div>
           </div>
         </div>
       </div>

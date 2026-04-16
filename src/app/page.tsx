@@ -28,6 +28,8 @@ import RecentlyViewedSection from '@/components/shared/RecentlyViewedSection';
 import WhatsAppButton from '@/components/shared/WhatsAppButton';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import LoadingBar from '@/components/shared/LoadingBar';
+import PromoTimerBar from '@/components/shared/PromoTimerBar';
+import NotificationToast, { useNotification } from '@/components/shared/NotificationToast';
 import type { PageType } from '@/types';
 
 function PageRenderer({ page }: { page: PageType }) {
@@ -152,6 +154,7 @@ export default function App() {
   const { currentPage, token, setUser, selectedProductId, quickViewProductId, setQuickViewProductId, compareIds } = useStore();
   const [mounted, setMounted] = useState(false);
   const [showLoading, setShowLoading] = useState(true);
+  const { notifications, addNotification, removeNotification } = useNotification();
   const isAdminPage = currentPage.startsWith('admin-');
   const showBreadcrumb = !['home', 'auth'].includes(currentPage) && !isAdminPage;
 
@@ -177,6 +180,19 @@ export default function App() {
 
     return () => clearTimeout(loadingTimer);
   }, [restoreAuth]);
+
+  // Welcome notification
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      addNotification({
+        type: 'promo',
+        title: 'Welcome to MIRADEEN! ✨',
+        message: 'Use code MIRADEEN20 for 20% off your first order.',
+        duration: 8000,
+      });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <ErrorBoundary>
@@ -207,6 +223,7 @@ export default function App() {
             className="min-h-screen flex flex-col"
           >
             {!isAdminPage && <Navbar />}
+            {!isAdminPage && <PromoTimerBar />}
             <main className="flex-1">
               {showBreadcrumb && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
@@ -235,6 +252,7 @@ export default function App() {
             <CompareDrawer />
             {/* WhatsApp floating button - only on non-admin pages */}
             {!isAdminPage && <WhatsAppButton />}
+            <NotificationToast notifications={notifications} onRemove={removeNotification} />
           </motion.div>
         </AnimatePresence>
       )}
