@@ -8,7 +8,9 @@ import {
   LogOut, Shield, Package, Settings, MapPin,
   ChevronDown, ChevronRight, LogIn, ShoppingBag,
   Shirt, Crown, Watch, Sparkles, Star, Gem,
-  Palette, Gift, Ruler, PenTool, BookOpen, Tag, Layers
+  Palette, Gift, Ruler, PenTool, BookOpen, Tag, Layers,
+  FileText, Home, Grid3X3,
+  Briefcase, Building2, Compass
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +19,7 @@ import {
 } from '@/components/ui/sheet';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger
+  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import {
   Tooltip, TooltipTrigger, TooltipContent
@@ -66,6 +68,19 @@ const megaMenuQuickLinks = [
   { label: 'Size Guide', icon: Ruler, page: 'size-guide' as const },
   { label: 'Style Quiz', icon: PenTool, page: 'style-quiz' as const },
   { label: 'Lookbook', icon: BookOpen, page: 'lookbook' as const },
+  { label: 'Journal', icon: FileText, page: 'blog' as const },
+];
+
+const moreMenuItems = [
+  { label: 'Journal', icon: FileText, page: 'blog' as const },
+  { label: 'Gift Guide', icon: Gift, page: 'gift-guide' as const },
+  { label: 'Lookbook', icon: BookOpen, page: 'lookbook' as const },
+  { label: 'Style Quiz', icon: PenTool, page: 'style-quiz' as const },
+];
+
+const companyMenuItems = [
+  { label: 'About', icon: Building2, page: 'about' as const },
+  { label: 'Contact', icon: Compass, page: 'contact' as const },
 ];
 
 const featuredProducts = [
@@ -100,7 +115,7 @@ const mobileMenuVariants = {
   visible: (i: number) => ({
     opacity: 1,
     x: 0,
-    transition: { delay: i * 0.05, duration: 0.3, ease: 'easeOut' },
+    transition: { delay: i * 0.04, duration: 0.3, ease: 'easeOut' },
   }),
 };
 
@@ -108,6 +123,55 @@ const searchPulseKeyframes = {
   scale: [1, 1.25, 1],
   opacity: [1, 0.6, 1],
 };
+
+/* ------------------------------------------------------------------ */
+/*  Mobile menu section definition                                     */
+/* ------------------------------------------------------------------ */
+
+interface MobileMenuSection {
+  heading: string;
+  icon: typeof Home;
+  links: { label: string; page: string; icon?: typeof Home }[];
+}
+
+const mobileMenuSections: MobileMenuSection[] = [
+  {
+    heading: 'Shopping',
+    icon: ShoppingBag,
+    links: [
+      { label: 'Home', page: 'home', icon: Home },
+      { label: 'Shop', page: 'shop', icon: Shirt },
+      { label: 'Collections', page: 'collections', icon: Grid3X3 },
+      { label: 'Sale', page: 'sale', icon: Tag },
+      { label: 'Gift Guide', page: 'gift-guide', icon: Gift },
+    ],
+  },
+  {
+    heading: 'Explore',
+    icon: Compass,
+    links: [
+      { label: 'Lookbook', page: 'lookbook', icon: BookOpen },
+      { label: 'Style Quiz', page: 'style-quiz', icon: PenTool },
+      { label: 'Journal', page: 'blog', icon: FileText },
+    ],
+  },
+  {
+    heading: 'Company',
+    icon: Building2,
+    links: [
+      { label: 'About', page: 'about', icon: Briefcase },
+      { label: 'Contact', page: 'contact', icon: MapPin },
+    ],
+  },
+  {
+    heading: 'Account',
+    icon: User,
+    links: [
+      { label: 'My Orders', page: 'orders', icon: Package },
+      { label: 'Track Order', page: 'order-tracking', icon: MapPin },
+    ],
+  },
+];
 
 export default function Navbar() {
   const {
@@ -125,6 +189,7 @@ export default function Navbar() {
   const [searchPulse, setSearchPulse] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [shopMenuOpen, setShopMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const shopMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shopMenuCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -213,6 +278,11 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   };
 
+  const handleMobileNavigate = (page: string) => {
+    navigate(page as 'home' | 'shop' | 'collections' | 'sale' | 'gift-guide' | 'lookbook' | 'style-quiz' | 'blog' | 'about' | 'contact' | 'orders' | 'order-tracking' | 'admin-dashboard' | 'profile' | 'auth');
+    setMobileMenuOpen(false);
+  };
+
   const handleShopMenuEnter = useCallback(() => {
     if (shopMenuCloseTimeoutRef.current) {
       clearTimeout(shopMenuCloseTimeoutRef.current);
@@ -241,17 +311,46 @@ export default function Navbar() {
 
   const showAnnouncementBar = mounted && !announcementDismissed;
 
-  const navLinks = [
+  /* ------------------------------------------------------------------ */
+  /*  Desktop primary nav links (only 5 visible)                        */
+  /* ------------------------------------------------------------------ */
+  const desktopPrimaryLinks = [
     { label: 'Home', page: 'home' as const },
     { label: 'Shop', page: 'shop' as const },
     { label: 'Collections', page: 'collections' as const },
     { label: 'Sale', page: 'sale' as const },
-    { label: 'Gift Guide', page: 'gift-guide' as const },
-    { label: 'Lookbook', page: 'lookbook' as const },
-    { label: 'Style Quiz', page: 'style-quiz' as const },
-    { label: 'About', page: 'about' as const },
-    { label: 'Contact', page: 'contact' as const },
   ];
+
+  /* ------------------------------------------------------------------ */
+  /*  Render helpers                                                     */
+  /* ------------------------------------------------------------------ */
+
+  /** Standard desktop link button with hover underline & gold dot */
+  const renderDesktopLink = (label: string, page: string, key?: string) => (
+    <button
+      key={key ?? page}
+      onClick={() => navigate(page as typeof currentPage)}
+      className="relative text-sm tracking-[0.1em] uppercase font-medium transition-colors hover:text-gold group py-1"
+    >
+      {label}
+      {/* Sale badge */}
+      {page === 'sale' && (
+        <span className="absolute -top-2 -right-3.5 text-[8px] font-bold bg-red-500 text-white px-1 py-0.5 rounded-sm leading-none">HOT</span>
+      )}
+      {/* Hover underline */}
+      <span className={`absolute -bottom-1 left-0 h-px bg-gold transition-all duration-300 ${
+        currentPage === page ? 'w-full' : 'w-0 group-hover:w-full'
+      }`} />
+      {/* Gold dot indicator for active link */}
+      {currentPage === page && (
+        <motion.span
+          layoutId="active-nav-dot"
+          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gold"
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        />
+      )}
+    </button>
+  );
 
   return (
     <>
@@ -305,7 +404,7 @@ export default function Navbar() {
 
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
-            {/* Mobile menu */}
+            {/* Mobile menu trigger */}
             <div className="md:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -317,13 +416,21 @@ export default function Navbar() {
                   <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                   <div className="flex flex-col h-full">
                     {/* Header with logo */}
-                    <div className="p-6 border-b border-border">
+                    <div className="p-6 border-b border-border flex items-center justify-between">
                       <button
                         onClick={() => { navigate('home'); setMobileMenuOpen(false); }}
                         className="heading-serif text-2xl font-bold tracking-wider hover:text-gold transition-colors"
                       >
                         MIRADEEN
                       </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="h-8 w-8 text-muted-foreground hover:text-gold"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
 
                     {/* User greeting if authenticated */}
@@ -339,124 +446,167 @@ export default function Navbar() {
                       </motion.div>
                     )}
 
-                    {/* Nav links */}
-                    <div className="flex-1 py-4 overflow-y-auto custom-scrollbar">
-                      {navLinks.map((link, i) => (
-                        <motion.button
-                          key={link.page}
-                          custom={i}
-                          variants={mobileMenuVariants}
-                          initial="hidden"
-                          animate="visible"
-                          onClick={() => { navigate(link.page); setMobileMenuOpen(false); }}
-                          className={`w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 flex items-center justify-between ${
-                            currentPage === link.page ? 'text-gold font-medium bg-gold/5' : ''
-                          }`}
-                        >
-                          {link.label}
-                          {link.page === 'shop' && (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </motion.button>
-                      ))}
+                    {/* Scrollable nav links grouped by section */}
+                    <div className="flex-1 py-2 overflow-y-auto custom-scrollbar">
+                      {mobileMenuSections.map((section, sIdx) => {
+                        const SectionIcon = section.icon;
+                        const linkStartIdx = mobileMenuSections
+                          .slice(0, sIdx)
+                          .reduce((acc, s) => acc + s.links.length, 0);
 
-                      {/* Shop submenu with collapsible categories */}
-                      <motion.div
-                        custom={navLinks.length}
-                        variants={mobileMenuVariants}
-                        initial="hidden"
-                        animate="visible"
-                        className="px-6"
-                      >
-                        <Collapsible open={shopExpanded} onOpenChange={setShopExpanded}>
-                          <CollapsibleTrigger className="w-full flex items-center justify-between py-2.5 text-sm text-muted-foreground hover:text-gold transition-colors group">
-                            <span className="tracking-[0.1em] uppercase">Categories</span>
-                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 group-hover:text-gold ${shopExpanded ? 'rotate-180' : ''}`} />
-                          </CollapsibleTrigger>
-                          <AnimatePresence>
-                            {shopExpanded && (
+                        return (
+                          <div key={section.heading}>
+                            {/* Section header */}
+                            <motion.div
+                              custom={linkStartIdx}
+                              variants={mobileMenuVariants}
+                              initial="hidden"
+                              animate="visible"
+                              className="flex items-center gap-2 px-6 pt-4 pb-2"
+                            >
+                              <SectionIcon className="h-3.5 w-3.5 text-gold/60" />
+                              <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+                                {section.heading}
+                              </span>
+                              <span className="flex-1 h-px bg-border" />
+                            </motion.div>
+
+                            {/* Section links */}
+                            {section.links.map((link, lIdx) => {
+                              const Icon = link.icon;
+                              const isShop = link.page === 'shop';
+
+                              return (
+                                <motion.button
+                                  key={link.page}
+                                  custom={linkStartIdx + lIdx}
+                                  variants={mobileMenuVariants}
+                                  initial="hidden"
+                                  animate="visible"
+                                  onClick={() => isShop ? undefined : handleMobileNavigate(link.page)}
+                                  className={`w-full text-left px-6 pl-10 py-2.5 text-[15px] transition-colors hover:text-gold hover:bg-gold/5 flex items-center justify-between ${
+                                    currentPage === link.page ? 'text-gold font-medium bg-gold/5' : 'text-foreground/80'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-3">
+                                    {Icon && <Icon className="h-4 w-4 text-muted-foreground/70" />}
+                                    {link.label}
+                                  </span>
+                                  {isShop && (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </motion.button>
+                              );
+                            })}
+
+                            {/* Collapsible shop categories (after Shop link) */}
+                            {section.heading === 'Shopping' && (
                               <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                                className="overflow-hidden"
+                                custom={linkStartIdx + section.links.length}
+                                variants={mobileMenuVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="pl-10 pr-6"
                               >
-                                <div className="pl-4 py-2 space-y-1">
-                                  {shopCategories.map((cat) => (
-                                    <button
-                                      key={cat.slug}
-                                      onClick={() => handleNavigateShopCategory(cat.slug)}
-                                      className="w-full text-left px-4 py-2 text-sm transition-colors hover:text-gold hover:bg-gold/5 rounded-md"
-                                    >
-                                      {cat.label}
-                                    </button>
-                                  ))}
-                                </div>
+                                <Collapsible open={shopExpanded} onOpenChange={setShopExpanded}>
+                                  <CollapsibleTrigger className="w-full flex items-center justify-between py-2 text-xs text-muted-foreground hover:text-gold transition-colors group">
+                                    <span className="tracking-[0.1em] uppercase">Categories</span>
+                                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 group-hover:text-gold ${shopExpanded ? 'rotate-180' : ''}`} />
+                                  </CollapsibleTrigger>
+                                  <AnimatePresence>
+                                    {shopExpanded && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="pl-6 py-1 space-y-0.5">
+                                          {shopCategories.map((cat) => (
+                                            <button
+                                              key={cat.slug}
+                                              onClick={() => handleNavigateShopCategory(cat.slug)}
+                                              className="w-full text-left px-3 py-1.5 text-sm transition-colors hover:text-gold hover:bg-gold/5 rounded-md"
+                                            >
+                                              {cat.label}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </Collapsible>
                               </motion.div>
                             )}
-                          </AnimatePresence>
-                        </Collapsible>
-                      </motion.div>
+                          </div>
+                        );
+                      })}
 
-                      <div className="divider-gold mx-6 my-3" />
-
-                      {/* Utility links */}
-                      <motion.button
-                        custom={navLinks.length + 1}
-                        variants={mobileMenuVariants}
-                        initial="hidden"
-                        animate="visible"
-                        onClick={() => { navigate('orders'); setMobileMenuOpen(false); }}
-                        className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-3"
-                      >
-                        <Package className="h-4 w-4" /> My Orders
-                      </motion.button>
-                      <motion.button
-                        custom={navLinks.length + 2}
-                        variants={mobileMenuVariants}
-                        initial="hidden"
-                        animate="visible"
-                        onClick={() => { navigate('order-tracking'); setMobileMenuOpen(false); }}
-                        className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-3"
-                      >
-                        <MapPin className="h-4 w-4" /> Track Order
-                      </motion.button>
-
+                      {/* Admin Panel — shown only for admins */}
                       {isAdmin && (
-                        <>
-                          <div className="divider-gold mx-6 my-3" />
+                        <div>
+                          <div className="flex items-center gap-2 px-6 pt-4 pb-2">
+                            <Shield className="h-3.5 w-3.5 text-gold/60" />
+                            <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">Admin</span>
+                            <span className="flex-1 h-px bg-border" />
+                          </div>
                           <motion.button
-                            custom={navLinks.length + 3}
+                            custom={100}
                             variants={mobileMenuVariants}
                             initial="hidden"
                             animate="visible"
-                            onClick={() => { navigate('admin-dashboard'); setMobileMenuOpen(false); }}
-                            className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-3"
+                            onClick={() => handleMobileNavigate('admin-dashboard')}
+                            className="w-full text-left px-6 pl-10 py-2.5 text-[15px] transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-3 text-foreground/80"
                           >
-                            <Shield className="h-4 w-4" /> Admin Panel
+                            <Shield className="h-4 w-4 text-muted-foreground/70" />
+                            Admin Panel
                           </motion.button>
-                        </>
+                        </div>
                       )}
 
                       {/* Divider before auth section */}
-                      <div className="divider-gold mx-6 my-3" />
+                      <div className="divider-gold mx-6 my-4" />
 
                       {/* Auth section at bottom */}
                       {isAuthenticated ? (
-                        <motion.button
-                          custom={navLinks.length + 4}
-                          variants={mobileMenuVariants}
-                          initial="hidden"
-                          animate="visible"
-                          onClick={() => { logout(); setMobileMenuOpen(false); }}
-                          className="w-full text-left px-6 py-3 text-lg transition-colors hover:text-destructive hover:bg-destructive/5 flex items-center gap-3 text-muted-foreground"
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.4 }}
+                          className="px-6 space-y-1"
                         >
-                          <LogOut className="h-4 w-4" /> Logout
-                        </motion.button>
+                          <motion.button
+                            custom={101}
+                            variants={mobileMenuVariants}
+                            initial="hidden"
+                            animate="visible"
+                            onClick={() => handleMobileNavigate('profile')}
+                            className="w-full text-left py-2.5 text-[15px] transition-colors hover:text-gold hover:bg-gold/5 flex items-center gap-3 text-foreground/80"
+                          >
+                            <Settings className="h-4 w-4 text-muted-foreground/70" />
+                            Profile
+                          </motion.button>
+                          <motion.button
+                            custom={102}
+                            variants={mobileMenuVariants}
+                            initial="hidden"
+                            animate="visible"
+                            onClick={() => { logout(); setMobileMenuOpen(false); }}
+                            className="w-full text-left py-2.5 text-[15px] transition-colors hover:text-destructive hover:bg-destructive/5 flex items-center gap-3 text-muted-foreground"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Logout
+                          </motion.button>
+                        </motion.div>
                       ) : (
-                        <div className="px-6 space-y-2">
-                          <motion.div custom={navLinks.length + 4} variants={mobileMenuVariants} initial="hidden" animate="visible">
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.4 }}
+                          className="px-6 space-y-2"
+                        >
+                          <motion.div custom={101} variants={mobileMenuVariants} initial="hidden" animate="visible">
                             <Button
                               onClick={() => { navigate('auth'); setMobileMenuOpen(false); }}
                               className="w-full bg-gold text-background hover:bg-gold-dark tracking-[0.1em] uppercase text-xs font-semibold h-11"
@@ -466,7 +616,7 @@ export default function Navbar() {
                             </Button>
                           </motion.div>
                           <motion.p
-                            custom={navLinks.length + 5}
+                            custom={102}
                             variants={mobileMenuVariants}
                             initial="hidden"
                             animate="visible"
@@ -474,7 +624,7 @@ export default function Navbar() {
                           >
                             Sign in to access your account
                           </motion.p>
-                        </div>
+                        </motion.div>
                       )}
                     </div>
                   </div>
@@ -490,10 +640,12 @@ export default function Navbar() {
               MIRADEEN
             </button>
 
-            {/* Desktop Nav Links */}
-            <div className="hidden md:flex items-center gap-8">
-              {navLinks.map((link) => {
+            {/* Desktop Nav Links — only 5 items max */}
+            <div className="hidden md:flex items-center gap-9">
+              {/* Regular links */}
+              {desktopPrimaryLinks.map((link) => {
                 if (link.page === 'shop') {
+                  // Shop with mega menu
                   return (
                     <div
                       key={link.page}
@@ -605,7 +757,7 @@ export default function Navbar() {
                                   </div>
                                 </div>
 
-                                {/* Column 4: Quick Links */}
+                                {/* Column 4: Quick Links (includes Journal/Blog now) */}
                                 <div>
                                   <h3 className="text-xs tracking-wider uppercase text-muted-foreground font-semibold mb-3">Quick Links</h3>
                                   <ul className="space-y-1">
@@ -634,28 +786,54 @@ export default function Navbar() {
                   );
                 }
 
-                return (
-                  <button
-                    key={link.page}
-                    onClick={() => navigate(link.page)}
-                    className="relative text-sm tracking-[0.1em] uppercase font-medium transition-colors hover:text-gold group py-1"
-                  >
-                    {link.label}
-                    {/* Hover underline */}
-                    <span className={`absolute -bottom-1 left-0 h-px bg-gold transition-all duration-300 ${
-                      currentPage === link.page ? 'w-full' : 'w-0 group-hover:w-full'
-                    }`} />
-                    {/* Gold dot indicator for active link */}
-                    {currentPage === link.page && (
-                      <motion.span
-                        layoutId="active-nav-dot"
-                        className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gold"
-                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                  </button>
-                );
+                // Regular link (Home, Collections, Sale)
+                return renderDesktopLink(link.label, link.page);
               })}
+
+              {/* "More" dropdown */}
+              <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button className={`relative text-sm tracking-[0.1em] uppercase font-medium transition-colors hover:text-gold group py-1 flex items-center gap-1 ${
+                    moreMenuOpen ? 'text-gold' : ''
+                  }`}>
+                    More
+                    <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${moreMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52 bg-background border-border">
+                  <DropdownMenuLabel className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-semibold">Explore</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {moreMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={item.page}
+                        onClick={() => navigate(item.page)}
+                        className={`cursor-pointer gap-2.5 py-2.5 ${currentPage === item.page ? 'text-gold bg-gold/5' : ''}`}
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        {item.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-semibold">Company</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {companyMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={item.page}
+                        onClick={() => navigate(item.page)}
+                        className={`cursor-pointer gap-2.5 py-2.5 ${currentPage === item.page ? 'text-gold bg-gold/5' : ''}`}
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        {item.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Right Actions */}

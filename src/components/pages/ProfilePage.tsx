@@ -7,7 +7,7 @@ import {
   Camera, Trash2, Plus, Check, Shield, Heart, Activity, Clock, Mail,
   Phone, Calendar, Lock, Bell, AlertTriangle, Truck, Eye, ShoppingBag,
   CreditCard, ChevronDown, Copy, CheckCircle2, X, Star, ArrowRight,
-  MapPinIcon, Home, Building2, Loader2
+  MapPinIcon, Home, Building2, Loader2, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,17 @@ import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/hooks/use-toast';
 import type { Order } from '@/types';
+
+/* ------------------------------------------------------------------ */
+/*  Validators                                                          */
+/* ------------------------------------------------------------------ */
+
+interface FormErrors {
+  [key: string]: string | undefined;
+}
+
+const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const validatePhone = (phone: string) => /^[6-9]\d{9}$/.test(phone.replace(/[\s+\-]/g, ''));
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -90,6 +101,9 @@ export default function ProfilePage() {
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [addresses, setAddresses] = useState<AddressEntry[]>([]);
   const [notifPrefs, setNotifPrefs] = useState({ email: true, sms: false, whatsapp: true, newsletter: false });
+  const [profileErrors, setProfileErrors] = useState<FormErrors>({});
+  const [profileTouched, setProfileTouched] = useState<Record<string, boolean>>({});
+  const [addressErrors, setAddressErrors] = useState<FormErrors>({});
 
   const [profileForm, setProfileForm] = useState({
     name: '',
@@ -252,11 +266,91 @@ export default function ProfilePage() {
     { id: 'track', label: 'Track Order', icon: Truck, onClick: () => navigate('order-tracking') },
   ];
 
+  /* ---- Profile validation ---- */
+  const validateProfileField = (field: string): string | undefined => {
+    switch (field) {
+      case 'name': {
+        if (!profileForm.name.trim()) return 'Name is required';
+        if (profileForm.name.trim().length < 2) return 'Name must be at least 2 characters';
+        return undefined;
+      }
+      case 'phone': {
+        if (profileForm.phone.trim() && !validatePhone(profileForm.phone)) {
+          return 'Enter a valid 10-digit Indian phone (starts with 6-9)';
+        }
+        return undefined;
+      }
+      case 'address': {
+        if (profileForm.address.trim() && profileForm.address.trim().length < 5) {
+          return 'Address must be at least 5 characters';
+        }
+        return undefined;
+      }
+      case 'zipCode': {
+        if (profileForm.zipCode.trim() && !/^\d{6}$/.test(profileForm.zipCode.trim())) {
+          return 'Enter a valid 6-digit PIN code';
+        }
+        return undefined;
+      }
+      default:
+        return undefined;
+    }
+  };
+
+  const handleProfileBlur = (field: string) => {
+    setProfileTouched(prev => ({ ...prev, [field]: true }));
+    const error = validateProfileField(field);
+    setProfileErrors(prev => ({ ...prev, [field]: error }));
+  };
+
+  const isProfileValid = (): boolean => {
+    const requiredErrors: FormErrors = {};
+    if (!profileForm.name.trim()) requiredErrors.name = 'Name is required';
+    else if (profileForm.name.trim().length < 2) requiredErrors.name = 'Name must be at least 2 characters';
+    if (profileForm.phone.trim() && !validatePhone(profileForm.phone)) {
+      requiredErrors.phone = 'Enter a valid 10-digit Indian phone (starts with 6-9)';
+    }
+    if (profileForm.address.trim() && profileForm.address.trim().length < 5) {
+      requiredErrors.address = 'Address must be at least 5 characters';
+    }
+    if (profileForm.zipCode.trim() && !/^\d{6}$/.test(profileForm.zipCode.trim())) {
+      requiredErrors.zipCode = 'Enter a valid 6-digit PIN code';
+    }
+    setProfileErrors(requiredErrors);
+    setProfileTouched({ name: true, phone: true, address: true, city: true, state: true, zipCode: true, country: true });
+    return Object.keys(requiredErrors).length === 0;
+  };
+
+  const showProfileError = (field: string) => profileTouched[field] && profileErrors[field];
+
+  /* ---- Address validation ---- */
+  const validateAddressField = (field: string): string | undefined => {
+    switch (field) {
+      case 'address':
+        if (!newAddress.address.trim()) return 'Address is required';
+        return undefined;
+      case 'city':
+        if (!newAddress.city.trim()) return 'City is required';
+        return undefined;
+      case 'phone':
+        if (newAddress.phone.trim() && !validatePhone(newAddress.phone))
+          return 'Enter a valid 10-digit Indian phone (starts with 6-9)';
+        return undefined;
+      case 'zipCode':
+        if (newAddress.zipCode.trim() && !/^\d{6}$/.test(newAddress.zipCode.trim()))
+          return 'Enter a valid 6-digit PIN code';
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
   /* ---- handlers ---- */
 
   if (!isAuthenticated || !user) return null;
 
   const handleSaveProfile = async () => {
+    if (!isProfileValid()) return;
     setSaving(true);
     try {
       const res = await fetch('/api/auth/me', {
@@ -295,8 +389,18 @@ export default function ProfilePage() {
   };
 
   const handleSaveNewAddress = () => {
-    if (!newAddress.address.trim() || !newAddress.city.trim()) {
-      toast({ title: 'Missing fields', description: 'Please fill in address and city.', variant: 'destructive' });
+    const newAddrErrors: FormErrors = {};
+    if (!newAddress.address.trim()) newAddrErrors.address = 'Address is required';
+    if (!newAddress.city.trim()) newAddrErrors.city = 'City is required';
+    if (newAddress.phone.trim() && !validatePhone(newAddress.phone)) {
+      newAddrErrors.phone = 'Enter a valid 10-digit Indian phone (starts with 6-9)';
+    }
+    if (newAddress.zipCode.trim() && !/^\d{6}$/.test(newAddress.zipCode.trim())) {
+      newAddrErrors.zipCode = 'Enter a valid 6-digit PIN code';
+    }
+    setAddressErrors(newAddrErrors);
+    if (Object.keys(newAddrErrors).length > 0) {
+      toast({ title: 'Missing fields', description: 'Please fix the highlighted errors.', variant: 'destructive' });
       return;
     }
     const entry: AddressEntry = {
@@ -386,7 +490,8 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
           {/* ========== 2. ENHANCED SIDEBAR ========== */}
-          <div className="lg:col-span-1">
+          {/* Sidebar — hidden on mobile, tabs are used instead */}
+          <div className="hidden lg:block lg:col-span-1">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -557,12 +662,17 @@ export default function ProfilePage() {
                       )}
                     </div>
                     <div className="px-5 pb-5">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <Label className="text-xs tracking-wider uppercase flex items-center gap-1.5">
-                            <User className="h-3 w-3 text-gold" /> Full Name
+                            <User className="h-3 w-3 text-gold" /> Full Name <span className="text-destructive">*</span>
                           </Label>
-                          <Input value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} className="mt-1.5 h-11 border-border focus:border-gold" disabled={!editing} />
+                          <Input value={profileForm.name} onChange={(e) => { setProfileForm({ ...profileForm, name: e.target.value }); if (profileTouched.name) handleProfileBlur('name'); }} onBlur={() => handleProfileBlur('name')} className={`mt-1.5 h-11 border-border focus:border-gold transition-colors duration-200 ${showProfileError('name') ? 'border-destructive focus:border-destructive' : ''}`} disabled={!editing} />
+                          <AnimatePresence>
+                            {showProfileError('name') && (
+                              <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1"><AlertCircle className="h-3 w-3" />{profileErrors.name}</motion.p>
+                            )}
+                          </AnimatePresence>
                         </div>
                         <div>
                           <Label className="text-xs tracking-wider uppercase flex items-center gap-1.5">
@@ -575,7 +685,12 @@ export default function ProfilePage() {
                           <Label className="text-xs tracking-wider uppercase flex items-center gap-1.5">
                             <Phone className="h-3 w-3 text-gold" /> Phone
                           </Label>
-                          <Input value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="mt-1.5 h-11 border-border focus:border-gold" disabled={!editing} placeholder="+91 9876543210" />
+                          <Input value={profileForm.phone} onChange={(e) => { setProfileForm({ ...profileForm, phone: e.target.value.replace(/[^\d+\s\-]/g, '') }); if (profileTouched.phone) handleProfileBlur('phone'); }} onBlur={() => handleProfileBlur('phone')} className={`mt-1.5 h-11 border-border focus:border-gold transition-colors duration-200 ${showProfileError('phone') ? 'border-destructive focus:border-destructive' : ''}`} disabled={!editing} placeholder="9876543210" />
+                          <AnimatePresence>
+                            {showProfileError('phone') && (
+                              <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1"><AlertCircle className="h-3 w-3" />{profileErrors.phone}</motion.p>
+                            )}
+                          </AnimatePresence>
                         </div>
                         <div>
                           <Label className="text-xs tracking-wider uppercase flex items-center gap-1.5">
@@ -603,7 +718,12 @@ export default function ProfilePage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="sm:col-span-2">
                           <Label className="text-xs tracking-wider uppercase">Address</Label>
-                          <Input value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="mt-1.5 h-11 border-border focus:border-gold" disabled={!editing} placeholder="Street address, apartment, suite" />
+                          <Input value={profileForm.address} onChange={(e) => { setProfileForm({ ...profileForm, address: e.target.value }); if (profileTouched.address) handleProfileBlur('address'); }} onBlur={() => handleProfileBlur('address')} className={`mt-1.5 h-11 border-border focus:border-gold transition-colors duration-200 ${showProfileError('address') ? 'border-destructive focus:border-destructive' : ''}`} disabled={!editing} placeholder="Street address, apartment, suite" />
+                          <AnimatePresence>
+                            {showProfileError('address') && (
+                              <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1"><AlertCircle className="h-3 w-3" />{profileErrors.address}</motion.p>
+                            )}
+                          </AnimatePresence>
                         </div>
                         <div>
                           <Label className="text-xs tracking-wider uppercase">City</Label>
@@ -615,7 +735,12 @@ export default function ProfilePage() {
                         </div>
                         <div>
                           <Label className="text-xs tracking-wider uppercase">ZIP Code</Label>
-                          <Input value={profileForm.zipCode} onChange={(e) => setProfileForm({ ...profileForm, zipCode: e.target.value })} className="mt-1.5 h-11 border-border focus:border-gold" disabled={!editing} placeholder="PIN Code" />
+                          <Input value={profileForm.zipCode} onChange={(e) => { setProfileForm({ ...profileForm, zipCode: e.target.value.replace(/\D/g, '').slice(0, 6) }); if (profileTouched.zipCode) handleProfileBlur('zipCode'); }} onBlur={() => handleProfileBlur('zipCode')} className={`mt-1.5 h-11 border-border focus:border-gold transition-colors duration-200 ${showProfileError('zipCode') ? 'border-destructive focus:border-destructive' : ''}`} disabled={!editing} placeholder="PIN Code" />
+                          <AnimatePresence>
+                            {showProfileError('zipCode') && (
+                              <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1"><AlertCircle className="h-3 w-3" />{profileErrors.zipCode}</motion.p>
+                            )}
+                          </AnimatePresence>
                         </div>
                         <div>
                           <Label className="text-xs tracking-wider uppercase">Country</Label>

@@ -215,6 +215,7 @@ export default function Footer() {
     { label: 'Gift Guide', page: 'gift-guide' },
     { label: 'Lookbook', page: 'lookbook' },
     { label: 'Style Quiz', page: 'style-quiz' },
+    { label: 'Journal', page: 'blog' },
     { label: 'About Us', page: 'about' },
     { label: 'Contact Us', page: 'contact' },
   ];
@@ -487,7 +488,7 @@ export default function Footer() {
               {quickLinks.map((link) => (
                 <li key={link.label}>
                   <button
-                    onClick={() => navigate(link.page as 'shop' | 'about' | 'contact' | 'lookbook' | 'style-quiz')}
+                    onClick={() => navigate(link.page as 'shop' | 'about' | 'contact' | 'lookbook' | 'style-quiz' | 'blog' | 'gift-guide' | 'collections' | 'sale')}
                     className="text-sm text-primary-foreground/50 hover:text-gold hover:pl-1 transition-all duration-200 link-underline-gold"
                   >
                     {link.label}

@@ -107,37 +107,75 @@ export default function CheckoutPage() {
   const estimatedDelivery = useMemo(() => getEstimatedDeliveryDate(), []);
   const minDeliveryDate = useMemo(() => getMinDeliveryDate(), []);
 
+  const validateField = (field: string): string | undefined => {
+    switch (field) {
+      case 'name': {
+        if (!shipping.name.trim()) return 'Name is required';
+        if (shipping.name.trim().length < 2) return 'Name must be at least 2 characters';
+        return undefined;
+      }
+      case 'email': {
+        if (!shipping.email.trim()) return 'Email is required';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shipping.email)) return 'Please enter a valid email address';
+        return undefined;
+      }
+      case 'phone': {
+        if (!shipping.phone.trim()) return 'Phone number is required';
+        const digits = shipping.phone.replace(/\D/g, '');
+        if (digits.length !== 10) return 'Phone number must be exactly 10 digits';
+        if (!/^[6-9]/.test(digits)) return 'Phone number must start with 6, 7, 8, or 9';
+        return undefined;
+      }
+      case 'address1': {
+        if (!shipping.address1.trim()) return 'Address is required';
+        if (shipping.address1.trim().length < 5) return 'Please enter a complete address';
+        return undefined;
+      }
+      case 'city': {
+        if (!shipping.city.trim()) return 'City is required';
+        return undefined;
+      }
+      case 'state': {
+        if (!shipping.state.trim()) return 'State is required';
+        return undefined;
+      }
+      case 'zip': {
+        if (!shipping.zip.trim()) return 'ZIP code is required';
+        if (!/^\d{6}$/.test(shipping.zip.trim())) return 'Enter a valid 6-digit PIN code';
+        return undefined;
+      }
+      case 'country': {
+        if (!shipping.country.trim()) return 'Country is required';
+        return undefined;
+      }
+      default:
+        return undefined;
+    }
+  };
+
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
-    const newErrors: FormErrors = { ...errors };
-    if (field === 'phone' && shipping.phone) {
-      const digits = shipping.phone.replace(/\D/g, '');
-      if (digits.length !== 10) newErrors.phone = 'Phone number must be exactly 10 digits';
-      else delete newErrors.phone;
-    }
-    if (field === 'email' && shipping.email) {
-      if (!/\S+@\S+\.\S+/.test(shipping.email)) newErrors.email = 'Please enter a valid email address';
-      else delete newErrors.email;
-    }
-    setErrors(newErrors);
+    const error = validateField(field);
+    setErrors(prev => {
+      const updated = { ...prev };
+      if (error) {
+        updated[field] = error;
+      } else {
+        delete updated[field];
+      }
+      return updated;
+    });
   };
 
   const validateStep1 = (): boolean => {
     const newErrors: FormErrors = {};
-    if (!shipping.name.trim()) newErrors.name = 'Name is required';
-    if (!shipping.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(shipping.email)) newErrors.email = 'Please enter a valid email address';
-    if (!shipping.phone.trim()) newErrors.phone = 'Phone is required';
-    else {
-      const digits = shipping.phone.replace(/\D/g, '');
-      if (digits.length !== 10) newErrors.phone = 'Phone number must be exactly 10 digits';
-    }
-    if (!shipping.address1.trim()) newErrors.address1 = 'Address is required';
-    if (!shipping.city.trim()) newErrors.city = 'City is required';
-    if (!shipping.state.trim()) newErrors.state = 'State is required';
-    if (!shipping.zip.trim()) newErrors.zip = 'ZIP code is required';
+    const allFields = ['name', 'email', 'phone', 'address1', 'city', 'state', 'zip', 'country'];
+    allFields.forEach(field => {
+      const error = validateField(field);
+      if (error) newErrors[field] = error;
+    });
     setErrors(newErrors);
-    setTouched(Object.fromEntries(Object.keys(newErrors).map(k => [k, true])));
+    setTouched(Object.fromEntries(allFields.map(k => [k, true])));
     return Object.keys(newErrors).length === 0;
   };
 
@@ -667,7 +705,7 @@ export default function CheckoutPage() {
                         className="flex items-center gap-2 bg-destructive/5 border border-destructive/20 text-destructive rounded-lg px-4 py-3 mb-6 text-sm"
                       >
                         <AlertCircle className="h-4 w-4 shrink-0" />
-                        Please fix the {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} below to continue
+                        Please complete all required fields — {Object.keys(errors).length} field{Object.keys(errors).length > 1 ? 's need' : ' needs'} attention
                       </motion.div>
                     )}
 
@@ -675,7 +713,7 @@ export default function CheckoutPage() {
                       {/* Full Name */}
                       <div className="sm:col-span-2">
                         <Label className="text-xs tracking-wider uppercase text-muted-foreground">Full Name *</Label>
-                        <Input value={shipping.name} onChange={(e) => setShipping({ ...shipping, name: e.target.value })} onBlur={() => handleBlur('name')} className={inputClass('name')} placeholder="John Doe" />
+                        <Input value={shipping.name} onChange={(e) => { setShipping({ ...shipping, name: e.target.value }); if (touched.name) handleBlur('name'); }} onBlur={() => handleBlur('name')} className={inputClass('name')} placeholder="John Doe" />
                         <AnimatePresence>
                           {showError('name') && (
                             <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.name}</motion.p>
@@ -686,7 +724,7 @@ export default function CheckoutPage() {
                       {/* Email */}
                       <div>
                         <Label className="text-xs tracking-wider uppercase text-muted-foreground">Email *</Label>
-                        <Input type="email" value={shipping.email} onChange={(e) => setShipping({ ...shipping, email: e.target.value })} onBlur={() => handleBlur('email')} className={inputClass('email')} placeholder="you@email.com" />
+                        <Input type="email" value={shipping.email} onChange={(e) => { setShipping({ ...shipping, email: e.target.value }); if (touched.email) handleBlur('email'); }} onBlur={() => handleBlur('email')} className={inputClass('email')} placeholder="you@email.com" />
                         <AnimatePresence>
                           {showError('email') && (
                             <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.email}</motion.p>
@@ -700,6 +738,7 @@ export default function CheckoutPage() {
                         <Input value={shipping.phone} onChange={(e) => {
                           const val = e.target.value.replace(/[^\d+]/g, '');
                           setShipping({ ...shipping, phone: val });
+                          if (touched.phone) handleBlur('phone');
                         }} onBlur={() => handleBlur('phone')} className={inputClass('phone')} placeholder="9876543210" />
                         <AnimatePresence>
                           {showError('phone') && (
@@ -711,7 +750,7 @@ export default function CheckoutPage() {
                       {/* Address Line 1 */}
                       <div className="sm:col-span-2">
                         <Label className="text-xs tracking-wider uppercase text-muted-foreground">Address Line 1 *</Label>
-                        <Input value={shipping.address1} onChange={(e) => setShipping({ ...shipping, address1: e.target.value })} onBlur={() => handleBlur('address1')} className={inputClass('address1')} placeholder="Street address, apartment, suite" />
+                        <Input value={shipping.address1} onChange={(e) => { setShipping({ ...shipping, address1: e.target.value }); if (touched.address1) handleBlur('address1'); }} onBlur={() => handleBlur('address1')} className={inputClass('address1')} placeholder="Street address, apartment, suite" />
                         <AnimatePresence>
                           {showError('address1') && (
                             <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.address1}</motion.p>
@@ -731,7 +770,7 @@ export default function CheckoutPage() {
                       {/* City */}
                       <div>
                         <Label className="text-xs tracking-wider uppercase text-muted-foreground">City *</Label>
-                        <Input value={shipping.city} onChange={(e) => setShipping({ ...shipping, city: e.target.value })} onBlur={() => handleBlur('city')} className={inputClass('city')} placeholder="Mumbai" />
+                        <Input value={shipping.city} onChange={(e) => { setShipping({ ...shipping, city: e.target.value }); if (touched.city) handleBlur('city'); }} onBlur={() => handleBlur('city')} className={inputClass('city')} placeholder="Mumbai" />
                         <AnimatePresence>
                           {showError('city') && (
                             <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.city}</motion.p>
@@ -742,7 +781,7 @@ export default function CheckoutPage() {
                       {/* State */}
                       <div>
                         <Label className="text-xs tracking-wider uppercase text-muted-foreground">State *</Label>
-                        <Input value={shipping.state} onChange={(e) => setShipping({ ...shipping, state: e.target.value })} onBlur={() => handleBlur('state')} className={inputClass('state')} placeholder="Maharashtra" />
+                        <Input value={shipping.state} onChange={(e) => { setShipping({ ...shipping, state: e.target.value }); if (touched.state) handleBlur('state'); }} onBlur={() => handleBlur('state')} className={inputClass('state')} placeholder="Maharashtra" />
                         <AnimatePresence>
                           {showError('state') && (
                             <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.state}</motion.p>
@@ -753,7 +792,7 @@ export default function CheckoutPage() {
                       {/* ZIP Code */}
                       <div>
                         <Label className="text-xs tracking-wider uppercase text-muted-foreground">ZIP Code *</Label>
-                        <Input value={shipping.zip} onChange={(e) => setShipping({ ...shipping, zip: e.target.value })} onBlur={() => handleBlur('zip')} className={inputClass('zip')} placeholder="400001" />
+                        <Input value={shipping.zip} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 6); setShipping({ ...shipping, zip: val }); if (touched.zip) handleBlur('zip'); }} onBlur={() => handleBlur('zip')} className={inputClass('zip')} placeholder="400001" />
                         <AnimatePresence>
                           {showError('zip') && (
                             <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.zip}</motion.p>
@@ -763,8 +802,13 @@ export default function CheckoutPage() {
 
                       {/* Country */}
                       <div>
-                        <Label className="text-xs tracking-wider uppercase text-muted-foreground">Country</Label>
-                        <Input value={shipping.country} onChange={(e) => setShipping({ ...shipping, country: e.target.value })} className="input-luxury mt-1 h-11 transition-all duration-300" />
+                        <Label className="text-xs tracking-wider uppercase text-muted-foreground">Country *</Label>
+                        <Input value={shipping.country} onChange={(e) => { setShipping({ ...shipping, country: e.target.value }); if (touched.country) handleBlur('country'); }} onBlur={() => handleBlur('country')} className={`input-luxury mt-1 h-11 transition-all duration-300 ${touched.country && errors.country ? 'input-error' : ''}`} placeholder="India" />
+                        <AnimatePresence>
+                          {showError('country') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.country}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </div>
                   </div>

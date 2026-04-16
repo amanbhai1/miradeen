@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { useState, useRef, useCallback } from 'react';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import {
   Mail,
   Phone,
@@ -56,11 +56,15 @@ interface FormData {
 }
 
 interface FormErrors {
-  name?: string;
-  email?: string;
-  subject?: string;
-  message?: string;
+  [key: string]: string | undefined;
 }
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const validatePhone = (phone: string) => /^[6-9]\d{9}$/.test(phone.replace(/[\s+\-]/g, ''));
 
 // ─── Data ──────────────────────────────────────────────────────────────
 const contactCards = [
@@ -164,7 +168,9 @@ export default function ContactPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [form, setForm] = useState<FormData>({
     name: '',
@@ -189,44 +195,92 @@ export default function ContactPage() {
   const proofInView = useInView(proofRef, { once: true, margin: '-50px' });
   const mapInView = useInView(mapRef, { once: true, margin: '-50px' });
 
-  // ─── Validation ───────────────────────────────────────────────────
+  // ─── Field-level Validation ─────────────────────────────────────
+  const validateField = useCallback((field: keyof FormData): string | undefined => {
+    switch (field) {
+      case 'name': {
+        if (!form.name.trim()) return 'Name is required';
+        if (form.name.trim().length < 2) return 'Name must be at least 2 characters';
+        return undefined;
+      }
+      case 'email': {
+        if (!form.email.trim()) return 'Email is required';
+        if (!validateEmail(form.email)) return 'Please enter a valid email address';
+        return undefined;
+      }
+      case 'phone': {
+        if (form.phone.trim() && !validatePhone(form.phone)) {
+          return 'Enter a valid 10-digit Indian phone number (starts with 6-9)';
+        }
+        return undefined;
+      }
+      case 'subject': {
+        if (!form.subject) return 'Please select a subject';
+        return undefined;
+      }
+      case 'message': {
+        if (!form.message.trim()) return 'Message is required';
+        if (form.message.trim().length < 10) return 'Message must be at least 10 characters';
+        return undefined;
+      }
+      default:
+        return undefined;
+    }
+  }, [form]);
+
+  const handleBlur = useCallback((field: keyof FormData) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const error = validateField(field);
+    setErrors(prev => ({ ...prev, [field]: error }));
+  }, [validateField]);
+
+  // ─── Full Form Validation ─────────────────────────────────────────
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
-
-    if (!form.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (form.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
-    }
-
-    if (!form.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!form.subject) {
-      newErrors.subject = 'Please select a subject';
-    }
-
-    if (!form.message.trim()) {
-      newErrors.message = 'Message is required';
-    } else if (form.message.trim().length < 10) {
-      newErrors.message = 'Message must be at least 10 characters';
-    }
-
+    const allFields: (keyof FormData)[] = ['name', 'email', 'phone', 'subject', 'message'];
+    allFields.forEach(field => {
+      const error = validateField(field);
+      if (error) newErrors[field] = error;
+    });
     setErrors(newErrors);
+    setTouched(Object.fromEntries(allFields.map(k => [k, true])));
     return Object.keys(newErrors).length === 0;
   };
 
-  // ─── File Attachment (visual only) ────────────────────────────────
+  const showError = (field: keyof FormData) => touched[field] && errors[field];
+  const isValid = (field: keyof FormData) => touched[field] && form[field as string]?.toString().trim() && !errors[field];
+  const isFormValid = (): boolean => {
+    return !!form.name.trim()
+      && validateEmail(form.email)
+      && !!form.subject
+      && form.message.trim().length >= 10
+      && (!form.phone.trim() || validatePhone(form.phone));
+  };
+
+  // ─── File Attachment with Validation ────────────────────────────
   const handleFileClick = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.webp,.gif';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) setFileName(file.name);
+      if (file) {
+        // Validate file type
+        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+        if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(ext)) {
+          setFileError('Only images (JPG, PNG, WebP, GIF) and PDF files are allowed');
+          setFileName(null);
+          return;
+        }
+        // Validate file size
+        if (file.size > MAX_FILE_SIZE) {
+          setFileError('File size must be less than 5MB');
+          setFileName(null);
+          return;
+        }
+        setFileError(null);
+        setFileName(file.name);
+      }
     };
     input.click();
   };
@@ -257,7 +311,9 @@ export default function ContactPage() {
         message: '',
       });
       setFileName(null);
+      setFileError(null);
       setErrors({});
+      setTouched({});
     } catch {
       toast({
         title: 'Failed to send',
@@ -270,8 +326,9 @@ export default function ContactPage() {
 
   const updateField = (field: keyof FormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (touched[field]) {
+      const error = validateField(field);
+      setErrors((prev) => ({ ...prev, [field]: error }));
     }
   };
 
@@ -457,14 +514,17 @@ export default function ContactPage() {
                       placeholder="John Doe"
                       value={form.name}
                       onChange={(e) => updateField('name', e.target.value)}
-                      className={errors.name ? 'border-destructive' : ''}
+                      onBlur={() => handleBlur('name')}
+                      className={`transition-colors duration-200 ${showError('name') ? 'border-destructive focus-visible:ring-destructive' : isValid('name') ? 'border-green-500 focus-visible:ring-green-500/30' : ''}`}
                     />
-                    {errors.name && (
-                      <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.name}
-                      </p>
-                    )}
+                    <AnimatePresence>
+                      {showError('name') && (
+                        <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1.5">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.name}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
                   </div>
                   <div>
                     <Label htmlFor="email" className="mb-1.5 block text-sm font-medium">
@@ -476,14 +536,17 @@ export default function ContactPage() {
                       placeholder="john@example.com"
                       value={form.email}
                       onChange={(e) => updateField('email', e.target.value)}
-                      className={errors.email ? 'border-destructive' : ''}
+                      onBlur={() => handleBlur('email')}
+                      className={`transition-colors duration-200 ${showError('email') ? 'border-destructive focus-visible:ring-destructive' : isValid('email') ? 'border-green-500 focus-visible:ring-green-500/30' : ''}`}
                     />
-                    {errors.email && (
-                      <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.email}
-                      </p>
-                    )}
+                    <AnimatePresence>
+                      {showError('email') && (
+                        <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1.5">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.email}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
@@ -491,15 +554,25 @@ export default function ContactPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                   <div>
                     <Label htmlFor="phone" className="mb-1.5 block text-sm font-medium">
-                      Phone Number
+                      Phone Number <span className="text-muted-foreground/60 normal-case">(optional)</span>
                     </Label>
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+91 98765 43210"
+                      placeholder="9876543210"
                       value={form.phone}
-                      onChange={(e) => updateField('phone', e.target.value)}
+                      onChange={(e) => updateField('phone', e.target.value.replace(/[^\d+\s\-]/g, ''))}
+                      onBlur={() => handleBlur('phone')}
+                      className={`transition-colors duration-200 ${showError('phone') ? 'border-destructive focus-visible:ring-destructive' : isValid('phone') ? 'border-green-500 focus-visible:ring-green-500/30' : ''}`}
                     />
+                    <AnimatePresence>
+                      {showError('phone') && (
+                        <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1.5">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.phone}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
                   </div>
                   <div>
                     <Label htmlFor="subject" className="mb-1.5 block text-sm font-medium">
@@ -510,8 +583,9 @@ export default function ContactPage() {
                         id="subject"
                         value={form.subject}
                         onChange={(e) => updateField('subject', e.target.value)}
-                        className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer ${
-                          errors.subject ? 'border-destructive' : ''
+                        onBlur={() => handleBlur('subject')}
+                        className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer transition-colors duration-200 ${
+                          showError('subject') ? 'border-destructive focus-visible:ring-destructive' : isValid('subject') ? 'border-green-500 focus-visible:ring-green-500/30' : ''
                         }`}
                       >
                         <option value="" disabled>
@@ -525,12 +599,14 @@ export default function ContactPage() {
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     </div>
-                    {errors.subject && (
-                      <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.subject}
-                      </p>
-                    )}
+                    <AnimatePresence>
+                      {showError('subject') && (
+                        <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1.5">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.subject}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
@@ -587,19 +663,27 @@ export default function ContactPage() {
                     placeholder="How can we help you?"
                     value={form.message}
                     onChange={(e) => updateField('message', e.target.value)}
-                    className={`min-h-[130px] resize-y ${
-                      errors.message ? 'border-destructive' : ''
+                    onBlur={() => handleBlur('message')}
+                    className={`min-h-[130px] resize-y transition-colors duration-200 ${
+                      showError('message') ? 'border-destructive focus-visible:ring-destructive' : isValid('message') ? 'border-green-500 focus-visible:ring-green-500/30' : ''
                     }`}
                   />
-                  {errors.message && (
-                    <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.message}
-                    </p>
-                  )}
+                  <div className="flex justify-between items-center mt-1">
+                    <AnimatePresence>
+                      {showError('message') && (
+                        <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.message}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                    {form.message.length > 0 && !errors.message && (
+                      <span className="text-xs text-muted-foreground ml-auto">{form.message.length} characters</span>
+                    )}
+                  </div>
                 </div>
 
-                {/* File Attachment (visual only) */}
+                {/* File Attachment */}
                 <div className="mb-6">
                   <button
                     type="button"
@@ -609,10 +693,18 @@ export default function ContactPage() {
                     <Paperclip className="h-4 w-4 group-hover:rotate-45 transition-transform" />
                     <span>Attach a file</span>
                     <span className="text-xs text-muted-foreground/60">
-                      (PDF, JPG, PNG)
+                      (PDF, JPG, PNG, WebP, GIF — max 5MB)
                     </span>
                   </button>
-                  {fileName && (
+                  <AnimatePresence>
+                    {fileError && (
+                      <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive flex items-center gap-1 mt-1.5">
+                        <AlertCircle className="h-3 w-3" />
+                        {fileError}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                  {fileName && !fileError && (
                     <p className="mt-1.5 text-xs text-gold flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" />
                       {fileName}
@@ -633,8 +725,8 @@ export default function ContactPage() {
                 {/* Submit */}
                 <Button
                   type="submit"
-                  disabled={loading}
-                  className="w-full h-12 bg-gold text-background hover:bg-gold-dark tracking-[0.15em] uppercase text-xs font-semibold btn-luxury"
+                  disabled={loading || !isFormValid()}
+                  className="w-full h-12 bg-gold text-background hover:bg-gold-dark tracking-[0.15em] uppercase text-xs font-semibold btn-luxury disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">

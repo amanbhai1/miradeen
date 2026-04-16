@@ -191,6 +191,30 @@ model SiteSetting {
   updatedAt DateTime @updatedAt
 }
 
+model Testimonial {
+  id        String   @id @default(cuid())
+  author    String
+  role      String?
+  company   String?
+  avatar    String?
+  rating    Int      @default(5)
+  text      String
+  isFeatured Boolean @default(false)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model SizeChart {
   id          String   @id @default(cuid())
   category    String   // "men" | "women" | "accessories"
