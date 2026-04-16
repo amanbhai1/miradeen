@@ -4129,3 +4129,266 @@ select.input-gold-glow:focus {
   background: rgba(201, 169, 110, 0.25);
   color: inherit;
 }
+
+/* ========================================
+   PHASE 9: Premium Interactive & Micro-animations
+   ======================================== */
+
+/* ── 1. Image Reveal Animation ── */
+.img-reveal {
+  clip-path: inset(50% 0 50% 0);
+  transition: clip-path 1s cubic-bezier(0.77, 0, 0.175, 1);
+}
+.img-reveal.revealed,
+.img-reveal.loaded {
+  clip-path: inset(0 0 0 0);
+}
+
+/* ── 2. Text Reveal Line Animation ── */
+.text-reveal-line {
+  overflow: hidden;
+  display: block;
+  position: relative;
+}
+.text-reveal-line span {
+  display: inline-block;
+  background: linear-gradient(90deg, #C9A96E 0%, #D4B87A 40%, #2D2D2D 40%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-position: 100% 0;
+  transition: background-position 0.8s cubic-bezier(0.77, 0, 0.175, 1);
+}
+.text-reveal-line.revealed span {
+  background-position: 0% 0;
+}
+
+/* ── 3. Staggered Grid Animation (Enhanced) ── */
+.stagger-grid-enhanced > * {
+  opacity: 0;
+  transform: scale(0.9) translateY(12px);
+  transition:
+    opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.stagger-grid-enhanced.visible > *:nth-child(1)  { transition-delay: 0.05s; }
+.stagger-grid-enhanced.visible > *:nth-child(2)  { transition-delay: 0.10s; }
+.stagger-grid-enhanced.visible > *:nth-child(3)  { transition-delay: 0.15s; }
+.stagger-grid-enhanced.visible > *:nth-child(4)  { transition-delay: 0.20s; }
+.stagger-grid-enhanced.visible > *:nth-child(5)  { transition-delay: 0.25s; }
+.stagger-grid-enhanced.visible > *:nth-child(6)  { transition-delay: 0.30s; }
+.stagger-grid-enhanced.visible > *:nth-child(7)  { transition-delay: 0.35s; }
+.stagger-grid-enhanced.visible > *:nth-child(8)  { transition-delay: 0.40s; }
+.stagger-grid-enhanced.visible > *:nth-child(9)  { transition-delay: 0.45s; }
+.stagger-grid-enhanced.visible > *:nth-child(10) { transition-delay: 0.50s; }
+.stagger-grid-enhanced.visible > *:nth-child(11) { transition-delay: 0.55s; }
+.stagger-grid-enhanced.visible > *:nth-child(12) { transition-delay: 0.60s; }
+.stagger-grid-enhanced.visible > * {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+/* ── 4. Gold Shimmer Border ── */
+.shimmer-border {
+  position: relative;
+  z-index: 0;
+}
+.shimmer-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    #C9A96E 10%,
+    #E8D5A8 20%,
+    #C9A96E 30%,
+    transparent 40%
+  );
+  z-index: -2;
+  animation: shimmerBorderRotate 4s linear infinite;
+}
+.shimmer-border::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: var(--background, #fff);
+  z-index: -1;
+}
+
+/* ── 5. Luxury Input Styles ── */
+.input-luxury {
+  border: 1px solid rgba(201, 169, 110, 0.2);
+  background: transparent;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: inherit;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.input-luxury::placeholder {
+  color: oklch(0.60 0.01 60);
+}
+.input-luxury:focus {
+  border-color: #C9A96E;
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.15);
+}
+.input-luxury.input-error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+.input-luxury:disabled {
+  background: oklch(0.92 0.005 90);
+  border-color: oklch(0.85 0.005 90);
+  color: oklch(0.65 0.01 60);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.dark .input-luxury::placeholder {
+  color: oklch(0.55 0.01 60);
+}
+.dark .input-luxury:disabled {
+  background: oklch(0.22 0.005 60);
+  border-color: oklch(0.30 0.005 60);
+}
+
+/* ── 6. Product Card Image Hover ── */
+.product-img-hover {
+  overflow: hidden;
+  border-radius: inherit;
+}
+.product-img-hover img {
+  transition: transform 0.5s ease, filter 0.5s ease;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.product-img-hover:hover img {
+  transform: scale(1.08);
+  filter: brightness(1.05);
+}
+
+/* ── 7. Floating Badge ── */
+.badge-float {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #C9A96E, #B08D4F);
+  color: #2D2D2D;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: floatBadge 3s ease-in-out infinite;
+  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.3);
+}
+
+/* ── 8. Luxury Divider Enhanced ── */
+.divider-luxury-enhanced {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 2rem auto;
+  max-width: 320px;
+  user-select: none;
+}
+.divider-luxury-enhanced::before,
+.divider-luxury-enhanced::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #C9A96E 50%, transparent 100%);
+  opacity: 0.5;
+}
+.divider-luxury-enhanced .diamond-icon {
+  color: #C9A96E;
+  font-size: 10px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── 9. Button Ripple Effect ── */
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-effect .ripple-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(201, 169, 110, 0.35);
+  transform: scale(0);
+  animation: rippleExpand 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+/* ── 10. Smooth Scrollbar for Webkit ── */
+.scrollbar-luxury {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 169, 110, 0.4) transparent;
+}
+.scrollbar-luxury::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-luxury::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-luxury::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 110, 0.4);
+  border-radius: 3px;
+}
+.scrollbar-luxury::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 169, 110, 0.6);
+}
+.scrollbar-luxury::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.dark .scrollbar-luxury {
+  scrollbar-color: rgba(201, 169, 110, 0.3) transparent;
+}
+.dark .scrollbar-luxury::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 110, 0.3);
+}
+.dark .scrollbar-luxury::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 169, 110, 0.5);
+}
+
+/* ── PHASE 9 Keyframes ── */
+
+@keyframes shimmerBorderRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes floatBadge {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}

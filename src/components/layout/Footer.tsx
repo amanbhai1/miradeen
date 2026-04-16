@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Instagram, Facebook, Twitter, Mail, Phone, MessageCircle, MapPin, Send, Heart, ArrowUp,
   Shield, ShieldCheck, Truck, RotateCcw, Smartphone, Lock, Globe, ChevronDown,
-  Youtube, Linkedin, PinIcon, Gem, BadgeCheck, Award,
+  Youtube, Linkedin, PinIcon, Gem, BadgeCheck, Award, Sparkles, Loader2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -155,10 +155,16 @@ export default function Footer() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [handleScroll]);
 
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
-      toast({ title: 'Invalid email', description: 'Please enter a valid email address.', variant: 'destructive' });
+    if (!email.trim()) {
+      toast({ title: 'Email required', description: 'Please enter your email address.', variant: 'destructive' });
+      return;
+    }
+    if (!isValidEmail(email)) {
+      toast({ title: 'Invalid email', description: 'Please enter a valid email address (e.g., name@example.com).', variant: 'destructive' });
       return;
     }
 
@@ -175,15 +181,17 @@ export default function Footer() {
         setSubscribed(true);
         setEmail('');
         toast({
-          title: data.message === 'Already subscribed' ? 'You\'re already subscribed!' : 'Welcome to MIRADEEN!',
+          title: 'Thank you for subscribing! ✨',
           description: data.message === 'Already subscribed'
-            ? 'You\'ll continue receiving our exclusive updates.'
-            : 'Thank you for subscribing! Check your inbox for a welcome surprise.',
+            ? 'You\'re already part of the MIRADEEN family. Stay tuned for updates!'
+            : 'Welcome to the MIRADEEN family! Check your inbox for exclusive offers.',
         });
-        setTimeout(() => setSubscribed(false), 5000);
+        setTimeout(() => setSubscribed(false), 6000);
+      } else {
+        toast({ title: 'Subscription failed', description: data.message || 'Something went wrong. Please try again.', variant: 'destructive' });
       }
     } catch {
-      toast({ title: 'Failed to subscribe', description: 'Please try again later.', variant: 'destructive' });
+      toast({ title: 'Failed to subscribe', description: 'A network error occurred. Please try again later.', variant: 'destructive' });
     }
     setLoading(false);
   };
@@ -260,60 +268,136 @@ export default function Footer() {
         />
       </div>
 
-      {/* ===== Newsletter Section ===== */}
-      <div className="border-b border-primary-foreground/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-center md:text-left">
-              <h3 className="heading-serif text-2xl md:text-3xl font-bold mb-2">Join The MIRADEEN World</h3>
-              <p className="text-primary-foreground/60 text-sm">Subscribe for exclusive access to new collections and special offers</p>
-            </div>
-            <div className="w-full md:w-auto">
-              <form onSubmit={handleSubscribe} className="flex gap-2">
-                <div className="relative flex-1 md:flex-none">
-                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 ${subscribed ? 'text-green-400 scale-110' : 'text-primary-foreground/40'}`} />
-                  <Input
-                    type="email"
-                    placeholder="Your email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/40 h-12 w-full md:w-72 focus:border-gold pl-10"
-                    required
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className={`h-12 px-6 tracking-wider uppercase text-xs font-semibold whitespace-nowrap transition-all duration-500 min-w-[120px] ${
-                    subscribed
-                      ? 'bg-green-600 text-white hover:bg-green-600 animate-scale-in'
-                      : 'bg-gold text-background hover:bg-gold-dark'
-                  }`}
+      {/* ===== Newsletter Subscription Section ===== */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-50px' }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+        className="border-b border-primary-foreground/10 relative overflow-hidden"
+      >
+        {/* Subtle gradient background */}
+        <div className="absolute inset-0 bg-luxury-gradient opacity-40" />
+        {/* Decorative gold corner accents */}
+        <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-gold/10 to-transparent" />
+        <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-gold/10 to-transparent" />
+
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 text-center">
+          {/* Decorative divider */}
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <span className="block w-12 h-px bg-gradient-to-r from-transparent to-gold/60" />
+            <Sparkles className="h-4 w-4 text-gold/70" />
+            <span className="block w-12 h-px bg-gradient-to-l from-transparent to-gold/60" />
+          </div>
+
+          {/* Heading */}
+          <h3 className="heading-serif text-gold-gradient text-3xl sm:text-4xl font-bold tracking-wide mb-3">
+            JOIN THE MIRADEEN FAMILY
+          </h3>
+          {/* Subtitle */}
+          <p className="text-primary-foreground/50 text-sm sm:text-base max-w-lg mx-auto mb-8 leading-relaxed">
+            Subscribe for exclusive offers, new arrivals, and style inspiration
+          </p>
+
+          {/* Email Form */}
+          {!subscribed ? (
+            <motion.form
+              key="form"
+              onSubmit={handleSubscribe}
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-col sm:flex-row items-center gap-3 max-w-lg mx-auto"
+            >
+              <div className="relative w-full">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-primary-foreground/30 pointer-events-none" />
+                <Input
+                  type="email"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full h-12 pl-10 pr-4 bg-primary-foreground/5 border-gold/30 text-primary-foreground placeholder:text-primary-foreground/30 focus:border-gold focus:ring-1 focus:ring-gold/20 input-luxury rounded-lg transition-all duration-300"
+                  required
+                  aria-label="Email address for newsletter"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="btn-luxury h-12 px-8 w-full sm:w-auto bg-gold text-background hover:bg-gold-dark tracking-[0.15em] uppercase text-xs font-bold rounded-lg transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    SUBSCRIBING…
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Send className="h-3.5 w-3.5" />
+                    SUBSCRIBE
+                  </span>
+                )}
+              </Button>
+            </motion.form>
+          ) : (
+            /* Success State */
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
+              className="flex flex-col items-center gap-3 py-2"
+            >
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-gold/15 border border-gold/30 animate-pulse-gold">
+                <motion.svg
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  className="h-7 w-7 text-gold"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
                 >
-                  {loading ? (
-                    <div className="h-4 w-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-                  ) : subscribed ? (
-                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 15 }} className="flex items-center gap-2">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                      Subscribed!
-                    </motion.span>
-                  ) : (
-                    <><Send className="mr-2 h-4 w-4" /> Subscribe</>
-                  )}
-                </Button>
-              </form>
-              {/* Privacy note */}
-              <p className="text-[11px] text-primary-foreground/35 mt-2.5 leading-relaxed">
-                By subscribing, you agree to our{' '}
-                <button onClick={() => navigate('about')} className="underline underline-offset-2 hover:text-gold transition-colors">
-                  Privacy Policy
-                </button>{' '}
-                and consent to receive updates.
-              </p>
-            </div>
+                  <motion.path
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </motion.svg>
+              </div>
+              <p className="text-gold font-semibold text-base heading-serif">Thank you for subscribing! ✨</p>
+              <p className="text-primary-foreground/40 text-xs">You&apos;ll hear from us soon with exclusive updates</p>
+            </motion.div>
+          )}
+
+          {/* Privacy note */}
+          {!subscribed && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-[11px] text-primary-foreground/30 mt-5 leading-relaxed"
+            >
+              By subscribing, you agree to our{' '}
+              <button onClick={() => navigate('about')} className="underline underline-offset-2 hover:text-gold transition-colors duration-200">
+                Privacy Policy
+              </button>{' '}
+              and consent to receive updates.
+            </motion.p>
+          )}
+
+          {/* Bottom decorative divider */}
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <span className="block w-8 h-px bg-gradient-to-r from-transparent to-gold/40" />
+            <div className="w-1.5 h-1.5 rotate-45 bg-gold/40" />
+            <span className="block w-8 h-px bg-gradient-to-l from-transparent to-gold/40" />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* ===== Our Promise Section ===== */}
       <div className="border-b border-primary-foreground/10">
