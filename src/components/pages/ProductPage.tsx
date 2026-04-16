@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, ShoppingBag, Minus, Plus, Star, Share2, Truck, Shield, RefreshCw, ChevronLeft, Check, Bell, Ruler, GitCompareArrows, Eye } from 'lucide-react';
+import { Heart, ShoppingBag, Minus, Plus, Star, Share2, Truck, Shield, RefreshCw, ChevronLeft, Check, Bell, Ruler, GitCompareArrows, Eye, ArrowRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,6 +13,52 @@ import { useToast } from '@/hooks/use-toast';
 import type { Product, Review } from '@/types';
 import { parseJsonField } from '@/types';
 import SizeGuideModal from '@/components/shared/SizeGuideModal';
+import ImageLightbox from '@/components/shared/ImageLightbox';
+
+// Color name to hex mapping for visual preview circles
+const COLOR_HEX_MAP: Record<string, string> = {
+  black: '#1a1a1a',
+  white: '#f5f5f5',
+  navy: '#1e3a5f',
+  blue: '#2563eb',
+  red: '#dc2626',
+  green: '#16a34a',
+  brown: '#78350f',
+  beige: '#d4c5a9',
+  cream: '#fffdd0',
+  grey: '#9ca3af',
+  gray: '#9ca3af',
+  pink: '#ec4899',
+  purple: '#7c3aed',
+  orange: '#ea580c',
+  yellow: '#eab308',
+  gold: '#c9a96e',
+  silver: '#c0c0c0',
+  maroon: '#7f1d1d',
+  olive: '#4d5e15',
+  teal: '#0d9488',
+  burgundy: '#800020',
+  tan: '#d2b48c',
+  ivory: '#fffff0',
+  charcoal: '#36454f',
+  khaki: '#c3b091',
+  rust: '#b7410e',
+  coral: '#ff7f50',
+  lavender: '#b57edc',
+  mint: '#98fb98',
+  peach: '#ffcba4',
+  sage: '#bcb88a',
+};
+
+function getColorHex(name: string): string {
+  const lower = name.toLowerCase().trim();
+  return COLOR_HEX_MAP[lower] || '#cccccc';
+}
+
+function getColorBorderClass(name: string): string {
+  const lower = name.toLowerCase().trim();
+  return (lower === 'white' || lower === 'cream' || lower === 'ivory') ? 'border border-border' : '';
+}
 
 function ReviewForm({ productId, onSubmitted }: { productId: string | null; onSubmitted: () => void }) {
   const { isAuthenticated, user, token, navigate } = useStore();
@@ -115,7 +161,7 @@ export default function ProductPage() {
   const {
     navigate, addToCart, toggleWishlist, wishlistIds, selectedProductId,
     isAuthenticated, previousPage, toggleCompare, compareIds, setQuickViewProductId,
-    isNotifying, toggleNotify
+    isNotifying, toggleNotify, setSearchQuery
   } = useStore();
   const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
@@ -130,6 +176,8 @@ export default function ProductPage() {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     if (!selectedProductId) return;
@@ -184,6 +232,7 @@ export default function ProductPage() {
   const images = parseJsonField<string>(product.images);
   const sizes = parseJsonField<string>(product.sizes);
   const colors = parseJsonField<string>(product.colors);
+  const tags = parseJsonField<string>(product.tags);
   const discount = product.comparePrice ? Math.round((1 - product.price / product.comparePrice) * 100) : 0;
   const isOutOfStock = product.stock === 0;
   const isInCompare = compareIds.includes(product.id);
@@ -200,10 +249,38 @@ export default function ProductPage() {
   }));
   const totalReviews = reviews.length;
 
+  // Stock status config
+  const stockStatus = product.stock === 0
+    ? { label: 'Out of Stock', className: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800' }
+    : product.stock <= 5
+      ? { label: `Only ${product.stock} Left`, className: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800' }
+      : { label: 'In Stock', className: 'bg-green-50 text-green-600 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800' };
+
   const handleAddToCart = () => {
+    if (sizes.length > 0 && !selectedSize) {
+      toast({
+        title: 'Please select a size',
+        description: 'Choose your preferred size before adding to cart.',
+        variant: 'destructive',
+      });
+      return;
+    }
     addToCart(product, quantity, selectedSize, selectedColor);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    if (sizes.length > 0 && !selectedSize) {
+      toast({
+        title: 'Please select a size',
+        description: 'Choose your preferred size before purchasing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    handleAddToCart();
+    navigate('checkout');
   };
 
   const handleShare = () => {
@@ -223,6 +300,11 @@ export default function ProductPage() {
     });
   };
 
+  const handleTagClick = (tag: string) => {
+    setSearchQuery(tag);
+    navigate('shop');
+  };
+
   return (
     <div className="min-h-screen">
       <SizeGuideModal open={sizeGuideOpen} onOpenChange={setSizeGuideOpen} />
@@ -238,31 +320,42 @@ export default function ProductPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
           {/* Image Gallery */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
-            <div className="relative aspect-[3/4] rounded-lg overflow-hidden mb-4 bg-muted">
-              <img src={images[selectedImage] || '/placeholder.jpg'} alt={product.name} className="w-full h-full object-cover" />
+            <div
+              className="relative aspect-[3/4] rounded-lg overflow-hidden mb-4 bg-muted cursor-zoom-in group"
+              onClick={() => { setLightboxIndex(selectedImage); setLightboxOpen(true); }}
+            >
+              <img src={images[selectedImage] || '/placeholder.jpg'} alt={product.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
               {discount > 0 && (
                 <Badge className="absolute top-4 left-4 bg-red-500 text-white text-xs">-{discount}% OFF</Badge>
               )}
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <button
-                  onClick={() => toggleWishlist(product.id)}
+                  onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
                   className="w-10 h-10 bg-background/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
                 >
                   <Heart className={`h-5 w-5 ${wishlistIds.includes(product.id) ? 'fill-red-500 text-red-500' : ''}`} />
                 </button>
                 <button
-                  onClick={handleShare}
+                  onClick={(e) => { e.stopPropagation(); handleShare(); }}
                   className="w-10 h-10 bg-background/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-gold hover:text-background transition-colors"
                 >
                   <Share2 className={`h-5 w-5 ${copied ? 'text-green-500' : ''}`} />
                 </button>
                 <button
-                  onClick={() => toggleCompare(product.id)}
+                  onClick={(e) => { e.stopPropagation(); toggleCompare(product.id); }}
                   className={`w-10 h-10 bg-background/80 backdrop-blur rounded-full flex items-center justify-center transition-colors ${isInCompare ? 'bg-gold text-background' : 'hover:bg-gold hover:text-background'}`}
                   title={isInCompare ? 'Remove from compare' : 'Add to compare'}
                 >
                   <GitCompareArrows className="h-5 w-5" />
                 </button>
+              </div>
+              {/* Zoom hint overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200 pointer-events-none flex items-center justify-center">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                  <div className="w-10 h-10 bg-white/80 backdrop-blur rounded-full flex items-center justify-center">
+                    <Eye className="h-5 w-5 text-foreground" />
+                  </div>
+                </div>
               </div>
             </div>
             {images.length > 1 && (
@@ -290,7 +383,7 @@ export default function ProductPage() {
               <span className="text-sm text-muted-foreground">({product.reviewCount} reviews)</span>
             </div>
 
-            <div className="flex items-baseline gap-3 mb-6">
+            <div className="flex items-baseline gap-3 mb-2">
               <span className="text-3xl font-bold">₹{product.price.toLocaleString()}</span>
               {product.comparePrice && (
                 <>
@@ -300,7 +393,38 @@ export default function ProductPage() {
               )}
             </div>
 
-            <p className="text-muted-foreground text-sm leading-relaxed mb-6">{product.shortDesc || product.description?.substring(0, 200)}</p>
+            {/* Stock Status Badge */}
+            <div className="mb-4">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${stockStatus.className}`}>
+                {product.stock > 0 && product.stock <= 5 && (
+                  <AlertTriangle className="h-3 w-3" />
+                )}
+                {product.stock === 0 && (
+                  <AlertTriangle className="h-3 w-3" />
+                )}
+                {product.stock > 5 && (
+                  <Check className="h-3 w-3" />
+                )}
+                {stockStatus.label}
+              </span>
+            </div>
+
+            <p className="text-muted-foreground text-sm leading-relaxed mb-4">{product.shortDesc || product.description?.substring(0, 200)}</p>
+
+            {/* Product Tags */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-6">
+                {tags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => handleTagClick(tag)}
+                    className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] tracking-wider uppercase font-medium border border-border text-muted-foreground hover:border-gold hover:text-gold hover:bg-gold/5 transition-all duration-200"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="divider-gold mb-6" />
 
@@ -308,12 +432,25 @@ export default function ProductPage() {
             {colors.length > 0 && (
               <div className="mb-6">
                 <p className="text-sm font-medium mb-3">Color: <span className="text-muted-foreground font-normal">{selectedColor || 'Select'}</span></p>
-                <div className="flex gap-2">
-                  {colors.map((color) => (
-                    <button key={color} onClick={() => setSelectedColor(color)} className={`px-3 py-1.5 border text-sm rounded-md transition-all duration-200 ${selectedColor === color ? 'border-gold bg-gold/5 text-gold shadow-sm' : 'border-border hover:border-gold/50'}`}>
-                      {color}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {colors.map((color) => {
+                    const hex = getColorHex(color);
+                    const borderClass = getColorBorderClass(color);
+                    const isSelected = selectedColor === color;
+                    return (
+                      <button
+                        key={color}
+                        onClick={() => setSelectedColor(color)}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 border text-sm rounded-md transition-all duration-200 ${isSelected ? 'border-gold bg-gold/5 text-gold shadow-sm' : 'border-border hover:border-gold/50'}`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full shrink-0 ${borderClass}`}
+                          style={{ backgroundColor: hex }}
+                        />
+                        {color}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -321,7 +458,12 @@ export default function ProductPage() {
             {/* Size Selection */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium">Size: <span className="text-muted-foreground font-normal">{selectedSize || 'Select'}</span></p>
+                <p className="text-sm font-medium">
+                  Size:{' '}
+                  <span className="text-muted-foreground font-normal">
+                    {selectedSize || (sizes.length > 0 ? 'Select size' : 'One size')}
+                  </span>
+                </p>
                 <button
                   onClick={() => setSizeGuideOpen(true)}
                   className="text-xs text-gold hover:underline flex items-center gap-1 transition-colors"
@@ -329,13 +471,32 @@ export default function ProductPage() {
                   <Ruler className="h-3 w-3" /> Size Guide
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {sizes.map((size) => (
-                  <button key={size} onClick={() => setSelectedSize(size)} className={`w-12 h-12 border text-sm rounded-md flex items-center justify-center transition-all duration-200 ${selectedSize === size ? 'border-gold bg-gold/5 text-gold font-medium shadow-sm' : 'border-border hover:border-gold/50 hover:bg-gold/5'}`}>
-                    {size}
-                  </button>
-                ))}
-              </div>
+              {sizes.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {sizes.map((size) => {
+                    const isSelected = selectedSize === size;
+                    return (
+                      <div key={size} className="flex flex-col items-center">
+                        <button
+                          onClick={() => setSelectedSize(size)}
+                          className={`w-12 h-12 border text-sm rounded-md flex items-center justify-center transition-all duration-200 ${isSelected ? 'border-gold bg-gold/5 text-gold font-medium shadow-sm' : 'border-border hover:border-gold/50 hover:bg-gold/5'}`}
+                        >
+                          {size}
+                        </button>
+                        {isSelected && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-gold mt-1" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {!selectedSize && sizes.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 text-gold" />
+                  Please select a size to continue
+                </p>
+              )}
             </div>
 
             {/* Quantity */}
@@ -374,9 +535,9 @@ export default function ProductPage() {
                   {addedToCart ? <><Check className="mr-2 h-4 w-4" /> Added to Cart</> : <><ShoppingBag className="mr-2 h-4 w-4" /> Add to Cart</>}
                 </Button>
                 <Button
-                  onClick={() => { handleAddToCart(); navigate('checkout'); }}
+                  onClick={handleBuyNow}
                   variant="outline"
-                  className="flex-1 h-12 tracking-[0.1em] uppercase text-xs font-semibold border-foreground hover:bg-foreground hover:text-background transition-all duration-300"
+                  className="flex-1 h-12 tracking-[0.1em] uppercase text-xs font-semibold btn-luxury border-foreground hover:bg-foreground hover:text-background transition-all duration-300"
                 >
                   Buy Now
                 </Button>
@@ -522,13 +683,23 @@ export default function ProductPage() {
             transition={{ delay: 0.6 }}
             className="mt-20"
           >
-            <div className="text-center mb-8">
-              <p className="text-xs tracking-[0.3em] uppercase text-gold mb-1">Recommended</p>
-              <h2 className="heading-serif text-2xl md:text-3xl font-bold">You May Also Like</h2>
-              <div className="divider-gold w-16 mx-auto mt-2" />
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <p className="text-xs tracking-[0.3em] uppercase text-gold mb-1">Recommended</p>
+                <h2 className="heading-serif text-2xl md:text-3xl font-bold">You May Also Like</h2>
+                <div className="divider-gold w-16 mt-2" />
+              </div>
+              <button
+                onClick={() => navigate('shop')}
+                className="hidden sm:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gold transition-colors group"
+              >
+                View All
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {/* Mobile: horizontal scroll, Desktop: 4-column grid */}
+            <div className="flex lg:grid lg:grid-cols-4 gap-4 md:gap-6 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 snap-x snap-mandatory scrollbar-hide">
               {recommendations.map((rec, i) => {
                 const recImages = parseJsonField<string>(rec.images);
                 return (
@@ -537,7 +708,7 @@ export default function ProductPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 + i * 0.1 }}
-                    className="group cursor-pointer bg-background dark:bg-card rounded-lg overflow-hidden border border-border product-card"
+                    className="group cursor-pointer bg-background dark:bg-card rounded-lg overflow-hidden border border-border product-card min-w-[200px] sm:min-w-[220px] lg:min-w-0 flex-shrink-0 snap-start"
                     onClick={() => navigate('product', rec.id)}
                   >
                     <div className="relative aspect-[3/4] img-zoom">
@@ -562,8 +733,8 @@ export default function ProductPage() {
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const sizes = parseJsonField<string>(rec.sizes);
-                            addToCart(rec, 1, sizes[0]);
+                            const recSizes = parseJsonField<string>(rec.sizes);
+                            addToCart(rec, 1, recSizes[0]);
                           }}
                           size="sm"
                           className="flex-1 h-8 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
@@ -586,9 +757,27 @@ export default function ProductPage() {
                 );
               })}
             </div>
+
+            {/* Mobile View All link */}
+            <button
+              onClick={() => navigate('shop')}
+              className="sm:hidden flex items-center justify-center gap-1 text-sm text-gold hover:underline mt-4 w-full"
+            >
+              View All Recommendations
+              <ArrowRight className="h-4 w-4" />
+            </button>
           </motion.section>
         )}
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        images={images}
+        alt={product.name}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        initialIndex={lightboxIndex}
+      />
     </div>
   );
 }

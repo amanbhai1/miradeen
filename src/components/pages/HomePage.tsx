@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, useInView, AnimatePresence } from 'framer-motion';
+import { motion, useInView, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import {
-  Star, Heart, ShoppingBag, ArrowRight, ChevronLeft, ChevronRight,
-  Truck, Shield, RefreshCw, Headphones, Instagram, Send, Loader2, Sparkles,
-  Eye, GitCompareArrows
+  Star, Heart, ShoppingBag, ArrowRight,
+  Truck, Shield, RefreshCw, Headphones, Instagram, Sparkles,
+  Eye, GitCompareArrows, MessageCircle, Clock, Scissors, Leaf, Landmark
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useStore } from '@/store/useStore';
 import type { Product } from '@/types';
 import { parseJsonField } from '@/types';
+
+/* ─── Animated Section Wrapper ──────────────────────────────────────── */
 
 function AnimatedSection({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef(null);
@@ -29,6 +31,92 @@ function AnimatedSection({ children, className = '', delay = 0 }: { children: Re
     </motion.div>
   );
 }
+
+/* ─── useCountUp Hook ──────────────────────────────────────────────── */
+
+function useCountUp(target: number, duration = 2000, startOnView = true) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true });
+  const hasStarted = useRef(false);
+
+  useEffect(() => {
+    if (!startOnView || isInView) {
+      if (hasStarted.current) return;
+      hasStarted.current = true;
+      const startTime = performance.now();
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // easeOutExpo
+        const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        setCount(Math.floor(eased * target));
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          setCount(target);
+        }
+      };
+      requestAnimationFrame(animate);
+    }
+  }, [isInView, target, duration, startOnView]);
+
+  return { count, ref };
+}
+
+/* ─── Countdown Timer Hook ──────────────────────────────────────────── */
+
+function getInitialCountdown() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const diff = midnight.getTime() - now.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  return {
+    hours: hours.toString().padStart(2, '0'),
+    minutes: minutes.toString().padStart(2, '0'),
+    seconds: seconds.toString().padStart(2, '0'),
+  };
+}
+
+function useCountdown() {
+  const [timeLeft, setTimeLeft] = useState(getInitialCountdown);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeLeft(getInitialCountdown());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return timeLeft;
+}
+
+/* ─── Parallax Image Component ──────────────────────────────────────── */
+
+function ParallaxImage({ src, alt, speed = 0.3 }: { src: string; alt: string; speed?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start end', 'end start'],
+  });
+  const y = useTransform(scrollYProgress, [0, 1], ['-15%', '15%']);
+
+  return (
+    <div ref={ref} className="absolute inset-0 overflow-hidden">
+      <motion.img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-cover"
+        style={{ y, scale: 1.1 }}
+      />
+    </div>
+  );
+}
+
+/* ─── Product Card ──────────────────────────────────────────────────── */
 
 function ProductCard({ product, index }: { product: Product; index: number }) {
   const { navigate, addToCart, toggleWishlist, wishlistIds, setQuickViewProductId, toggleCompare, compareIds } = useStore();
@@ -100,11 +188,74 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
   );
 }
 
+/* ─── Animated Counter Badge ────────────────────────────────────────── */
+
+function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
+  const { count, ref } = useCountUp(target, 2200);
+  return (
+    <span ref={ref} className="heading-serif text-2xl md:text-3xl font-bold text-gold">
+      {count.toLocaleString()}{suffix}
+    </span>
+  );
+}
+
+/* ─── Countdown Digit ───────────────────────────────────────────────── */
+
+function CountdownDigit({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="w-14 h-14 md:w-16 md:h-16 rounded-lg bg-foreground text-background flex items-center justify-center">
+        <span className="heading-serif text-2xl md:text-3xl font-bold tabular-nums">{value}</span>
+      </div>
+      <span className="text-[10px] tracking-wider uppercase text-muted-foreground mt-1.5">{label}</span>
+    </div>
+  );
+}
+
+/* ─── Instagram Grid Item ───────────────────────────────────────────── */
+
+function InstagramGridItem({ src, index }: { src: string; index: number }) {
+  return (
+    <AnimatedSection delay={index * 0.05}>
+      <div className="group relative aspect-square overflow-hidden cursor-pointer">
+        <img
+          src={src}
+          alt={`Instagram ${index + 1}`}
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          loading="lazy"
+        />
+        {/* Instagram-style hover overlay */}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 text-white">
+              <Heart className="h-5 w-5 fill-white" />
+              <span className="text-sm font-semibold">1.2K</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-white">
+              <MessageCircle className="h-5 w-5 fill-white" />
+              <span className="text-sm font-semibold">48</span>
+            </div>
+          </div>
+          <Instagram className="h-4 w-4 text-white/70 mt-1" />
+        </div>
+      </div>
+    </AnimatedSection>
+  );
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   HOME PAGE
+   ═════════════════════════════════════════════════════════════════════ */
+
 export default function HomePage() {
   const { navigate } = useStore();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+
+  // Countdown timer
+  const timeLeft = useCountdown();
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1800);
@@ -115,6 +266,13 @@ export default function HomePage() {
     fetch('/api/products?featured=true&limit=8')
       .then(res => res.json())
       .then(data => setProducts(data.products || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/products?sort=latest&limit=4')
+      .then(res => res.json())
+      .then(data => setNewArrivals(data.products || []))
       .catch(() => {});
   }, []);
 
@@ -151,6 +309,24 @@ export default function HomePage() {
     { icon: Shield, title: 'Secure Payment', desc: 'PayPal & SSL secured' },
     { icon: RefreshCw, title: 'Easy Returns', desc: '30-day return policy' },
     { icon: Headphones, title: '24/7 Support', desc: 'WhatsApp & email' },
+  ];
+
+  const brandValues = [
+    {
+      icon: Scissors,
+      title: 'Craftsmanship',
+      description: 'Every stitch tells a story of dedication and mastery',
+    },
+    {
+      icon: Leaf,
+      title: 'Sustainability',
+      description: 'Committed to ethical sourcing and responsible luxury',
+    },
+    {
+      icon: Landmark,
+      title: 'Heritage',
+      description: 'Blending traditional Indian artistry with modern design',
+    },
   ];
 
   // Loading Screen
@@ -209,7 +385,7 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Hero Section */}
+      {/* ═══ Hero Section ═══ */}
       <section className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
@@ -287,7 +463,7 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      {/* Features Bar */}
+      {/* ═══ Features Bar ═══ */}
       <section className="border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -308,7 +484,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Categories */}
+      {/* ═══ Categories ═══ */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-12">
@@ -340,8 +516,48 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products */}
+      {/* ═══ New Arrivals Section ═══ */}
       <section className="py-20 bg-cream dark:bg-card/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-12">
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Just Dropped</p>
+            <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-3">New Arrivals</h2>
+            <div className="divider-gold w-20 mx-auto" />
+          </AnimatedSection>
+
+          {newArrivals.length === 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-[3/4] w-full rounded-lg" />
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {newArrivals.map((product, i) => (
+                <ProductCard key={product.id} product={product} index={i} />
+              ))}
+            </div>
+          )}
+
+          <AnimatedSection className="text-center mt-10" delay={0.4}>
+            <Button
+              onClick={() => navigate('shop')}
+              variant="outline"
+              className="border-foreground hover:bg-foreground hover:text-background tracking-[0.15em] uppercase text-xs px-8 py-3 transition-all duration-300"
+            >
+              View All New Arrivals <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* ═══ Featured Products ═══ */}
+      <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-12">
             <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Handpicked</p>
@@ -380,16 +596,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Parallax Banner */}
+      {/* ═══ Parallax Banner (Enhanced with Parallax Scroll) ═══ */}
       <section className="relative py-32 overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=1920"
-            alt="Luxury"
-            className="w-full h-full object-cover scale-110"
-          />
-          <div className="absolute inset-0 bg-black/60" />
-        </div>
+        <ParallaxImage
+          src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=1920"
+          alt="Luxury"
+          speed={0.3}
+        />
+        <div className="absolute inset-0 bg-black/60" />
         <div className="relative z-10 text-center text-white px-4">
           <AnimatedSection>
             <Sparkles className="h-8 w-8 text-gold mx-auto mb-6" />
@@ -410,8 +624,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* ═══ Brand Values Section ═══ */}
       <section className="py-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-14">
+            <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Our Promise</p>
+            <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-3">Brand Values</h2>
+            <div className="divider-gold w-20 mx-auto" />
+          </AnimatedSection>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {brandValues.map((value, i) => (
+              <AnimatedSection key={value.title} delay={i * 0.15}>
+                <div className="text-center group">
+                  <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-5 group-hover:bg-gold/20 transition-colors duration-300">
+                    <value.icon className="h-7 w-7 text-gold" />
+                  </div>
+                  <h3 className="heading-serif text-lg font-semibold mb-2">{value.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{value.description}</p>
+                </div>
+              </AnimatedSection>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Testimonials ═══ */}
+      <section className="py-20 bg-cream dark:bg-card/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-12">
             <p className="text-xs tracking-[0.3em] uppercase text-gold mb-2">Testimonials</p>
@@ -457,8 +696,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Instagram Gallery */}
-      <section className="py-20 bg-cream dark:bg-card/50">
+      {/* ═══ Instagram Gallery (Enhanced with Hover Overlays) ═══ */}
+      <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-12">
             <Instagram className="h-6 w-6 text-gold mx-auto mb-3" />
@@ -469,32 +708,31 @@ export default function HomePage() {
 
           <div className="grid grid-cols-3 md:grid-cols-6 gap-1">
             {instagramImages.map((img, i) => (
-              <AnimatedSection key={i} delay={i * 0.05}>
-                <div className="group relative aspect-square overflow-hidden cursor-pointer">
-                  <img src={img} alt={`Instagram ${i + 1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <Instagram className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-              </AnimatedSection>
+              <InstagramGridItem key={i} src={img} index={i} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* Trust Badges */}
+      {/* ═══ Trust Badges (Enhanced with Animated Counters) ═══ */}
       <section className="py-16 bg-cream dark:bg-card/30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { number: '50K+', label: 'Happy Customers', sublabel: 'and counting' },
-              { number: '500+', label: 'Products', sublabel: 'curated collection' },
-              { number: '4.9★', label: 'Average Rating', sublabel: 'from 10K+ reviews' },
-              { number: '30+', label: 'Countries', sublabel: 'worldwide delivery' },
+              { target: 50, suffix: 'K+', label: 'Happy Customers', sublabel: 'and counting' },
+              { target: 500, suffix: '+', label: 'Products', sublabel: 'curated collection' },
+              { target: 49, suffix: '', label: 'Average Rating', sublabel: 'from 10K+ reviews', isRating: true },
+              { target: 30, suffix: '+', label: 'Countries', sublabel: 'worldwide delivery' },
             ].map((stat, i) => (
               <AnimatedSection key={stat.label} delay={i * 0.1}>
                 <div className="text-center">
-                  <p className="heading-serif text-2xl md:text-3xl font-bold text-gold mb-1">{stat.number}</p>
+                  <p className="mb-1">
+                    {stat.isRating ? (
+                      <RatingCounter target={4.9} />
+                    ) : (
+                      <AnimatedCounter target={stat.target} suffix={stat.suffix} />
+                    )}
+                  </p>
                   <p className="text-sm font-medium">{stat.label}</p>
                   <p className="text-[10px] text-muted-foreground">{stat.sublabel}</p>
                 </div>
@@ -504,7 +742,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Bottom CTA */}
+      {/* ═══ Bottom CTA (Enhanced with Countdown Timer) ═══ */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 noise-overlay pointer-events-none" />
         <div className="max-w-3xl mx-auto px-4 text-center relative z-10">
@@ -514,11 +752,27 @@ export default function HomePage() {
             <h2 className="heading-serif text-3xl md:text-4xl font-bold mb-4">
               Get 20% Off Your First Order
             </h2>
-            <p className="text-muted-foreground text-sm mb-8 max-w-md mx-auto">
+            <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
               Join the MIRADEEN family and enjoy exclusive savings on your first purchase. Use code{' '}
               <span className="font-semibold text-gold bg-gold/10 px-2 py-0.5 rounded border border-gold/20">MIRADEEN20</span>{' '}
               at checkout
             </p>
+
+            {/* Countdown Timer */}
+            <div className="mb-8">
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                <Clock className="h-3.5 w-3.5 text-gold" />
+                <p className="text-xs tracking-wider uppercase text-muted-foreground">Offer ends in</p>
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <CountdownDigit value={timeLeft.hours} label="Hours" />
+                <span className="heading-serif text-2xl font-bold text-foreground/30 mb-5">:</span>
+                <CountdownDigit value={timeLeft.minutes} label="Minutes" />
+                <span className="heading-serif text-2xl font-bold text-foreground/30 mb-5">:</span>
+                <CountdownDigit value={timeLeft.seconds} label="Seconds" />
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 onClick={() => navigate('shop')}
@@ -538,5 +792,40 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+/* ─── Rating Counter (separate component for decimal support) ───────── */
+
+function RatingCounter({ target }: { target: number }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true });
+  const hasStarted = useRef(false);
+
+  useEffect(() => {
+    if (isInView && !hasStarted.current) {
+      hasStarted.current = true;
+      const duration = 2200;
+      const startTime = performance.now();
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        setCount(parseFloat((eased * target).toFixed(1)));
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          setCount(target);
+        }
+      };
+      requestAnimationFrame(animate);
+    }
+  }, [isInView, target]);
+
+  return (
+    <span ref={ref} className="heading-serif text-2xl md:text-3xl font-bold text-gold">
+      {count}★
+    </span>
   );
 }

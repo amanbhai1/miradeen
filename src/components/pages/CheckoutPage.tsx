@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Lock, Check, ShoppingBag, AlertCircle, ChevronRight } from 'lucide-react';
+import { CreditCard, Lock, Check, ShoppingBag, AlertCircle, ChevronRight, Package, MapPin, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,14 +15,40 @@ interface FormErrors {
   [key: string]: string;
 }
 
+function getEstimatedDeliveryDate(): string {
+  const now = new Date();
+  let businessDays = 0;
+  while (businessDays < 7) {
+    now.setDate(now.getDate() + 1);
+    const day = now.getDay();
+    if (day !== 0 && day !== 6) businessDays++;
+  }
+  return now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+function getMinDeliveryDate(): string {
+  const now = new Date();
+  let businessDays = 0;
+  while (businessDays < 5) {
+    now.setDate(now.getDate() + 1);
+    const day = now.getDay();
+    if (day !== 0 && day !== 6) businessDays++;
+  }
+  return now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function CheckoutPage() {
-  const { cart, getCartSubtotal, getCartTotal, couponDiscount, couponCode, clearCart, navigate, isAuthenticated, user } = useStore();
+  const { cart, getCartSubtotal, getCartTotal, getCartCount, couponDiscount, couponCode, applyCoupon, removeCoupon, clearCart, navigate, isAuthenticated, user } = useStore();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [couponInput, setCouponInput] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponError, setCouponError] = useState('');
 
   const [shipping, setShipping] = useState({
     name: user?.name || '',
@@ -35,25 +61,66 @@ export default function CheckoutPage() {
     country: user?.country || 'India',
   });
 
+  const hasSavedAddress = isAuthenticated && (user?.address || user?.city || user?.state || user?.zipCode);
+
   const subtotal = getCartSubtotal();
   const discount = couponDiscount;
   const shippingCost = subtotal >= 2000 ? 0 : 149;
   const tax = Math.round(subtotal * 0.05);
   const total = subtotal - discount + shippingCost + tax;
 
+  const estimatedDelivery = useMemo(() => getEstimatedDeliveryDate(), []);
+  const minDeliveryDate = useMemo(() => getMinDeliveryDate(), []);
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const newErrors: FormErrors = { ...errors };
+    if (field === 'phone' && shipping.phone) {
+      const digits = shipping.phone.replace(/\D/g, '');
+      if (digits.length !== 10) newErrors.phone = 'Phone number must be exactly 10 digits';
+      else delete newErrors.phone;
+    }
+    if (field === 'email' && shipping.email) {
+      if (!/\S+@\S+\.\S+/.test(shipping.email)) newErrors.email = 'Please enter a valid email address';
+      else delete newErrors.email;
+    }
+    setErrors(newErrors);
+  };
+
   const validateStep1 = (): boolean => {
     const newErrors: FormErrors = {};
     if (!shipping.name.trim()) newErrors.name = 'Name is required';
     if (!shipping.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(shipping.email)) newErrors.email = 'Invalid email';
+    else if (!/\S+@\S+\.\S+/.test(shipping.email)) newErrors.email = 'Please enter a valid email address';
     if (!shipping.phone.trim()) newErrors.phone = 'Phone is required';
-    else if (!/^\d{10}$/.test(shipping.phone.replace(/\D/g, ''))) newErrors.phone = 'Invalid phone number';
+    else {
+      const digits = shipping.phone.replace(/\D/g, '');
+      if (digits.length !== 10) newErrors.phone = 'Phone number must be exactly 10 digits';
+    }
     if (!shipping.address.trim()) newErrors.address = 'Address is required';
     if (!shipping.city.trim()) newErrors.city = 'City is required';
     if (!shipping.state.trim()) newErrors.state = 'State is required';
     if (!shipping.zip.trim()) newErrors.zip = 'ZIP code is required';
     setErrors(newErrors);
+    setTouched(Object.fromEntries(Object.keys(newErrors).map(k => [k, true])));
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleUseSavedAddress = () => {
+    if (!user) return;
+    setShipping({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      address: user.address || '',
+      city: user.city || '',
+      state: user.state || '',
+      zip: user.zipCode || '',
+      country: user.country || 'India',
+    });
+    setErrors({});
+    setTouched({});
+    toast({ title: 'Address loaded', description: 'Your saved address has been filled in.' });
   };
 
   const handleNextStep = () => {
@@ -61,6 +128,26 @@ export default function CheckoutPage() {
       setStep(2);
       setErrors({});
     }
+  };
+
+  const handleApplyCoupon = () => {
+    setCouponError('');
+    const success = applyCoupon(couponInput);
+    if (success) {
+      setCouponApplied(true);
+      toast({ title: 'Coupon applied!', description: `Discount of ₹${Math.round(discount).toLocaleString()} has been applied.` });
+    } else {
+      setCouponError('Invalid coupon code');
+      toast({ title: 'Invalid coupon', description: 'Please check the coupon code and try again.', variant: 'destructive' });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponInput('');
+    setCouponApplied(false);
+    setCouponError('');
+    toast({ title: 'Coupon removed', description: 'The discount has been removed.' });
   };
 
   const handleSubmitOrder = async () => {
@@ -125,35 +212,125 @@ export default function CheckoutPage() {
 
   if (orderSuccess) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center max-w-md mx-auto px-4">
-          <div className="w-24 h-24 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-            <Check className="h-12 w-12 text-green-600" />
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="text-center max-w-lg mx-auto"
+        >
+          {/* Animated Checkmark */}
+          <div className="w-28 h-28 mx-auto mb-8 relative">
             <motion.div
-              initial={{ scale: 1 }}
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1, delay: 0.3 }}
-              className="absolute inset-0 border-2 border-green-500/20 rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="w-28 h-28 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ duration: 0.4, delay: 0.6, type: 'spring', stiffness: 300 }}
+              >
+                <Check className="h-14 w-14 text-green-600" strokeWidth={3} />
+              </motion.div>
+            </motion.div>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0.5 }}
+              animate={{ scale: [0.8, 1.3, 1], opacity: [0.5, 0.2, 0] }}
+              transition={{ duration: 1.2, delay: 0.8, ease: 'easeOut' }}
+              className="absolute inset-0 border-2 border-green-500/30 rounded-full"
+            />
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0.5 }}
+              animate={{ scale: [0.8, 1.5, 1.2], opacity: [0.5, 0.1, 0] }}
+              transition={{ duration: 1.4, delay: 1, ease: 'easeOut' }}
+              className="absolute inset-[-8px] border border-green-500/20 rounded-full"
             />
           </div>
-          <h2 className="heading-serif text-3xl font-bold mb-2">Order Placed Successfully!</h2>
-          <p className="text-muted-foreground mb-2">Thank you for shopping with MIRADEEN</p>
-          <div className="inline-flex items-center gap-2 bg-gold/10 border border-gold/20 px-4 py-2 rounded-lg mb-6">
-            <p className="text-sm">Order Number:</p>
-            <p className="font-bold text-gold">{orderNumber}</p>
-          </div>
-          <p className="text-xs text-muted-foreground mb-8">A confirmation has been sent to your email. Your order will be processed shortly.</p>
-          <div className="flex gap-3 justify-center">
-            <Button onClick={() => navigate('orders')} variant="outline" className="tracking-wider uppercase text-xs hover:border-gold hover:text-gold transition-colors">View Orders</Button>
-            <Button onClick={() => navigate('shop')} className="bg-gold text-background hover:bg-gold-dark tracking-wider uppercase text-xs">Continue Shopping</Button>
-          </div>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="heading-serif text-3xl md:text-4xl font-bold mb-3"
+          >
+            Order Placed Successfully!
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 }}
+            className="text-muted-foreground mb-6"
+          >
+            Thank you for shopping with MIRADEEN
+          </motion.p>
+
+          {/* Order Number */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.1 }}
+            className="inline-flex flex-col items-center gap-1 bg-gold/10 border border-gold/20 px-6 py-3 rounded-xl mb-4"
+          >
+            <p className="text-xs text-muted-foreground">Order Number</p>
+            <p className="heading-serif text-xl font-bold text-gold">{orderNumber}</p>
+          </motion.div>
+
+          {/* Estimated Delivery */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.2 }}
+            className="flex items-center justify-center gap-2 mb-6 text-sm"
+          >
+            <Package className="h-4 w-4 text-gold" />
+            <span className="text-muted-foreground">Estimated delivery by</span>
+            <span className="font-semibold">{estimatedDelivery}</span>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.3 }}
+            className="text-xs text-muted-foreground mb-8"
+          >
+            A confirmation has been sent to {shipping.email}. Your order will be processed shortly.
+          </motion.p>
+
+          {/* Action Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.4 }}
+            className="flex flex-col sm:flex-row gap-3 justify-center"
+          >
+            <Button
+              onClick={() => navigate('order-tracking')}
+              variant="outline"
+              className="h-12 px-6 tracking-wider uppercase text-xs hover:border-gold hover:text-gold transition-colors flex items-center gap-2"
+            >
+              <Package className="h-4 w-4" />
+              Track Order
+            </Button>
+            <Button
+              onClick={() => navigate('shop')}
+              className="h-12 px-6 bg-gold text-background hover:bg-gold-dark tracking-wider uppercase text-xs font-semibold flex items-center gap-2"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Continue Shopping
+            </Button>
+          </motion.div>
         </motion.div>
       </div>
     );
   }
 
   const inputClass = (field: string) =>
-    `mt-1 h-11 border-border focus:border-gold transition-colors ${errors[field] ? 'border-destructive focus:border-destructive' : ''}`;
+    `mt-1 h-11 border-border focus:border-gold focus:ring-gold/20 focus:ring-2 transition-all ${touched[field] && errors[field] ? 'border-destructive focus:border-destructive focus:ring-destructive/20' : ''}`;
+
+  const showError = (field: string) => touched[field] && errors[field];
 
   return (
     <div className="min-h-screen">
@@ -202,56 +379,101 @@ export default function CheckoutPage() {
               {step === 1 && (
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   <div className="border border-border rounded-xl p-6 md:p-8 bg-card">
-                    <h2 className="text-lg font-semibold mb-1">Shipping Information</h2>
+                    <div className="flex items-center justify-between mb-1">
+                      <h2 className="text-lg font-semibold">Shipping Information</h2>
+                      {hasSavedAddress && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleUseSavedAddress}
+                          className="text-xs text-gold hover:text-gold hover:bg-gold/10 transition-colors h-auto py-1 px-2 gap-1.5"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                          Use saved address
+                        </Button>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground mb-6">Where should we deliver your order?</p>
 
                     {/* Error summary */}
                     {Object.keys(errors).length > 0 && (
                       <div className="flex items-center gap-2 bg-destructive/5 border border-destructive/20 text-destructive rounded-lg px-4 py-3 mb-6 text-sm">
                         <AlertCircle className="h-4 w-4 shrink-0" />
-                        Please fix the errors below to continue
+                        Please fix the {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} below to continue
                       </div>
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="sm:col-span-2">
                         <Label className="text-xs tracking-wider uppercase">Full Name *</Label>
-                        <Input value={shipping.name} onChange={(e) => setShipping({ ...shipping, name: e.target.value })} className={inputClass('name')} placeholder="John Doe" />
-                        {errors.name && <p className="text-[10px] text-destructive mt-1">{errors.name}</p>}
+                        <Input value={shipping.name} onChange={(e) => setShipping({ ...shipping, name: e.target.value })} onBlur={() => handleBlur('name')} className={inputClass('name')} placeholder="John Doe" />
+                        <AnimatePresence>
+                          {showError('name') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.name}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div>
                         <Label className="text-xs tracking-wider uppercase">Email *</Label>
-                        <Input type="email" value={shipping.email} onChange={(e) => setShipping({ ...shipping, email: e.target.value })} className={inputClass('email')} placeholder="you@email.com" />
-                        {errors.email && <p className="text-[10px] text-destructive mt-1">{errors.email}</p>}
+                        <Input type="email" value={shipping.email} onChange={(e) => setShipping({ ...shipping, email: e.target.value })} onBlur={() => handleBlur('email')} className={inputClass('email')} placeholder="you@email.com" />
+                        <AnimatePresence>
+                          {showError('email') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.email}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div>
                         <Label className="text-xs tracking-wider uppercase">Phone *</Label>
-                        <Input value={shipping.phone} onChange={(e) => setShipping({ ...shipping, phone: e.target.value })} className={inputClass('phone')} placeholder="+91 9876543210" />
-                        {errors.phone && <p className="text-[10px] text-destructive mt-1">{errors.phone}</p>}
+                        <Input value={shipping.phone} onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d+]/g, '');
+                          setShipping({ ...shipping, phone: val });
+                        }} onBlur={() => handleBlur('phone')} className={inputClass('phone')} placeholder="9876543210" />
+                        <AnimatePresence>
+                          {showError('phone') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.phone}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div className="sm:col-span-2">
                         <Label className="text-xs tracking-wider uppercase">Address *</Label>
-                        <Input value={shipping.address} onChange={(e) => setShipping({ ...shipping, address: e.target.value })} className={inputClass('address')} placeholder="Street address, apartment, suite" />
-                        {errors.address && <p className="text-[10px] text-destructive mt-1">{errors.address}</p>}
+                        <Input value={shipping.address} onChange={(e) => setShipping({ ...shipping, address: e.target.value })} onBlur={() => handleBlur('address')} className={inputClass('address')} placeholder="Street address, apartment, suite" />
+                        <AnimatePresence>
+                          {showError('address') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.address}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div>
                         <Label className="text-xs tracking-wider uppercase">City *</Label>
-                        <Input value={shipping.city} onChange={(e) => setShipping({ ...shipping, city: e.target.value })} className={inputClass('city')} placeholder="Mumbai" />
-                        {errors.city && <p className="text-[10px] text-destructive mt-1">{errors.city}</p>}
+                        <Input value={shipping.city} onChange={(e) => setShipping({ ...shipping, city: e.target.value })} onBlur={() => handleBlur('city')} className={inputClass('city')} placeholder="Mumbai" />
+                        <AnimatePresence>
+                          {showError('city') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.city}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div>
                         <Label className="text-xs tracking-wider uppercase">State *</Label>
-                        <Input value={shipping.state} onChange={(e) => setShipping({ ...shipping, state: e.target.value })} className={inputClass('state')} placeholder="Maharashtra" />
-                        {errors.state && <p className="text-[10px] text-destructive mt-1">{errors.state}</p>}
+                        <Input value={shipping.state} onChange={(e) => setShipping({ ...shipping, state: e.target.value })} onBlur={() => handleBlur('state')} className={inputClass('state')} placeholder="Maharashtra" />
+                        <AnimatePresence>
+                          {showError('state') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.state}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div>
                         <Label className="text-xs tracking-wider uppercase">ZIP Code *</Label>
-                        <Input value={shipping.zip} onChange={(e) => setShipping({ ...shipping, zip: e.target.value })} className={inputClass('zip')} placeholder="400001" />
-                        {errors.zip && <p className="text-[10px] text-destructive mt-1">{errors.zip}</p>}
+                        <Input value={shipping.zip} onChange={(e) => setShipping({ ...shipping, zip: e.target.value })} onBlur={() => handleBlur('zip')} className={inputClass('zip')} placeholder="400001" />
+                        <AnimatePresence>
+                          {showError('zip') && (
+                            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive mt-1">{errors.zip}</motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div>
                         <Label className="text-xs tracking-wider uppercase">Country</Label>
-                        <Input value={shipping.country} onChange={(e) => setShipping({ ...shipping, country: e.target.value })} className="mt-1 h-11 border-border focus:border-gold transition-colors" />
+                        <Input value={shipping.country} onChange={(e) => setShipping({ ...shipping, country: e.target.value })} className="mt-1 h-11 border-border focus:border-gold focus:ring-gold/20 focus:ring-2 transition-all" />
                       </div>
                     </div>
                   </div>
@@ -348,16 +570,56 @@ export default function CheckoutPage() {
                   return (
                     <div key={`${item.product.id}-${item.size}`} className="flex gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="w-14 h-18 rounded bg-muted overflow-hidden shrink-0">
-                        <img src={images[0]} alt="" className="w-full h-full object-cover" />
+                        <img src={images[0]} alt={item.product.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate">{item.product.name}</p>
-                        <p className="text-[10px] text-muted-foreground">Qty: {item.quantity}{item.size ? ` | ${item.size}` : ''}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Qty: {item.quantity}
+                          {item.size ? ` | Size: ${item.size}` : ''}
+                          {item.color ? ` | Color: ${item.color}` : ''}
+                        </p>
                         <p className="text-xs font-medium mt-0.5">₹{(item.product.price * item.quantity).toLocaleString()}</p>
                       </div>
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Coupon Code */}
+              <div className="divider-gold mb-4" />
+              <div className="mb-4">
+                <p className="text-xs tracking-wider uppercase text-muted-foreground mb-2">Coupon Code</p>
+                {couponApplied && couponCode ? (
+                  <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                    <span className="text-xs font-medium text-green-700 dark:text-green-400 flex-1">{couponCode}</span>
+                    <span className="text-xs font-semibold text-green-700 dark:text-green-400">-₹{discount.toLocaleString()}</span>
+                    <button onClick={handleRemoveCoupon} className="text-[10px] text-muted-foreground hover:text-destructive transition-colors ml-1">Remove</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponInput}
+                      onChange={(e) => { setCouponInput(e.target.value); setCouponError(''); }}
+                      placeholder="Enter code"
+                      className={`h-9 text-xs ${couponError ? 'border-destructive' : ''}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleApplyCoupon}
+                      disabled={!couponInput.trim()}
+                      className="h-9 text-xs hover:border-gold hover:text-gold transition-colors shrink-0"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                )}
+                {couponError && !couponApplied && (
+                  <p className="text-[10px] text-destructive mt-1">{couponError}</p>
+                )}
               </div>
 
               <div className="divider-gold mb-4" />
@@ -367,8 +629,11 @@ export default function CheckoutPage() {
                   <span>₹{subtotal.toLocaleString()}</span>
                 </div>
                 {discount > 0 && (
-                  <div className="flex justify-between text-green-600 text-xs">
-                    <span>Coupon Discount</span>
+                  <div className="flex justify-between text-green-600 text-xs items-center gap-1">
+                    <div className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" />
+                      <span>Coupon ({couponCode})</span>
+                    </div>
                     <span>-₹{discount.toLocaleString()}</span>
                   </div>
                 )}
@@ -396,6 +661,12 @@ export default function CheckoutPage() {
                   </p>
                 </div>
               )}
+
+              {/* Estimated Delivery */}
+              <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                <Package className="h-4 w-4 text-gold shrink-0" />
+                <span>Est. delivery: <span className="font-medium text-foreground">{minDeliveryDate} - {estimatedDelivery}</span></span>
+              </div>
             </div>
 
             {/* Trust badges */}

@@ -1,29 +1,123 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, ShoppingBag, SlidersHorizontal, Grid3X3, Grid2X2, ChevronDown, X, Eye, GitCompareArrows } from 'lucide-react';
+import { Heart, ShoppingBag, SlidersHorizontal, Grid3X3, Grid2X2, ChevronDown, X, Eye, GitCompareArrows, PackageSearch, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { useStore } from '@/store/useStore';
 import type { Product, Category } from '@/types';
 import { parseJsonField } from '@/types';
 
+// ─── Color name → hex mapping ──────────────────────────────────────
+const COLOR_HEX_MAP: Record<string, string> = {
+  black: '#1a1a1a',
+  white: '#ffffff',
+  navy: '#1e3a5f',
+  red: '#dc2626',
+  green: '#16a34a',
+  beige: '#d4c5a9',
+  brown: '#78350f',
+  gold: '#c9a96e',
+  blue: '#2563eb',
+  gray: '#6b7280',
+  grey: '#6b7280',
+  maroon: '#7c2d12',
+  cream: '#f5f0e1',
+  olive: '#5c6b3c',
+  teal: '#0d9488',
+  purple: '#7c3aed',
+  pink: '#ec4899',
+  orange: '#ea580c',
+  coral: '#f87171',
+  burgundy: '#7f1d1d',
+  charcoal: '#36454f',
+  khaki: '#c3b091',
+  rust: '#b7410e',
+  peach: '#fbbf24',
+  ivory: '#fffff0',
+  silver: '#c0c0c0',
+  tan: '#d2b48c',
+  camel: '#c19a6b',
+  mustard: '#e1ad01',
+  lavender: '#b57edc',
+  mauve: '#e0b0ff',
+  mint: '#98fb98',
+  turquoise: '#40e0d0',
+  magenta: '#ff00ff',
+  copper: '#b87333',
+  bronze: '#cd7f32',
+  wine: '#722f37',
+  forest: '#228b22',
+  olivegreen: '#556b2f',
+  skyblue: '#87ceeb',
+  royalblue: '#4169e1',
+  midnightblue: '#191970',
+  hotpink: '#ff69b4',
+  salmon: '#fa8072',
+  fuchsia: '#ff00ff',
+  indigo: '#4f46e5',
+  cyan: '#06b6d4',
+  lime: '#84cc16',
+  yellow: '#eab308',
+};
+
+function getColorHex(colorName: string): string {
+  const normalized = colorName.toLowerCase().replace(/[^a-z]/g, '');
+  if (COLOR_HEX_MAP[normalized]) return COLOR_HEX_MAP[normalized];
+  // Try to find a partial match
+  for (const [key, val] of Object.entries(COLOR_HEX_MAP)) {
+    if (normalized.includes(key) || key.includes(normalized)) return val;
+  }
+  // Generate a stable color from the string
+  let hash = 0;
+  for (let i = 0; i < colorName.length; i++) {
+    hash = colorName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 45%, 50%)`;
+}
+
+// ─── All size options ──────────────────────────────────────────────
+const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
+
+// ─── Active Filter Chip ────────────────────────────────────────────
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <motion.span
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/10 text-gold text-xs font-medium border border-gold/20 hover:bg-gold/20 transition-colors cursor-pointer"
+      onClick={onRemove}
+    >
+      {label}
+      <X className="h-3 w-3" />
+    </motion.span>
+  );
+}
+
+// ─── Main ShopPage Component ──────────────────────────────────────
 export default function ShopPage() {
   const { navigate, addToCart, toggleWishlist, wishlistIds, searchQuery, categoryFilter, setCategoryFilter, setQuickViewProductId, toggleCompare, compareIds } = useStore();
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [priceRange, setPriceRange] = useState([0, 100000]);
   const [selectedCategory, setSelectedCategory] = useState(categoryFilter || '');
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState('latest');
   const [gridCols, setGridCols] = useState(4);
   const [showFilters, setShowFilters] = useState(false);
   const isInitialMount = useRef(true);
 
+  // ─── Fetch all products (unfiltered) ─────────────────────────────
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -34,12 +128,42 @@ export default function ShopPage() {
       params.set('limit', '50');
       const res = await fetch(`/api/products?${params}`);
       const data = await res.json();
-      let filtered = data.products || [];
-      filtered = filtered.filter((p: Product) => p.price >= priceRange[0] && p.price <= priceRange[1]);
-      setProducts(filtered);
-    } catch { setProducts([]); }
+      let fetched = data.products || [];
+      // Apply price range
+      fetched = fetched.filter((p: Product) => p.price >= priceRange[0] && p.price <= priceRange[1]);
+      // Apply in-stock filter
+      if (inStockOnly) {
+        fetched = fetched.filter((p: Product) => p.stock > 0);
+      }
+      // Apply color filter
+      if (selectedColors.length > 0) {
+        fetched = fetched.filter((p: Product) => {
+          const colors = parseJsonField<string>(p.colors);
+          return colors.some((c: string) => selectedColors.some(sc => c.toLowerCase().includes(sc.toLowerCase()) || sc.toLowerCase().includes(c.toLowerCase())));
+        });
+      }
+      // Apply size filter
+      if (selectedSizes.length > 0) {
+        fetched = fetched.filter((p: Product) => {
+          const sizes = parseJsonField<string>(p.sizes);
+          return sizes.some((s: string) => selectedSizes.includes(s));
+        });
+      }
+      // Apply client-side sorting for new sort options
+      if (sortBy === 'newest') {
+        fetched.sort((a: Product, b: Product) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      } else if (sortBy === 'name-asc') {
+        fetched.sort((a: Product, b: Product) => a.name.localeCompare(b.name));
+      }
+      setProducts(fetched);
+      // Also keep all products for counting
+      setAllProducts(data.products || []);
+    } catch {
+      setProducts([]);
+      setAllProducts([]);
+    }
     setLoading(false);
-  }, [selectedCategory, searchQuery, sortBy, priceRange]);
+  }, [selectedCategory, searchQuery, sortBy, priceRange, inStockOnly, selectedColors, selectedSizes]);
 
   const fetchCategories = useCallback(() => {
     fetch('/api/products?limit=100').then(r => r.json()).then(d => {
@@ -59,6 +183,78 @@ export default function ShopPage() {
     }
   }, [fetchProducts, fetchCategories]);
 
+  // ─── Extract unique colors from all products ─────────────────────
+  const availableColors = useMemo(() => {
+    const colorSet = new Set<string>();
+    allProducts.forEach(p => {
+      const colors = parseJsonField<string>(p.colors);
+      colors.forEach(c => {
+        if (c && c.trim()) colorSet.add(c.trim());
+      });
+    });
+    return Array.from(colorSet);
+  }, [allProducts]);
+
+  // ─── Extract unique sizes from all products ──────────────────────
+  const availableSizes = useMemo(() => {
+    const sizeSet = new Set<string>();
+    allProducts.forEach(p => {
+      const sizes = parseJsonField<string>(p.sizes);
+      sizes.forEach(s => {
+        if (s && s.trim()) sizeSet.add(s.trim());
+      });
+    });
+    return ALL_SIZES.filter(s => sizeSet.has(s));
+  }, [allProducts]);
+
+  // ─── Category name lookup ────────────────────────────────────────
+  const getCategoryName = (slug: string) => {
+    const cat = categories.find(c => c.slug === slug);
+    return cat ? cat.name : slug;
+  };
+
+  // ─── Active filter count ─────────────────────────────────────────
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategory) count++;
+    if (priceRange[0] > 0 || priceRange[1] < 100000) count++;
+    if (selectedColors.length > 0) count++;
+    if (selectedSizes.length > 0) count++;
+    if (inStockOnly) count++;
+    return count;
+  }, [selectedCategory, priceRange, selectedColors, selectedSizes, inStockOnly]);
+
+  // ─── Total count (before filters, for "Showing X of Y") ──────────
+  const totalProductCount = allProducts.length;
+
+  // ─── Clear all filters ───────────────────────────────────────────
+  const clearAllFilters = () => {
+    setSelectedCategory('');
+    setCategoryFilter('');
+    setPriceRange([0, 100000]);
+    setSelectedColors([]);
+    setSelectedSizes([]);
+    setInStockOnly(false);
+  };
+
+  // ─── Remove individual filters ───────────────────────────────────
+  const removeCategoryFilter = () => {
+    setSelectedCategory('');
+    setCategoryFilter('');
+  };
+  const removePriceFilter = () => {
+    setPriceRange([0, 100000]);
+  };
+  const removeColorFilter = (color: string) => {
+    setSelectedColors(prev => prev.filter(c => c !== color));
+  };
+  const removeSizeFilter = (size: string) => {
+    setSelectedSizes(prev => prev.filter(s => s !== size));
+  };
+  const removeStockFilter = () => {
+    setInStockOnly(false);
+  };
+
   const formatPrice = (p: number) => `₹${p.toLocaleString()}`;
 
   return (
@@ -70,18 +266,35 @@ export default function ShopPage() {
         <div className="relative z-10 text-center text-white">
           <p className="text-xs tracking-[0.3em] uppercase text-gold-light mb-2">Discover</p>
           <h1 className="heading-serif text-4xl md:text-5xl font-bold">Shop</h1>
-          <p className="text-sm text-primary-foreground/70 mt-2">{products.length} products available</p>
+          <p className="text-sm text-primary-foreground/70 mt-2">
+            {loading
+              ? 'Loading products...'
+              : `${products.length} of ${totalProductCount} products available`}
+          </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="lg:hidden hover:border-gold hover:text-gold transition-colors">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="lg:hidden hover:border-gold hover:text-gold transition-colors relative"
+            >
               <SlidersHorizontal className="h-4 w-4 mr-1" /> Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gold text-background text-[10px] font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
             </Button>
-            <span className="text-sm text-muted-foreground">{products.length} products</span>
+            <span className="text-sm text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{products.length}</span> of{' '}
+              <span className="font-medium text-foreground">{totalProductCount}</span> products
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -91,6 +304,8 @@ export default function ShopPage() {
                 className="appearance-none bg-background border border-input rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-gold"
               >
                 <option value="latest">Latest</option>
+                <option value="newest">Newest First</option>
+                <option value="name-asc">Name A-Z</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
                 <option value="popular">Most Popular</option>
@@ -109,6 +324,47 @@ export default function ShopPage() {
           </div>
         </div>
 
+        {/* Active Filters Chips */}
+        <AnimatePresence>
+          {activeFilterCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-6 flex flex-wrap items-center gap-2"
+            >
+              <span className="text-xs text-muted-foreground mr-1">Active filters:</span>
+              {selectedCategory && (
+                <FilterChip
+                  label={`Category: ${getCategoryName(selectedCategory)}`}
+                  onRemove={removeCategoryFilter}
+                />
+              )}
+              {(priceRange[0] > 0 || priceRange[1] < 100000) && (
+                <FilterChip
+                  label={`Price: ${formatPrice(priceRange[0])} - ${formatPrice(priceRange[1])}`}
+                  onRemove={removePriceFilter}
+                />
+              )}
+              {selectedColors.map(color => (
+                <FilterChip key={color} label={`Color: ${color}`} onRemove={() => removeColorFilter(color)} />
+              ))}
+              {selectedSizes.map(size => (
+                <FilterChip key={size} label={`Size: ${size}`} onRemove={() => removeSizeFilter(size)} />
+              ))}
+              {inStockOnly && (
+                <FilterChip label="In Stock Only" onRemove={removeStockFilter} />
+              )}
+              <button
+                onClick={clearAllFilters}
+                className="text-xs text-muted-foreground hover:text-gold transition-colors underline ml-2"
+              >
+                Clear all
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex gap-8">
           {/* Sidebar Filters - Desktop */}
           <aside className="hidden lg:block w-64 shrink-0">
@@ -118,6 +374,22 @@ export default function ShopPage() {
               onSelectCategory={(cat) => { setSelectedCategory(cat); setCategoryFilter(cat); }}
               priceRange={priceRange}
               onPriceChange={setPriceRange}
+              selectedColors={selectedColors}
+              onToggleColor={(color) => {
+                setSelectedColors(prev =>
+                  prev.includes(color) ? prev.filter(c => c !== color) : [...prev, color]
+                );
+              }}
+              availableColors={availableColors}
+              selectedSizes={selectedSizes}
+              onToggleSize={(size) => {
+                setSelectedSizes(prev =>
+                  prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+                );
+              }}
+              availableSizes={availableSizes}
+              inStockOnly={inStockOnly}
+              onToggleInStock={() => setInStockOnly(prev => !prev)}
               onApply={fetchProducts}
             />
           </aside>
@@ -134,7 +406,14 @@ export default function ShopPage() {
                 <div className="absolute inset-0 bg-black/50" onClick={() => setShowFilters(false)} />
                 <div className="absolute right-0 top-0 bottom-0 w-80 bg-background p-6 overflow-y-auto">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-semibold">Filters</h3>
+                    <h3 className="font-semibold flex items-center gap-2">
+                      Filters
+                      {activeFilterCount > 0 && (
+                        <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gold text-background text-[10px] font-bold">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </h3>
                     <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)} className="hover:text-gold"><X className="h-5 w-5" /></Button>
                   </div>
                   <FilterSidebar
@@ -143,6 +422,22 @@ export default function ShopPage() {
                     onSelectCategory={(cat) => { setSelectedCategory(cat); setCategoryFilter(cat); }}
                     priceRange={priceRange}
                     onPriceChange={setPriceRange}
+                    selectedColors={selectedColors}
+                    onToggleColor={(color) => {
+                      setSelectedColors(prev =>
+                        prev.includes(color) ? prev.filter(c => c !== color) : [...prev, color]
+                      );
+                    }}
+                    availableColors={availableColors}
+                    selectedSizes={selectedSizes}
+                    onToggleSize={(size) => {
+                      setSelectedSizes(prev =>
+                        prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+                      );
+                    }}
+                    availableSizes={availableSizes}
+                    inStockOnly={inStockOnly}
+                    onToggleInStock={() => setInStockOnly(prev => !prev)}
                     onApply={() => { fetchProducts(); setShowFilters(false); }}
                   />
                 </div>
@@ -156,18 +451,39 @@ export default function ShopPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="space-y-3">
-                    <div className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
-                    <div className="h-3 w-16 bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                    <div className="aspect-[3/4] bg-muted animate-shimmer rounded-lg" />
+                    <div className="h-3 w-16 bg-muted animate-shimmer rounded" />
+                    <div className="h-4 w-32 bg-muted animate-shimmer rounded" />
+                    <div className="h-4 w-20 bg-muted animate-shimmer rounded" />
                   </div>
                 ))}
               </div>
             ) : products.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="text-muted-foreground">No products found matching your criteria.</p>
-                <Button variant="outline" className="mt-4 hover:border-gold hover:text-gold transition-colors" onClick={() => { setSelectedCategory(''); setCategoryFilter(''); setPriceRange([0, 100000]); }}>Clear Filters</Button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center py-20 text-center"
+              >
+                <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mb-6">
+                  <PackageSearch className="h-10 w-10 text-muted-foreground/50" />
+                </div>
+                <h3 className="heading-serif text-xl font-semibold mb-2">No products found</h3>
+                <p className="text-sm text-muted-foreground max-w-md mb-6">
+                  We couldn&apos;t find any products matching your current filters. Try adjusting your criteria or browse our full collection.
+                </p>
+                {activeFilterCount > 0 && (
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      className="hover:border-gold hover:text-gold transition-colors"
+                      onClick={clearAllFilters}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Clear All Filters
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
             ) : (
               <div className={`grid gap-4 md:gap-6 ${gridCols === 4 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
                 {products.map((product, i) => {
@@ -187,6 +503,7 @@ export default function ShopPage() {
                             {productDiscount > 0 && <Badge className="bg-red-500 text-white text-[9px] px-1.5 py-0">-{productDiscount}%</Badge>}
                             {product.isNewArrival && <Badge className="bg-gold text-background text-[9px] px-1.5 py-0">New</Badge>}
                             {product.isBestseller && <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Bestseller</Badge>}
+                            {product.stock === 0 && <Badge className="bg-muted text-muted-foreground text-[9px] px-1.5 py-0">Out of Stock</Badge>}
                           </div>
                           <div className="absolute top-2 right-2 flex flex-col gap-1">
                             <button
@@ -222,9 +539,10 @@ export default function ShopPage() {
                                 addToCart(product, 1, sizes[0]);
                               }}
                               size="sm"
-                              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px]"
+                              disabled={product.stock === 0}
+                              className="flex-1 h-9 bg-white text-foreground hover:bg-gold hover:text-background text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <ShoppingBag className="h-3 w-3 mr-0.5" /> Add to Cart
+                              <ShoppingBag className="h-3 w-3 mr-0.5" /> {product.stock === 0 ? 'Sold Out' : 'Add to Cart'}
                             </Button>
                           </div>
                         </div>
@@ -259,16 +577,43 @@ export default function ShopPage() {
   );
 }
 
-function FilterSidebar({ categories, selectedCategory, onSelectCategory, priceRange, onPriceChange, onApply }: {
+// ─── FilterSidebar Component ──────────────────────────────────────
+interface FilterSidebarProps {
   categories: Category[];
   selectedCategory: string;
   onSelectCategory: (cat: string) => void;
   priceRange: number[];
   onPriceChange: (range: number[]) => void;
+  selectedColors: string[];
+  onToggleColor: (color: string) => void;
+  availableColors: string[];
+  selectedSizes: string[];
+  onToggleSize: (size: string) => void;
+  availableSizes: string[];
+  inStockOnly: boolean;
+  onToggleInStock: () => void;
   onApply: () => void;
-}) {
+}
+
+function FilterSidebar({
+  categories,
+  selectedCategory,
+  onSelectCategory,
+  priceRange,
+  onPriceChange,
+  selectedColors,
+  onToggleColor,
+  availableColors,
+  selectedSizes,
+  onToggleSize,
+  availableSizes,
+  inStockOnly,
+  onToggleInStock,
+  onApply,
+}: FilterSidebarProps) {
   return (
     <div className="space-y-8 sticky top-32">
+      {/* Categories */}
       <div>
         <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-4">Categories</h4>
         <div className="space-y-2">
@@ -282,6 +627,8 @@ function FilterSidebar({ categories, selectedCategory, onSelectCategory, priceRa
           ))}
         </div>
       </div>
+
+      {/* Price Range */}
       <div>
         <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-4">Price Range</h4>
         <Slider
@@ -295,8 +642,96 @@ function FilterSidebar({ categories, selectedCategory, onSelectCategory, priceRa
           <span>₹{priceRange[0].toLocaleString()}</span>
           <span>₹{priceRange[1].toLocaleString()}</span>
         </div>
-        <Button size="sm" variant="outline" className="w-full mt-4 hover:border-gold hover:text-gold transition-colors" onClick={onApply}>Apply Filters</Button>
       </div>
+
+      {/* Colors */}
+      {availableColors.length > 0 && (
+        <div>
+          <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-4">Colors</h4>
+          <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+            {availableColors.map((color) => {
+              const hex = getColorHex(color);
+              const isActive = selectedColors.includes(color);
+              return (
+                <button
+                  key={color}
+                  onClick={() => onToggleColor(color)}
+                  title={color}
+                  className={`relative w-7 h-7 rounded-full border-2 transition-all duration-200 hover:scale-110 ${
+                    isActive
+                      ? 'border-gold ring-2 ring-gold/30 scale-110'
+                      : 'border-border hover:border-gold/50'
+                  }`}
+                  style={{ backgroundColor: hex }}
+                >
+                  {isActive && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <svg className={`w-3.5 h-3.5 ${hex === '#ffffff' || hex === '#fffff0' || hex === '#f5f0e1' ? 'text-gray-800' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </motion.span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {selectedColors.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {selectedColors.length} color{selectedColors.length > 1 ? 's' : ''} selected
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Sizes */}
+      {availableSizes.length > 0 && (
+        <div>
+          <h4 className="text-xs tracking-[0.2em] uppercase font-semibold mb-4">Sizes</h4>
+          <div className="flex flex-wrap gap-2">
+            {availableSizes.map((size) => {
+              const isActive = selectedSizes.includes(size);
+              return (
+                <button
+                  key={size}
+                  onClick={() => onToggleSize(size)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded border transition-all duration-200 ${
+                    isActive
+                      ? 'bg-gold text-background border-gold'
+                      : 'bg-background text-muted-foreground border-border hover:border-gold hover:text-gold'
+                  }`}
+                >
+                  {size}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* In Stock Only */}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="in-stock-only"
+          checked={inStockOnly}
+          onCheckedChange={onToggleInStock}
+          className="data-[state=checked]:bg-gold data-[state=checked]:border-gold"
+        />
+        <label
+          htmlFor="in-stock-only"
+          className="text-sm cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors"
+        >
+          In Stock Only
+        </label>
+      </div>
+
+      {/* Apply Button */}
+      <Button size="sm" variant="outline" className="w-full hover:border-gold hover:text-gold transition-colors" onClick={onApply}>
+        Apply Filters
+      </Button>
     </div>
   );
 }
