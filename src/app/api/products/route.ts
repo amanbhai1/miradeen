@@ -52,27 +52,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
-export async function POST(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const product = await db.product.create({
-      data: {
-        ...body,
-        images: typeof body.images === 'string' ? body.images : JSON.stringify(body.images || []),
-        sizes: typeof body.sizes === 'string' ? body.sizes : JSON.stringify(body.sizes || []),
-        colors: body.colors ? (typeof body.colors === 'string' ? body.colors : JSON.stringify(body.colors)) : null,
-      },
-      include: { category: true },
-    });
-
-    return NextResponse.json({ product }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}

@@ -1,25 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const category = searchParams.get('category');
+    const search = searchParams.get('search');
+    const active = searchParams.get('active');
+
+    const where: Record<string, unknown> = {};
+    if (category) where.categoryId = category;
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { description: { contains: search } },
+      ];
+    }
+    if (active !== null && active !== undefined) {
+      where.isActive = active === 'true';
     }
 
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const [products, total] = await Promise.all([
+      db.product.findMany({
+        where,
+        include: { category: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      db.product.count({ where }),
+    ]);
 
-    const products = await db.product.findMany({
-      include: { category: true, reviews: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return NextResponse.json({ products });
+    return NextResponse.json({ products, total, page, totalPages: Math.ceil(total / limit) });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -27,24 +45,44 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
 
     const body = await request.json();
+
+    // Validate required fields
+    if (!body.name || !body.price || !body.categoryId) {
+      return NextResponse.json(
+        { error: 'Name, price, and categoryId are required' },
+        { status: 400 }
+      );
+    }
+
+    const price = parseFloat(body.price);
+    if (isNaN(price) || price < 0) {
+      return NextResponse.json({ error: 'Invalid price' }, { status: 400 });
+    }
+
+    // Verify category exists
+    const category = await db.category.findUnique({ where: { id: body.categoryId } });
+    if (!category) {
+      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+    }
+
+    // Check for slug uniqueness
+    const slug = body.slug || body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const slugExists = await db.product.findUnique({ where: { slug } });
+    if (slugExists) {
+      return NextResponse.json({ error: 'A product with this slug already exists' }, { status: 409 });
+    }
+
     const product = await db.product.create({
       data: {
-        name: body.name,
-        slug: body.slug || body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: body.name.trim(),
+        slug,
         description: body.description,
         shortDesc: body.shortDesc,
-        price: parseFloat(body.price),
+        price,
         comparePrice: body.comparePrice ? parseFloat(body.comparePrice) : null,
         categoryId: body.categoryId,
         images: JSON.stringify(body.images || []),
@@ -61,68 +99,6 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ product }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { id, ...data } = await request.json();
-    const updateData: Record<string, unknown> = {};
-
-    const allowedFields = ['name', 'slug', 'description', 'shortDesc', 'price', 'comparePrice', 'categoryId', 'stock', 'isFeatured', 'isNewArrival', 'isBestseller', 'tags', 'isActive'];
-    for (const field of allowedFields) {
-      if (data[field] !== undefined) {
-        updateData[field] = field === 'price' || field === 'comparePrice' || field === 'stock' ? parseFloat(data[field]) : data[field];
-      }
-    }
-    if (data.images) updateData.images = JSON.stringify(data.images);
-    if (data.sizes) updateData.sizes = JSON.stringify(data.sizes);
-    if (data.colors) updateData.colors = JSON.stringify(data.colors);
-
-    const product = await db.product.update({
-      where: { id },
-      data: updateData,
-      include: { category: true },
-    });
-
-    return NextResponse.json({ product });
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'Product ID required' }, { status: 400 });
-    }
-
-    await db.product.delete({ where: { id } });
-    return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

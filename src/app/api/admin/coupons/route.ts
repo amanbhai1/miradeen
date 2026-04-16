@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 // GET /api/admin/coupons — List all coupons (with optional ?active=true filter)
 export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
+
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('active') === 'true';
 
@@ -21,11 +25,26 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/coupons — Create new coupon
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
+
     const body = await request.json();
     const { code, discount, type, minOrder, maxUses, isActive, startsAt, expiresAt } = body;
 
     if (!code || discount == null || !type) {
       return NextResponse.json({ error: 'Code, discount, and type are required' }, { status: 400 });
+    }
+
+    if (typeof discount !== 'number' || discount < 0) {
+      return NextResponse.json({ error: 'Discount must be a positive number' }, { status: 400 });
+    }
+
+    if (!['percentage', 'fixed'].includes(type)) {
+      return NextResponse.json({ error: 'Type must be "percentage" or "fixed"' }, { status: 400 });
+    }
+
+    if (type === 'percentage' && discount > 100) {
+      return NextResponse.json({ error: 'Percentage discount cannot exceed 100' }, { status: 400 });
     }
 
     // Check for duplicate code
@@ -56,6 +75,9 @@ export async function POST(request: NextRequest) {
 // PUT /api/admin/coupons — Update coupon
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
+
     const body = await request.json();
     const { id, code, discount, type, minOrder, maxUses, isActive, startsAt, expiresAt } = body;
 
@@ -63,8 +85,23 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Coupon ID is required' }, { status: 400 });
     }
 
-    const updateData: any = {};
-    if (code !== undefined) updateData.code = code.toUpperCase();
+    // Verify coupon exists
+    const existing = await db.coupon.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Coupon not found' }, { status: 404 });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (code !== undefined) {
+      const upperCode = code.toUpperCase();
+      if (upperCode !== existing.code) {
+        const codeExists = await db.coupon.findUnique({ where: { code: upperCode } });
+        if (codeExists) {
+          return NextResponse.json({ error: 'Coupon code already exists' }, { status: 409 });
+        }
+      }
+      updateData.code = upperCode;
+    }
     if (discount !== undefined) updateData.discount = parseFloat(discount);
     if (type !== undefined) updateData.type = type;
     if (minOrder !== undefined) updateData.minOrder = minOrder ? parseFloat(minOrder) : null;
@@ -87,16 +124,25 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/coupons — Delete coupon
 export async function DELETE(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { id } = body;
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Coupon ID is required' }, { status: 400 });
     }
 
+    // Verify coupon exists
+    const existing = await db.coupon.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Coupon not found' }, { status: 404 });
+    }
+
     await db.coupon.delete({ where: { id } });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Coupon deleted successfully' });
   } catch {
     return NextResponse.json({ error: 'Failed to delete coupon' }, { status: 500 });
   }

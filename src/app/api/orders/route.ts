@@ -21,11 +21,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
+    // Check if user is blocked
+    const user = await db.user.findUnique({ where: { id: payload.userId }, select: { isBlocked: true } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 });
+    }
+    if (user.isBlocked) {
+      return NextResponse.json({ error: 'Account has been blocked' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { items, shipping, shippingName, shippingEmail, shippingPhone, shippingAddress, shippingCity, shippingState, shippingZip, shippingCountry, notes, discount, couponCode } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
+    }
+
+    // Validate shipping info
+    if (!shippingName || !shippingEmail || !shippingPhone || !shippingAddress || !shippingCity || !shippingState || !shippingZip) {
+      return NextResponse.json({ error: 'Shipping information is incomplete' }, { status: 400 });
     }
 
     // Validate stock and calculate totals
@@ -37,18 +51,22 @@ export async function POST(request: NextRequest) {
       if (!product) {
         return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 400 });
       }
+      if (!product.isActive) {
+        return NextResponse.json({ error: `Product "${product.name}" is no longer available` }, { status: 400 });
+      }
       if (product.stock < item.quantity) {
-        return NextResponse.json({ error: `Insufficient stock for ${product.name}` }, { status: 400 });
+        return NextResponse.json({ error: `Insufficient stock for ${product.name}. Only ${product.stock} available.` }, { status: 400 });
       }
       
+      const quantity = parseInt(item.quantity) || 1;
       const images = JSON.parse(product.images || '[]');
-      subtotal += product.price * item.quantity;
+      subtotal += product.price * quantity;
       orderItems.push({
         productId: product.id,
         productName: product.name,
         productImage: images[0] || '',
         price: product.price,
-        quantity: item.quantity,
+        quantity,
         size: item.size,
         color: item.color,
       });
@@ -56,7 +74,7 @@ export async function POST(request: NextRequest) {
       // Decrease stock
       await db.product.update({
         where: { id: product.id },
-        data: { stock: { decrement: item.quantity } },
+        data: { stock: { decrement: quantity } },
       });
     }
 
@@ -65,6 +83,9 @@ export async function POST(request: NextRequest) {
     if (couponCode) {
       const coupon = await db.coupon.findUnique({ where: { code: couponCode.toUpperCase() } });
       if (coupon && coupon.isActive) {
+        if (coupon.startsAt && new Date(coupon.startsAt) > new Date()) {
+          return NextResponse.json({ error: 'Coupon is not yet active' }, { status: 400 });
+        }
         if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
           return NextResponse.json({ error: 'Coupon has expired' }, { status: 400 });
         }
@@ -75,6 +96,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: `Minimum order amount for this coupon is ₹${coupon.minOrder}` }, { status: 400 });
         }
         appliedDiscount = coupon.type === 'percentage' ? (subtotal * coupon.discount) / 100 : coupon.discount;
+        if (appliedDiscount > subtotal) appliedDiscount = subtotal;
         await db.coupon.update({ where: { id: coupon.id }, data: { usedCount: { increment: 1 } } });
       }
     }
@@ -139,9 +161,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
 
     const where: Record<string, unknown> = {};
-    if (payload.role !== 'admin') {
-      where.userId = payload.userId;
-    }
+    // Users can only see their own orders
+    where.userId = payload.userId;
     if (status) where.status = status;
 
     const [orders, total] = await Promise.all([
@@ -156,37 +177,6 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({ orders, total, page, totalPages: Math.ceil(total / limit) });
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { id, status, paymentStatus, paymentId } = await request.json();
-
-    const updateData: Record<string, unknown> = {};
-    if (status) updateData.status = status;
-    if (paymentStatus) updateData.paymentStatus = paymentStatus;
-    if (paymentId) updateData.paymentId = paymentId;
-
-    const order = await db.order.update({
-      where: { id },
-      data: updateData,
-      include: { items: true },
-    });
-
-    return NextResponse.json({ order });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

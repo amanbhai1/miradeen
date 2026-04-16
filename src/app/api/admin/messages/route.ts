@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
 
     const messages = await db.contactMessage.findMany({
       orderBy: { createdAt: 'desc' },
@@ -26,19 +19,18 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
 
     const { id, isRead, reply } = await request.json();
     if (!id) {
       return NextResponse.json({ error: 'Message ID required' }, { status: 400 });
+    }
+
+    // Verify message exists
+    const existing = await db.contactMessage.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
 
     const updateData: Record<string, unknown> = {};
@@ -54,6 +46,27 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({ message });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Message ID required' }, { status: 400 });
+
+    const existing = await db.contactMessage.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    }
+
+    await db.contactMessage.delete({ where: { id } });
+    return NextResponse.json({ success: true, message: 'Message deleted successfully' });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

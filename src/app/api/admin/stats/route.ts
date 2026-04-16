@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const payload = verifyToken(authHeader.replace('Bearer ', ''));
-    if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await verifyAdmin(request);
+    if (!auth.success) return auth.response;
 
-    const [userCount, orderCount, productCount, totalRevenue, recentOrders, recentMessages] = await Promise.all([
+    const [userCount, orderCount, productCount, totalRevenue, recentOrders, unreadMessages] = await Promise.all([
       db.user.count({ where: { role: 'user' } }),
       db.order.count(),
       db.product.count({ where: { isActive: true } }),
@@ -41,17 +35,20 @@ export async function GET(request: NextRequest) {
     const newCustomers = await db.user.count({
       where: { role: 'user', createdAt: { gte: thirtyDaysAgo } },
     });
-    const returningCustomers = await db.order.groupBy({
+
+    // Count users with more than 1 paid order (returning customers)
+    const allPaidOrders = await db.order.groupBy({
       by: ['userId'],
       where: { paymentStatus: 'paid' },
       _count: true,
-      having: { orders: { every: { _count: { gt: 1 } } } },
     });
+    const returningCustomers = allPaidOrders.filter(o => o._count > 1).length;
 
     const topSpenders = await db.order.groupBy({
       by: ['userId'],
       where: { paymentStatus: 'paid' },
       _sum: { total: true },
+      _count: true,
       orderBy: { _sum: { total: 'desc' } },
       take: 5,
     });
@@ -70,13 +67,19 @@ export async function GET(request: NextRequest) {
 
     const newsletterCount = await db.newsletterSubscriber.count({ where: { isActive: true } });
 
+    // Order status breakdown
+    const orderStatusCounts = await db.order.groupBy({
+      by: ['status'],
+      _count: true,
+    });
+
     return NextResponse.json({
       stats: {
         users: userCount,
         orders: orderCount,
         products: productCount,
         revenue: totalRevenue._sum.total || 0,
-        unreadMessages: recentMessages,
+        unreadMessages,
         newCustomers,
         avgOrderValue: avgOrderValue._avg.total || 0,
         newsletterSubscribers: newsletterCount,
@@ -84,9 +87,10 @@ export async function GET(request: NextRequest) {
       recentOrders,
       monthlyOrders,
       lowStockProducts,
+      orderStatusCounts,
       customerAnalytics: {
         newCustomers,
-        returningCustomers: returningCustomers.length,
+        returningCustomers,
         topSpenders: topSpendersWithDetails,
         avgOrderValue: avgOrderValue._avg.total || 0,
       },

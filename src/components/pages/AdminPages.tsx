@@ -1,7 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove, SortableContext, useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   LayoutDashboard, Shirt, ShoppingBag, Users, MessageSquare, Settings,
   BarChart3, DollarSign, TrendingUp, Eye, EyeOff, Ban, CheckCircle,
@@ -9,7 +16,9 @@ import {
   ArrowUpRight, ArrowDownRight, Star, Package, Calendar, Clock, Trophy,
   ShoppingCart, Filter, UserCheck, ToggleLeft, ToggleRight, Sparkles, Crown, Mail,
   Download, FileJson, FileSpreadsheet, Loader2, CheckCircle2, Ticket, Percent, Copy, RefreshCw,
-  Image as ImageIcon, Megaphone, Quote, Tag, AlertTriangle, Printer, Send, MapPin, Phone, Globe, Heart
+  Image as ImageIcon, Megaphone, Quote, Tag, AlertTriangle, Printer, Send, MapPin, Phone, Globe, Heart,
+  FileText, Link2, GripVertical, MousePointerClick, CalendarDays, ExternalLink, UserCircle,
+  Truck, RotateCcw, Camera, Menu, ChevronRight, PlayCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -344,6 +353,91 @@ function DashboardTab({ token }: { token: string | null }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Customer Analytics */}
+      <Card className="transition-all duration-300 hover:shadow-md">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="heading-serif text-lg font-semibold flex items-center gap-2">
+                <Users className="h-4 w-4 text-gold" /> Customer Analytics
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Key customer metrics & insights</p>
+            </div>
+            <Badge className="bg-gold/10 text-gold border border-gold/20 text-xs">CRM</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Customer Acquisition */}
+            <div className="p-4 rounded-lg bg-muted/30 border border-gold/10">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-md bg-green-50 dark:bg-green-950/30"><TrendingUp className="h-4 w-4 text-green-600" /></div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">New This Month</p>
+              </div>
+              <p className="text-xl font-bold">{stats.stats.newCustomers || 0}</p>
+              <p className="text-[10px] text-green-600 flex items-center gap-0.5 mt-1">
+                <ArrowUpRight className="h-3 w-3" /> {stats.stats.users ? (((stats.stats.newCustomers || 0) / stats.stats.users) * 100).toFixed(1) : 0}% of total
+              </p>
+            </div>
+
+            {/* Customer Retention */}
+            <div className="p-4 rounded-lg bg-muted/30 border border-gold/10">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30"><UserCheck className="h-4 w-4 text-gold" /></div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Repeat Customers</p>
+              </div>
+              <p className="text-xl font-bold">{stats.customerAnalytics?.repeatCustomers || 0}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {stats.stats.users ? (((stats.customerAnalytics?.repeatCustomers || 0) / stats.stats.users) * 100).toFixed(1) : 0}% retention rate
+              </p>
+            </div>
+
+            {/* Avg Order Frequency */}
+            <div className="p-4 rounded-lg bg-muted/30 border border-gold/10">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-md bg-purple-50 dark:bg-purple-950/30"><Clock className="h-4 w-4 text-purple-600" /></div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg. Frequency</p>
+              </div>
+              <p className="text-xl font-bold">{stats.customerAnalytics?.avgOrderFrequency || 0}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">orders per customer</p>
+            </div>
+
+            {/* Customer Lifetime Value */}
+            <div className="p-4 rounded-lg bg-muted/30 border border-gold/10">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-md bg-gold/10"><Crown className="h-4 w-4 text-gold" /></div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Lifetime Value</p>
+              </div>
+              <p className="text-xl font-bold text-gold">{formatCurrency(stats.customerAnalytics?.customerLifetimeValue || 0)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">avg. per customer</p>
+            </div>
+          </div>
+
+          {/* Customer Segmentation Breakdown */}
+          {stats.customerAnalytics?.segmentation && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <h4 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Customer Segments</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'VIP', count: stats.customerAnalytics.segmentation.vip || 0, icon: Crown, color: 'text-gold', bg: 'bg-gold/10' },
+                  { label: 'Regular', count: stats.customerAnalytics.segmentation.regular || 0, icon: Users, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
+                  { label: 'New', count: stats.customerAnalytics.segmentation.newCust || 0, icon: Sparkles, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+                  { label: 'Inactive', count: stats.customerAnalytics.segmentation.inactive || 0, icon: UserCheck, color: 'text-muted-foreground', bg: 'bg-muted' },
+                ].map(seg => (
+                  <div key={seg.label} className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
+                    <div className={`p-1.5 rounded-md ${seg.bg}`}><seg.icon className={`h-3.5 w-3.5 ${seg.color}`} /></div>
+                    <div>
+                      <p className="text-sm font-bold">{seg.count}</p>
+                      <p className="text-[10px] text-muted-foreground">{seg.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1230,27 +1324,90 @@ function CouponsTab({ token }: { token: string | null }) {
 
 // ── CMS Tab ─────────────────────────────────────────────────────────────────
 
+type CMSSection = 'banners' | 'testimonials' | 'categories' | 'pages' | 'seo' | 'navigation' | 'media';
+
 function CMSTab({ token }: { token: string | null }) {
-  const [activeSection, setActiveSection] = useState<'banners' | 'testimonials' | 'categories'>('banners');
+  const [activeSection, setActiveSection] = useState<CMSSection>('banners');
+  const sections: { id: CMSSection; label: string; icon: React.ElementType }[] = [
+    { id: 'banners', label: 'Banners', icon: ImageIcon },
+    { id: 'testimonials', label: 'Testimonials', icon: Quote },
+    { id: 'categories', label: 'Categories', icon: Tag },
+    { id: 'pages', label: 'Pages', icon: FileText },
+    { id: 'seo', label: 'SEO Settings', icon: BarChart3 },
+    { id: 'navigation', label: 'Navigation', icon: Menu },
+    { id: 'media', label: 'Media Library', icon: Camera },
+  ];
   return (
     <div className="space-y-6">
       <div>
         <h2 className="heading-serif text-2xl font-bold">Content Management</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Manage banners, testimonials, and categories</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Manage all website content, SEO, and media</p>
       </div>
       <div className="flex gap-2 flex-wrap">
-        {(['banners', 'testimonials', 'categories'] as const).map(s => (
-          <Button key={s} variant={activeSection === s ? 'default' : 'outline'} size="sm" onClick={() => setActiveSection(s)} className={activeSection === s ? goldBtn : 'text-xs'}>
-            {s === 'banners' && <><ImageIcon className="h-3 w-3 mr-1" /> Banners</>}
-            {s === 'testimonials' && <><Quote className="h-3 w-3 mr-1" /> Testimonials</>}
-            {s === 'categories' && <><Tag className="h-3 w-3 mr-1" /> Categories</>}
+        {sections.map(s => (
+          <Button key={s.id} variant={activeSection === s.id ? 'default' : 'outline'} size="sm" onClick={() => setActiveSection(s.id)} className={activeSection === s.id ? goldBtn : 'text-xs'}>
+            <s.icon className="h-3 w-3 mr-1" /> {s.label}
           </Button>
         ))}
       </div>
-      {activeSection === 'banners' && <BannersSection token={token} />}
-      {activeSection === 'testimonials' && <TestimonialsSection token={token} />}
-      {activeSection === 'categories' && <CategoriesSection token={token} />}
+      <AnimatePresence mode="wait">
+        <motion.div key={activeSection} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+          {activeSection === 'banners' && <BannersSection token={token} />}
+          {activeSection === 'testimonials' && <TestimonialsSection token={token} />}
+          {activeSection === 'categories' && <CategoriesSection token={token} />}
+          {activeSection === 'pages' && <PagesSection token={token} />}
+          {activeSection === 'seo' && <SEOSettingsSection token={token} />}
+          {activeSection === 'navigation' && <NavigationSection token={token} />}
+          {activeSection === 'media' && <MediaLibrarySection token={token} />}
+        </motion.div>
+      </AnimatePresence>
     </div>
+  );
+}
+
+// ── Sortable Banner Item ────────────────────────────────────────────────────
+
+function SortableBannerItem({ banner, onEdit, onToggle, onDelete }: { banner: any; onEdit: (b: any) => void; onToggle: (b: any) => void; onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: banner.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : undefined };
+  const positionColors: Record<string, string> = { hero: 'bg-gold/10 text-gold border-gold/20', mid: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300', bottom: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300', sidebar: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300' };
+  const scheduleInfo = banner.startDate || banner.endDate ? (
+    <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+      <CalendarDays className="h-2.5 w-2.5" />
+      {banner.startDate && new Date(banner.startDate).toLocaleDateString()}
+      {banner.startDate && banner.endDate && ' → '}
+      {banner.endDate && new Date(banner.endDate).toLocaleDateString()}
+    </span>
+  ) : null;
+
+  return (
+    <Card ref={setNodeRef} style={style} className="group transition-all duration-300 hover:shadow-md">
+      <CardContent className="p-4 flex items-center gap-4">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-gold shrink-0"><GripVertical className="h-4 w-4" /></div>
+        <div className="w-32 h-20 rounded-md bg-muted overflow-hidden shrink-0 ring-1 ring-border group-hover:ring-gold/50 transition-all">
+          <img src={banner.image} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm group-hover:text-gold transition-colors">{banner.title}</p>
+          {banner.subtitle && <p className="text-xs text-muted-foreground truncate">{banner.subtitle}</p>}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <Badge variant="outline" className={`text-[9px] ${positionColors[banner.position] || ''}`}>{banner.position}</Badge>
+            <Badge variant="outline" className="text-[9px]">#{banner.sortOrder}</Badge>
+            {banner.enableClickTracking && <Badge variant="outline" className="text-[9px] border-gold/30 text-gold"><MousePointerClick className="h-2 w-2 mr-0.5" /> Tracking</Badge>}
+            <Badge className={`text-[9px] ${banner.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{banner.isActive ? 'Active' : 'Inactive'}</Badge>
+            {scheduleInfo}
+          </div>
+        </div>
+        <div className="flex gap-1 shrink-0">
+          <button onClick={() => onToggle(banner)} className="p-1.5 rounded-md">{banner.isActive ? <Eye className="h-3.5 w-3.5 text-green-600" /> : <EyeOff className="h-3.5 w-3.5 text-gray-400" />}</button>
+          <button onClick={() => onEdit(banner)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3.5 w-3.5" /></button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild><button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></AlertDialogTrigger>
+            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Banner?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(banner.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1258,13 +1415,15 @@ function CMSTab({ token }: { token: string | null }) {
 
 function BannersSection({ token }: { token: string | null }) {
   const { toast } = useToast();
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
-  const [editing, setEditing] = useState<Banner | null>(null);
+  const [editing, setEditing] = useState<any>(null);
   const [saving, setSaving] = useState(false);
-  const emptyForm = { title: '', subtitle: '', image: '', link: '', position: 'hero', isActive: true, sortOrder: 0 };
+  const emptyForm = { title: '', subtitle: '', image: '', link: '', position: 'hero', isActive: true, sortOrder: 0, enableClickTracking: false, startDate: '', endDate: '' };
   const [form, setForm] = useState(emptyForm);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor));
 
   const fetchBanners = () => {
     fetch('/api/admin/banners', { headers: { Authorization: `Bearer ${token}` } })
@@ -1274,17 +1433,22 @@ function BannersSection({ token }: { token: string | null }) {
   useEffect(() => { fetchBanners(); }, [token]);
 
   const openCreate = () => { setForm(emptyForm); setEditing(null); setShowDialog(true); };
-  const openEdit = (b: Banner) => { setEditing(b); setForm({ title: b.title, subtitle: b.subtitle || '', image: b.image, link: b.link || '', position: b.position, isActive: b.isActive, sortOrder: b.sortOrder }); setShowDialog(true); };
+  const openEdit = (b: any) => {
+    setEditing(b);
+    setForm({ title: b.title, subtitle: b.subtitle || '', image: b.image, link: b.link || '', position: b.position, isActive: b.isActive, sortOrder: b.sortOrder, enableClickTracking: b.enableClickTracking || false, startDate: b.startDate ? b.startDate.split('T')[0] : '', endDate: b.endDate ? b.endDate.split('T')[0] : '' });
+    setShowDialog(true);
+  };
 
   const handleSave = async () => {
     if (!form.title.trim() || !form.image.trim()) { toast({ title: 'Title and image required', variant: 'destructive' }); return; }
     setSaving(true);
     try {
+      const body = { ...form, startDate: form.startDate || null, endDate: form.endDate || null };
       if (editing) {
-        await fetch('/api/admin/banners', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: editing.id, ...form }) });
+        await fetch('/api/admin/banners', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: editing.id, ...body }) });
         toast({ title: 'Banner updated!' });
       } else {
-        await fetch('/api/admin/banners', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
+        await fetch('/api/admin/banners', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
         toast({ title: 'Banner created!' });
       }
       setShowDialog(false); fetchBanners();
@@ -1292,7 +1456,7 @@ function BannersSection({ token }: { token: string | null }) {
     setSaving(false);
   };
 
-  const toggleActive = async (b: Banner) => {
+  const toggleActive = async (b: any) => {
     await fetch('/api/admin/banners', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: b.id, isActive: !b.isActive }) });
     setBanners(prev => prev.map(x => x.id === b.id ? { ...x, isActive: !b.isActive } : x));
   };
@@ -1302,56 +1466,78 @@ function BannersSection({ token }: { token: string | null }) {
     toast({ title: 'Banner deleted' }); fetchBanners();
   };
 
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = banners.findIndex(b => b.id === active.id);
+      const newIndex = banners.findIndex(b => b.id === over.id);
+      const reordered = arrayMove(banners, oldIndex, newIndex).map((b, i) => ({ ...b, sortOrder: i }));
+      setBanners(reordered);
+      reordered.forEach((b, i) => {
+        fetch('/api/admin/banners', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: b.id, sortOrder: i }) }).catch(() => {});
+      });
+    }
+  };
+
   if (loading) return <AdminSkeleton rows={3} height="h-28" />;
+
+  // Position preview mapping
+  const positionPreview: Record<string, { label: string; desc: string; bg: string }> = {
+    hero: { label: 'Hero', desc: 'Full-width top carousel', bg: 'bg-gradient-to-r from-gold/20 to-gold/5' },
+    mid: { label: 'Mid-page', desc: 'Between content sections', bg: 'bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-950/40 dark:to-blue-950/20' },
+    bottom: { label: 'Bottom', desc: 'Above footer area', bg: 'bg-gradient-to-r from-purple-100 to-purple-50 dark:from-purple-950/40 dark:to-purple-950/20' },
+    sidebar: { label: 'Sidebar', desc: 'Side column placement', bg: 'bg-gradient-to-r from-orange-100 to-orange-50 dark:from-orange-950/40 dark:to-orange-950/20' },
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionHeader icon={Image} title="Banners" badge={`${banners.length} total`} />
+        <SectionHeader icon={ImageIcon} title="Banners" badge={`${banners.length} total`} action={<span className="text-[10px] text-muted-foreground flex items-center gap-1"><GripVertical className="h-3 w-3" /> Drag to reorder</span>} />
         <Button onClick={openCreate} size="sm" className={goldBtn}><Plus className="mr-1 h-3 w-3" /> Add Banner</Button>
       </div>
-      <div className="space-y-3">
-        {banners.map(banner => (
-          <Card key={banner.id} className="group transition-all duration-300 hover:shadow-md">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-32 h-20 rounded-md bg-muted overflow-hidden shrink-0">
-                <img src={banner.image} alt="" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{banner.title}</p>
-                {banner.subtitle && <p className="text-xs text-muted-foreground">{banner.subtitle}</p>}
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Badge variant="outline" className="text-[9px]">{banner.position}</Badge>
-                  <Badge variant="outline" className="text-[9px]">Sort: {banner.sortOrder}</Badge>
-                  <Badge className={`text-[9px] ${banner.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{banner.isActive ? 'Active' : 'Inactive'}</Badge>
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <button onClick={() => toggleActive(banner)} className="p-1.5 rounded-md">{banner.isActive ? <Eye className="h-3.5 w-3.5 text-green-600" /> : <EyeOff className="h-3.5 w-3.5 text-gray-400" />}</button>
-                <button onClick={() => openEdit(banner)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3.5 w-3.5" /></button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild><button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></AlertDialogTrigger>
-                  <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Banner?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteBanner(banner.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {banners.length === 0 && <Card><CardContent className="p-8 text-center"><ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No banners yet</p></CardContent></Card>}
+
+      {/* Position Visual Preview */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {Object.entries(positionPreview).map(([key, val]) => {
+          const count = banners.filter(b => b.position === key).length;
+          return (
+            <div key={key} className={`rounded-lg p-3 border ${val.bg} border-border/50`}>
+              <p className="text-xs font-semibold">{val.label}</p>
+              <p className="text-[9px] text-muted-foreground">{val.desc}</p>
+              <Badge variant="outline" className="text-[9px] mt-1">{count} banner{count !== 1 ? 's' : ''}</Badge>
+            </div>
+          );
+        })}
       </div>
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={banners.map(b => b.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-3">
+            {banners.map(banner => (
+              <SortableBannerItem key={banner.id} banner={banner} onEdit={openEdit} onToggle={toggleActive} onDelete={deleteBanner} />
+            ))}
+            {banners.length === 0 && <Card><CardContent className="p-8 text-center"><ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No banners yet</p></CardContent></Card>}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={(open) => { if (!open) setShowDialog(false); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="heading-serif text-lg">{editing ? 'Edit Banner' : 'New Banner'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            <div className="sm:col-span-2"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={`mt-1 ${icls}`} required /></div>
+            <div className="sm:col-span-2"><Label>Title <span className="text-destructive">*</span></Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={`mt-1 ${icls}`} /></div>
             <div className="sm:col-span-2"><Label>Subtitle</Label><Input value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} className={`mt-1 ${icls}`} /></div>
-            <div className="sm:col-span-2"><Label>Image URL</Label><Input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} className={`mt-1 ${icls}`} placeholder="https://..." required /></div>
+            <div className="sm:col-span-2"><Label>Image URL <span className="text-destructive">*</span></Label><Input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} className={`mt-1 ${icls}`} placeholder="https://..." /></div>
+            {form.image && (
+              <div className="sm:col-span-2"><Label>Preview</Label><div className="mt-1 w-full h-32 rounded-lg bg-muted overflow-hidden border border-border"><img src={form.image} alt="Preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></div></div>
+            )}
             <div><Label>Link</Label><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} className={`mt-1 ${icls}`} placeholder="https://..." /></div>
             <div><Label>Position</Label><Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v })}><SelectTrigger className={`mt-1 ${icls}`}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="hero">Hero</SelectItem><SelectItem value="mid">Mid</SelectItem><SelectItem value="bottom">Bottom</SelectItem><SelectItem value="sidebar">Sidebar</SelectItem></SelectContent></Select></div>
-            <div><Label>Sort Order</Label><Input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} className={`mt-1 ${icls}`} /></div>
+            <div><Label>Start Date</Label><Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className={`mt-1 ${icls}`} /></div>
+            <div><Label>End Date</Label><Input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className={`mt-1 ${icls}`} /></div>
             <div className="flex items-center gap-3 pt-5"><Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} /><Label className="text-sm">Active</Label></div>
+            <div className="flex items-center gap-3 pt-5"><Switch checked={form.enableClickTracking} onCheckedChange={(v) => setForm({ ...form, enableClickTracking: v })} /><Label className="text-sm flex items-center gap-1"><MousePointerClick className="h-3 w-3" /> Click Tracking</Label></div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
@@ -1365,7 +1551,59 @@ function BannersSection({ token }: { token: string | null }) {
 
 // ── Testimonials Section ────────────────────────────────────────────────────
 
-interface Testimonial { id: string; author: string; role?: string; company?: string; avatar?: string; rating: number; text: string; isFeatured: boolean; isActive: boolean; sortOrder: number; }
+interface Testimonial { id: string; author: string; role?: string; company?: string; avatar?: string; rating: number; text: string; isFeatured: boolean; isActive: boolean; sortOrder: number; status?: string; tags?: string; }
+
+type TestimonialStatus = 'draft' | 'pending_review' | 'published';
+
+const testimonialStatusLabels: Record<TestimonialStatus, { label: string; color: string }> = {
+  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-600 border-gray-300' },
+  pending_review: { label: 'Pending Review', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+  published: { label: 'Published', color: 'bg-green-100 text-green-700 border-green-300' },
+};
+
+function SortableTestimonialItem({ t, onEdit, onToggle, onToggleFeatured, onDelete }: { t: Testimonial; onEdit: (t: Testimonial) => void; onToggle: (t: Testimonial) => void; onToggleFeatured: (t: Testimonial) => void; onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: t.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : undefined };
+  const status = (t.status || 'published') as TestimonialStatus;
+  const statusInfo = testimonialStatusLabels[status];
+
+  return (
+    <Card ref={setNodeRef} style={style} className="group transition-all duration-300 hover:shadow-md">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-gold shrink-0"><GripVertical className="h-4 w-4" /></div>
+            {t.avatar ? (
+              <div className="w-10 h-10 rounded-full bg-muted overflow-hidden shrink-0 ring-2 ring-gold/20"><img src={t.avatar} alt="" className="w-full h-full object-cover" /></div>
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center text-sm font-bold text-gold shrink-0">{t.author.charAt(0)}</div>
+            )}
+            <div>
+              <p className="text-sm font-medium group-hover:text-gold transition-colors">{t.author}</p>
+              <p className="text-[10px] text-muted-foreground">{t.role}{t.role && t.company ? ' at ' : ''}{t.company}</p>
+            </div>
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <button onClick={() => onToggleFeatured(t)} className="p-1.5 rounded-md" title="Toggle Featured"><Star className={`h-3.5 w-3.5 ${t.isFeatured ? 'fill-gold text-gold' : 'text-muted-foreground'}`} /></button>
+            <button onClick={() => onEdit(t)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3.5 w-3.5" /></button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild><button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></AlertDialogTrigger>
+              <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Testimonial?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(t.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 mb-2 ml-8">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3 w-3 ${i < t.rating ? 'fill-gold text-gold' : 'text-muted-foreground/30'}`} />)}</div>
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 ml-8">&ldquo;{t.text}&rdquo;</p>
+        <div className="flex items-center gap-2 mt-2 ml-8 flex-wrap">
+          <Badge variant="outline" className={`text-[9px] border ${statusInfo.color}`}>{statusInfo.label}</Badge>
+          {t.isFeatured && <Badge className="text-[9px] bg-gold text-background">Featured</Badge>}
+          {t.isActive ? <Badge className="text-[9px] bg-green-100 text-green-700">Active</Badge> : <Badge className="text-[9px] bg-gray-100 text-gray-600">Inactive</Badge>}
+          {t.tags && t.tags.split(',').map((tag, i) => <Badge key={i} variant="outline" className="text-[9px] border-gold/30 text-gold/70">{tag.trim()}</Badge>)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function TestimonialsSection({ token }: { token: string | null }) {
   const { toast } = useToast();
@@ -1374,8 +1612,12 @@ function TestimonialsSection({ token }: { token: string | null }) {
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Testimonial | null>(null);
   const [saving, setSaving] = useState(false);
-  const emptyForm = { author: '', role: '', company: '', avatar: '', rating: 5, text: '', isFeatured: false, isActive: true, sortOrder: 0 };
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
+  const emptyForm = { author: '', role: '', company: '', avatar: '', rating: 5, text: '', isFeatured: false, isActive: true, sortOrder: 0, status: 'draft' as TestimonialStatus, tags: '' };
   const [form, setForm] = useState(emptyForm);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor));
 
   const fetchT = () => {
     fetch('/api/admin/testimonials', { headers: { Authorization: `Bearer ${token}` } })
@@ -1385,7 +1627,7 @@ function TestimonialsSection({ token }: { token: string | null }) {
   useEffect(() => { fetchT(); }, [token]);
 
   const openCreate = () => { setForm(emptyForm); setEditing(null); setShowDialog(true); };
-  const openEdit = (t: Testimonial) => { setEditing(t); setForm({ author: t.author, role: t.role || '', company: t.company || '', avatar: t.avatar || '', rating: t.rating, text: t.text, isFeatured: t.isFeatured, isActive: t.isActive, sortOrder: t.sortOrder }); setShowDialog(true); };
+  const openEdit = (t: Testimonial) => { setEditing(t); setForm({ author: t.author, role: t.role || '', company: t.company || '', avatar: t.avatar || '', rating: t.rating, text: t.text, isFeatured: t.isFeatured, isActive: t.isActive, sortOrder: t.sortOrder, status: (t.status || 'published') as TestimonialStatus, tags: t.tags || '' }); setShowDialog(true); };
 
   const handleSave = async () => {
     if (!form.author.trim() || !form.text.trim()) { toast({ title: 'Author and text required', variant: 'destructive' }); return; }
@@ -1413,58 +1655,104 @@ function TestimonialsSection({ token }: { token: string | null }) {
     setTestimonials(prev => prev.map(x => x.id === t.id ? { ...x, isFeatured: !x.isFeatured } : x));
   };
 
+  const toggleActive = async (t: Testimonial) => {
+    await fetch('/api/admin/testimonials', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: t.id, isActive: !t.isActive }) });
+    setTestimonials(prev => prev.map(x => x.id === t.id ? { ...x, isActive: !x.isActive } : x));
+  };
+
+  const updateStatus = async (t: Testimonial, newStatus: TestimonialStatus) => {
+    await fetch('/api/admin/testimonials', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: t.id, status: newStatus }) });
+    setTestimonials(prev => prev.map(x => x.id === t.id ? { ...x, status: newStatus } : x));
+    toast({ title: `Status updated to ${testimonialStatusLabels[newStatus].label}` });
+  };
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = testimonials.findIndex(t => t.id === active.id);
+      const newIndex = testimonials.findIndex(t => t.id === over.id);
+      const reordered = arrayMove(testimonials, oldIndex, newIndex).map((t, i) => ({ ...t, sortOrder: i }));
+      setTestimonials(reordered);
+      reordered.forEach((t, i) => {
+        fetch('/api/admin/testimonials', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: t.id, sortOrder: i }) }).catch(() => {});
+      });
+    }
+  };
+
   if (loading) return <AdminSkeleton rows={3} />;
+
+  const featured = testimonials.filter(t => t.isFeatured);
+  let filtered = testimonials;
+  if (filterStatus !== 'all') filtered = filtered.filter(t => (t.status || 'published') === filterStatus);
+  if (showFeaturedOnly) filtered = filtered.filter(t => t.isFeatured);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionHeader icon={Quote} title="Testimonials" badge={`${testimonials.length} total`} />
+        <SectionHeader icon={Quote} title="Testimonials" badge={`${testimonials.length} total • ${featured.length} featured`} />
         <Button onClick={openCreate} size="sm" className={goldBtn}><Plus className="mr-1 h-3 w-3" /> Add Testimonial</Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {testimonials.map(t => (
-          <Card key={t.id} className="group transition-all duration-300 hover:shadow-md">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center text-sm font-bold text-gold">{t.author.charAt(0)}</div>
-                  <div>
-                    <p className="text-sm font-medium">{t.author}</p>
-                    <p className="text-[10px] text-muted-foreground">{t.role}{t.role && t.company ? ' at ' : ''}{t.company}</p>
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => toggleFeatured(t)} className="p-1.5 rounded-md" title="Toggle Featured">
-                    <Star className={`h-3.5 w-3.5 ${t.isFeatured ? 'fill-gold text-gold' : 'text-muted-foreground'}`} />
-                  </button>
-                  <button onClick={() => openEdit(t)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3.5 w-3.5" /></button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild><button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></AlertDialogTrigger>
-                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Testimonial?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteT(t.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-              <div className="flex items-center gap-0.5 mb-2">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3 w-3 ${i < t.rating ? 'fill-gold text-gold' : 'text-muted-foreground/30'}`} />)}</div>
-              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">&ldquo;{t.text}&rdquo;</p>
-              <div className="flex gap-2 mt-2">
-                <Badge className={`text-[9px] ${t.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{t.isActive ? 'Active' : 'Inactive'}</Badge>
-                {t.isFeatured && <Badge className="text-[9px] bg-gold text-background">Featured</Badge>}
-              </div>
-            </CardContent>
-          </Card>
+
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {(['all', 'draft', 'pending_review', 'published'] as const).map(s => (
+          <Button key={s} variant={filterStatus === s ? 'default' : 'outline'} size="sm" className={`text-[10px] ${filterStatus === s ? goldBtn : ''}`} onClick={() => setFilterStatus(s)}>
+            {s === 'all' ? 'All' : testimonialStatusLabels[s].label}
+          </Button>
         ))}
-        {testimonials.length === 0 && <Card className="md:col-span-2"><CardContent className="p-8 text-center"><Quote className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No testimonials yet</p></CardContent></Card>}
+        <Button variant={showFeaturedOnly ? 'default' : 'outline'} size="sm" className={`text-[10px] ${showFeaturedOnly ? goldBtn : ''}`} onClick={() => setShowFeaturedOnly(!showFeaturedOnly)}>
+          <Star className="h-3 w-3 mr-1" /> Featured Only
+        </Button>
       </div>
 
+      {/* Featured Highlights */}
+      {featured.length > 0 && (
+        <div className="p-4 rounded-lg bg-gradient-to-r from-gold/10 to-gold/5 border border-gold/20">
+          <p className="text-xs font-semibold text-gold mb-2 flex items-center gap-1"><Crown className="h-3 w-3" /> Featured Testimonials ({featured.length})</p>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {featured.map(t => (
+              <div key={t.id} className="flex items-center gap-2 p-2 bg-card rounded-lg border border-border shrink-0 min-w-[200px]">
+                {t.avatar ? <div className="w-8 h-8 rounded-full bg-muted overflow-hidden shrink-0"><img src={t.avatar} alt="" className="w-full h-full object-cover" /></div> : <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-xs font-bold text-gold shrink-0">{t.author.charAt(0)}</div>}
+                <div className="min-w-0"><p className="text-xs font-medium truncate">{t.author}</p><div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-2 w-2 ${i < t.rating ? 'fill-gold text-gold' : 'text-muted-foreground/30'}`} />)}</div></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={filtered.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filtered.map(t => (
+              <SortableTestimonialItem key={t.id} t={t} onEdit={openEdit} onToggle={toggleActive} onToggleFeatured={toggleFeatured} onDelete={deleteT} />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+      {filtered.length === 0 && <Card className="md:col-span-2"><CardContent className="p-8 text-center"><Quote className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No testimonials found</p></CardContent></Card>}
+
+      {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={(open) => { if (!open) setShowDialog(false); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="heading-serif text-lg">{editing ? 'Edit Testimonial' : 'New Testimonial'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            <div><Label>Author Name</Label><Input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} className={`mt-1 ${icls}`} required /></div>
+            <div><Label>Author Name <span className="text-destructive">*</span></Label><Input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} className={`mt-1 ${icls}`} /></div>
             <div><Label>Role / Title</Label><Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className={`mt-1 ${icls}`} placeholder="e.g., Fashion Designer" /></div>
             <div><Label>Company</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className={`mt-1 ${icls}`} /></div>
-            <div><Label>Rating (1-5)</Label><Select value={String(form.rating)} onValueChange={(v) => setForm({ ...form, rating: parseInt(v) })}><SelectTrigger className={`mt-1 ${icls}`}><SelectValue /></SelectTrigger><SelectContent>{[1,2,3,4,5].map(n => <SelectItem key={n} value={String(n)}>{'★'.repeat(n)}</SelectItem>)}</SelectContent></Select></div>
-            <div className="sm:col-span-2"><Label>Testimonial Text</Label><Textarea value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} className={`mt-1 ${icls}`} rows={3} required /></div>
+            <div><Label>Avatar URL</Label><Input value={form.avatar} onChange={(e) => setForm({ ...form, avatar: e.target.value })} className={`mt-1 ${icls}`} placeholder="https://..." /></div>
+            {form.avatar && <div className="sm:col-span-2"><Label>Avatar Preview</Label><div className="mt-1 w-16 h-16 rounded-full bg-muted overflow-hidden border border-border"><img src={form.avatar} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></div></div>}
+            <div><Label>Rating</Label>
+              <div className="flex gap-1 mt-2">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} type="button" onClick={() => setForm({ ...form, rating: n })} className="p-0.5 transition-transform hover:scale-110">
+                    <Star className={`h-6 w-6 transition-colors ${n <= form.rating ? 'fill-gold text-gold' : 'text-muted-foreground/30 hover:text-gold/50'}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><Label>Status</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as TestimonialStatus })}><SelectTrigger className={`mt-1 ${icls}`}><SelectValue /></SelectTrigger><SelectContent>{Object.entries(testimonialStatusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="sm:col-span-2"><Label>Testimonial Text <span className="text-destructive">*</span></Label><Textarea value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} className={`mt-1 ${icls}`} rows={3} /></div>
+            <div className="sm:col-span-2"><Label>Tags (comma-separated)</Label><Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className={`mt-1 ${icls}`} placeholder="satisfied, repeat customer, luxury" /></div>
             <div className="flex items-center gap-3"><Switch checked={form.isFeatured} onCheckedChange={(v) => setForm({ ...form, isFeatured: v })} /><Label className="text-sm">Featured</Label></div>
             <div className="flex items-center gap-3"><Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} /><Label className="text-sm">Active</Label></div>
           </div>
@@ -1487,7 +1775,7 @@ function CategoriesSection({ token }: { token: string | null }) {
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [saving, setSaving] = useState(false);
-  const emptyForm = { name: '', description: '', image: '', sortOrder: 0, isActive: true };
+  const emptyForm = { name: '', description: '', image: '', sortOrder: 0, isActive: true, parentId: '' };
   const [form, setForm] = useState(emptyForm);
 
   const fetchC = () => {
@@ -1498,17 +1786,18 @@ function CategoriesSection({ token }: { token: string | null }) {
   useEffect(() => { fetchC(); }, [token]);
 
   const openCreate = () => { setForm(emptyForm); setEditing(null); setShowDialog(true); };
-  const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, description: c.description || '', image: c.image || '', sortOrder: c.sortOrder, isActive: c.isActive }); setShowDialog(true); };
+  const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, description: c.description || '', image: c.image || '', sortOrder: c.sortOrder, isActive: c.isActive, parentId: c.parentId || '' }); setShowDialog(true); };
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast({ title: 'Name required', variant: 'destructive' }); return; }
     setSaving(true);
     try {
+      const body = { ...form, parentId: form.parentId || null };
       if (editing) {
-        await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: editing.id, ...form }) });
+        await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: editing.id, ...body }) });
         toast({ title: 'Category updated!' });
       } else {
-        await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
+        await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
         toast({ title: 'Category created!' });
       }
       setShowDialog(false); fetchC();
@@ -1523,55 +1812,498 @@ function CategoriesSection({ token }: { token: string | null }) {
 
   if (loading) return <AdminSkeleton rows={3} />;
 
+  const parentCategories = categories.filter(c => !c.parentId);
+  const childMap = new Map<string, any[]>();
+  categories.filter(c => c.parentId).forEach(c => { const existing = childMap.get(c.parentId) || []; existing.push(c); childMap.set(c.parentId, existing); });
+
+  const renderCategory = (cat: any, depth: number = 0) => {
+    const children = childMap.get(cat.id) || [];
+    return (
+      <div key={cat.id}>
+        <Card className={`group transition-all duration-300 hover:shadow-md ${depth > 0 ? 'ml-8 border-l-2 border-l-gold/30' : ''}`}>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                {cat.image ? (
+                  <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0 ring-1 ring-border group-hover:ring-gold/50 transition-all"><img src={cat.image} alt="" className="w-full h-full object-cover" /></div>
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-gold/10 flex items-center justify-center shrink-0"><Tag className="h-5 w-5 text-gold" /></div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    {depth > 0 && <ChevronRight className="h-3 w-3 text-gold/50" />}
+                    <p className="font-medium text-sm group-hover:text-gold transition-colors truncate">{cat.name}</p>
+                    {depth > 0 && <Badge variant="outline" className="text-[8px] px-1.5 py-0 border-gold/30 text-gold/70">Sub</Badge>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Slug: {cat.slug}</p>
+                  {cat.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{cat.description}</p>}
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <Badge className={`text-[9px] ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{cat.isActive ? 'Active' : 'Inactive'}</Badge>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Package className="h-2.5 w-2.5" /> {cat._count?.products || 0} products</span>
+                    {children.length > 0 && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><ChevronRight className="h-2.5 w-2.5" /> {children.length} sub</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => openEdit(cat)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3.5 w-3.5" /></button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></AlertDialogTrigger>
+                  <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete &ldquo;{cat.name}&rdquo;?</AlertDialogTitle><AlertDialogDescription>Products in this category will lose their assignment.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteC(cat.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        {children.map(child => renderCategory(child, depth + 1))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <SectionHeader icon={Tag} title="Categories" badge={`${categories.length} total`} />
         <Button onClick={openCreate} size="sm" className={goldBtn}><Plus className="mr-1 h-3 w-3" /> Add Category</Button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categories.map(cat => (
-          <Card key={cat.id} className="group transition-all duration-300 hover:shadow-md">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-medium text-sm group-hover:text-gold transition-colors">{cat.name}</p>
-                  <p className="text-[10px] text-muted-foreground">Slug: {cat.slug}</p>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => openEdit(cat)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3.5 w-3.5" /></button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild><button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></AlertDialogTrigger>
-                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete &ldquo;{cat.name}&rdquo;?</AlertDialogTitle><AlertDialogDescription>Products in this category will lose their category assignment.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteC(cat.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-              {cat.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{cat.description}</p>}
-              <div className="flex items-center gap-2">
-                <Badge className={`text-[9px] ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{cat.isActive ? 'Active' : 'Inactive'}</Badge>
-                <span className="text-[10px] text-muted-foreground">{cat._count?.products || 0} products</span>
-                <span className="text-[10px] text-muted-foreground">Sort: {cat.sortOrder}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {categories.length === 0 && <Card className="sm:col-span-2 lg:col-span-3"><CardContent className="p-8 text-center"><Tag className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No categories yet</p></CardContent></Card>}
+      <div className="space-y-3">
+        {parentCategories.map(cat => renderCategory(cat))}
+        {categories.length === 0 && <Card><CardContent className="p-8 text-center"><Tag className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No categories yet</p></CardContent></Card>}
       </div>
 
       <Dialog open={showDialog} onOpenChange={(open) => { if (!open) setShowDialog(false); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="heading-serif text-lg">{editing ? 'Edit Category' : 'New Category'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`mt-1 ${icls}`} required /></div>
-            <div><Label>Sort Order</Label><Input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} className={`mt-1 ${icls}`} /></div>
-            <div className="sm:col-span-2"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={`mt-1 ${icls}`} rows={2} /></div>
+            <div><Label>Name <span className="text-destructive">*</span></Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`mt-1 ${icls}`} /></div>
+            <div><Label>Parent Category</Label><Select value={form.parentId} onValueChange={(v) => setForm({ ...form, parentId: v })}><SelectTrigger className={`mt-1 ${icls}`}><SelectValue placeholder="None (Top-level)" /></SelectTrigger><SelectContent><SelectItem value="">None (Top-level)</SelectItem>{categories.filter(c => c.id !== editing?.id && !c.parentId).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="sm:col-span-2"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={`mt-1 ${icls}`} rows={3} /></div>
             <div className="sm:col-span-2"><Label>Image URL</Label><Input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} className={`mt-1 ${icls}`} /></div>
-            <div className="flex items-center gap-3"><Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} /><Label className="text-sm">Active</Label></div>
+            {form.image && <div className="sm:col-span-2"><Label>Image Preview</Label><div className="mt-1 w-full h-32 rounded-lg bg-muted overflow-hidden border border-border"><img src={form.image} alt="Preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></div></div>}
+            <div><Label>Sort Order</Label><Input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} className={`mt-1 ${icls}`} /></div>
+            <div className="flex items-center gap-3 pt-5"><Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} /><Label className="text-sm">Active</Label></div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving} className={goldBtn}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <><Save className="mr-1 h-4 w-4" /> Save</>}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── Pages Section ───────────────────────────────────────────────────────────
+
+interface PageItem { id: string; title: string; slug: string; content: string; status: 'draft' | 'published'; metaTitle: string; metaDescription: string; createdAt: string; updatedAt: string; }
+
+function PagesSection({ token }: { token: string | null }) {
+  const { toast } = useToast();
+  const [pages, setPages] = useState<PageItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [editing, setEditing] = useState<PageItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const emptyForm = { title: '', slug: '', content: '', status: 'draft' as const, metaTitle: '', metaDescription: '' };
+  const [form, setForm] = useState(emptyForm);
+
+  const fetchPages = () => {
+    fetch('/api/admin/pages', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setPages(d.pages || []); setLoading(false); }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchPages(); }, [token]);
+
+  const openCreate = () => { setForm(emptyForm); setEditing(null); setShowDialog(true); };
+  const openEdit = (p: PageItem) => { setEditing(p); setForm({ title: p.title, slug: p.slug, content: p.content, status: p.status, metaTitle: p.metaTitle || '', metaDescription: p.metaDescription || '' }); setShowDialog(true); };
+
+  const handleSave = async () => {
+    if (!form.title.trim() || !form.slug.trim()) { toast({ title: 'Title and slug required', variant: 'destructive' }); return; }
+    const slug = form.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+    setSaving(true);
+    try {
+      if (editing) {
+        await fetch('/api/admin/pages', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: editing.id, ...form, slug }) });
+        toast({ title: 'Page updated!' });
+      } else {
+        await fetch('/api/admin/pages', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...form, slug }) });
+        toast({ title: 'Page created!' });
+      }
+      setShowDialog(false); fetchPages();
+    } catch { toast({ title: 'Failed', variant: 'destructive' }); }
+    setSaving(false);
+  };
+
+  const deletePage = async (id: string) => {
+    await fetch(`/api/admin/pages?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    toast({ title: 'Page deleted' }); fetchPages();
+  };
+
+  if (loading) return <AdminSkeleton rows={3} />;
+  const filtered = pages.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || p.slug.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <SectionHeader icon={FileText} title="Pages" badge={`${pages.length} total`} />
+        <Button onClick={openCreate} size="sm" className={goldBtn}><Plus className="mr-1 h-3 w-3" /> Add Page</Button>
+      </div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search pages..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-9 ${icls}`} />
+      </div>
+      <div className="space-y-3">
+        {filtered.map(page => (
+          <Card key={page.id} className="group transition-all duration-300 hover:shadow-md hover:border-gold/30">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gold shrink-0" />
+                    <p className="font-medium text-sm group-hover:text-gold transition-colors truncate">{page.title}</p>
+                    <Badge className={`text-[9px] ${page.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{page.status}</Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground ml-6">/{page.slug}</p>
+                  {page.metaTitle && <p className="text-[10px] text-muted-foreground ml-6 mt-0.5">Meta: {page.metaTitle}</p>}
+                  <p className="text-[10px] text-muted-foreground ml-6 mt-0.5">{new Date(page.updatedAt).toLocaleDateString()}</p>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => openEdit(page)} className="p-1.5 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3.5 w-3.5" /></button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild><button className="p-1.5 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></AlertDialogTrigger>
+                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete &ldquo;{page.title}&rdquo;?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deletePage(page.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {filtered.length === 0 && <Card><CardContent className="p-8 text-center"><FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No pages found</p></CardContent></Card>}
+      </div>
+
+      <Dialog open={showDialog} onOpenChange={(open) => { if (!open) setShowDialog(false); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="heading-serif text-lg">{editing ? 'Edit Page' : 'New Page'}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            <div className="sm:col-span-2"><Label>Title <span className="text-destructive">*</span></Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value, slug: form.slug || e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') })} className={`mt-1 ${icls}`} /></div>
+            <div className="sm:col-span-2"><Label>Slug <span className="text-destructive">*</span></Label><Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} className={`mt-1 ${icls} font-mono`} placeholder="about-us" /></div>
+            <div className="sm:col-span-2"><Label>Content</Label><Textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className={`mt-1 ${icls} font-mono`} rows={8} placeholder="Page content..." /></div>
+            <div><Label>Status</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as 'draft' | 'published' })}><SelectTrigger className={`mt-1 ${icls}`}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="published">Published</SelectItem></SelectContent></Select></div>
+            <div><Label>Meta Title</Label><Input value={form.metaTitle} onChange={(e) => setForm({ ...form, metaTitle: e.target.value })} className={`mt-1 ${icls}`} /></div>
+            <div className="sm:col-span-2"><Label>Meta Description</Label><Textarea value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} className={`mt-1 ${icls}`} rows={2} /></div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className={goldBtn}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <><Save className="mr-1 h-4 w-4" /> Save</>}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── Setting Field Component (shared) ───────────────────────────────────────
+
+function SettingField({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string }) {
+  return (
+    <Card className="transition-all duration-300 hover:shadow-md hover:border-gold/20">
+      <CardContent className="p-4">
+        <Label className="text-sm font-medium">{label}</Label>
+        {type === 'textarea' ? (
+          <Textarea value={value || ''} onChange={(e) => onChange(e.target.value)} className={`mt-1 ${icls}`} rows={2} placeholder={placeholder} />
+        ) : (
+          <Input value={value || ''} onChange={(e) => onChange(e.target.value)} className={`mt-1 ${icls}`} placeholder={placeholder} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── SEO Settings Section ────────────────────────────────────────────────────
+
+function SEOSettingsSection({ token }: { token: string | null }) {
+  const { toast } = useToast();
+  const [seoSettings, setSeoSettings] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/settings', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(data => {
+        const s = data.settings || {};
+        const seo: Record<string, string> = {};
+        ['seo_title', 'seo_description', 'seo_keywords', 'social_facebook', 'social_instagram', 'social_twitter', 'social_pinterest', 'social_youtube', 'google_analytics_id', 'favicon_url', 'og_image_url'].forEach(k => { if (s[k] !== undefined) seo[k] = s[k]; });
+        setSeoSettings(seo);
+        setLoading(false);
+      }).catch(() => setLoading(false));
+  }, [token]);
+
+  const updateSetting = (key: string, value: string) => {
+    setSeoSettings(prev => ({ ...prev, [key]: value }));
+    fetch('/api/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ key, value }) })
+      .then(res => { if (res.ok) toast({ title: 'Setting saved' }); });
+  };
+
+  if (loading) return <AdminSkeleton rows={5} height="h-12" />;
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader icon={BarChart3} title="SEO Settings" />
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">General SEO</p>
+        <SettingField label="Site Title" key="seo_title" placeholder="MIRADEEN - Luxury Fashion" />
+        <SettingField label="Site Description" key="seo_description" placeholder="Discover luxury fashion at MIRADEEN..." type="textarea" />
+        <SettingField label="Keywords" key="seo_keywords" placeholder="luxury, fashion, silk, designer" />
+      </div>
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1"><Globe className="h-3 w-3" /> Social Media Links</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <SettingField label="Facebook URL" key="social_facebook" placeholder="https://facebook.com/miradeen" />
+          <SettingField label="Instagram URL" key="social_instagram" placeholder="https://instagram.com/miradeen" />
+          <SettingField label="Twitter URL" key="social_twitter" placeholder="https://twitter.com/miradeen" />
+          <SettingField label="Pinterest URL" key="social_pinterest" placeholder="https://pinterest.com/miradeen" />
+          <SettingField label="YouTube URL" key="social_youtube" placeholder="https://youtube.com/@miradeen" />
+          <SettingField label="Google Analytics ID" key="google_analytics_id" placeholder="G-XXXXXXXXXX" />
+        </div>
+      </div>
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1"><ImageIcon className="h-3 w-3" /> Media</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <SettingField label="Favicon URL" key="favicon_url" placeholder="https://..." />
+          <SettingField label="Open Graph Default Image" key="og_image_url" placeholder="https://..." />
+        </div>
+        {seoSettings.og_image_url && (
+          <div className="w-64 h-40 rounded-lg bg-muted overflow-hidden border border-border">
+            <img src={seoSettings.og_image_url} alt="OG Preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Navigation Section ──────────────────────────────────────────────────────
+
+interface NavItem { id: string; label: string; link: string; icon: string; position: number; isVisible: boolean; openInNewTab: boolean; }
+
+function NavigationSection({ token }: { token: string | null }) {
+  const { toast } = useToast();
+  const [items, setItems] = useState<NavItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [editing, setEditing] = useState<NavItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const emptyForm = { label: '', link: '', icon: '', position: 0, isVisible: true, openInNewTab: false };
+  const [form, setForm] = useState(emptyForm);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor));
+
+  const fetchNav = () => {
+    fetch('/api/admin/navigation', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setItems(d.items || []); setLoading(false); }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchNav(); }, [token]);
+
+  const openCreate = () => { setForm({ ...emptyForm, position: items.length }); setEditing(null); setShowDialog(true); };
+  const openEdit = (item: NavItem) => { setEditing(item); setForm({ label: item.label, link: item.link, icon: item.icon || '', position: item.position, isVisible: item.isVisible, openInNewTab: item.openInNewTab }); setShowDialog(true); };
+
+  const handleSave = async () => {
+    if (!form.label.trim()) { toast({ title: 'Label required', variant: 'destructive' }); return; }
+    setSaving(true);
+    try {
+      if (editing) {
+        await fetch('/api/admin/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: editing.id, ...form }) });
+        toast({ title: 'Nav item updated!' });
+      } else {
+        await fetch('/api/admin/navigation', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
+        toast({ title: 'Nav item created!' });
+      }
+      setShowDialog(false); fetchNav();
+    } catch { toast({ title: 'Failed', variant: 'destructive' }); }
+    setSaving(false);
+  };
+
+  const deleteItem = async (id: string) => {
+    await fetch(`/api/admin/navigation?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    toast({ title: 'Nav item deleted' }); fetchNav();
+  };
+
+  const toggleVisibility = async (item: NavItem) => {
+    await fetch('/api/admin/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: item.id, isVisible: !item.isVisible }) });
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, isVisible: !i.isVisible } : i));
+  };
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = items.findIndex(i => i.id === active.id);
+      const newIndex = items.findIndex(i => i.id === over.id);
+      const reordered = arrayMove(items, oldIndex, newIndex).map((i, idx) => ({ ...i, position: idx }));
+      setItems(reordered);
+      reordered.forEach((i, idx) => {
+        fetch('/api/admin/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: i.id, position: idx }) }).catch(() => {});
+      });
+    }
+  };
+
+  if (loading) return <AdminSkeleton rows={3} />;
+
+  function SortableNavItem({ item }: { item: NavItem }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+    const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+    return (
+      <Card ref={setNodeRef} style={style} className={`group transition-all duration-300 hover:shadow-md ${!item.isVisible ? 'opacity-50' : ''}`}>
+        <CardContent className="p-3 flex items-center gap-3">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-gold"><GripVertical className="h-4 w-4" /></div>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <Menu className="h-4 w-4 text-gold shrink-0" />
+            <span className="text-sm font-medium truncate group-hover:text-gold transition-colors">{item.label}</span>
+            <span className="text-[10px] text-muted-foreground truncate font-mono">{item.link}</span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {item.openInNewTab && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
+            <Badge className={`text-[8px] ${item.isVisible ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{item.isVisible ? 'Visible' : 'Hidden'}</Badge>
+            <button onClick={() => toggleVisibility(item)} className="p-1 rounded-md">{item.isVisible ? <Eye className="h-3 w-3 text-green-600" /> : <EyeOff className="h-3 w-3 text-gray-400" />}</button>
+            <button onClick={() => openEdit(item)} className="p-1 rounded-md text-muted-foreground hover:bg-gold/10 hover:text-gold"><Edit className="h-3 w-3" /></button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild><button className="p-1 rounded-md text-muted-foreground hover:bg-red-100 hover:text-red-600"><Trash2 className="h-3 w-3" /></button></AlertDialogTrigger>
+              <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Nav Item?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteItem(item.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <SectionHeader icon={Menu} title="Navigation" badge={`${items.length} items`} />
+        <Button onClick={openCreate} size="sm" className={goldBtn}><Plus className="mr-1 h-3 w-3" /> Add Item</Button>
+      </div>
+
+      {/* Navigation Preview */}
+      <div className="p-4 rounded-lg bg-muted/30 border border-border">
+        <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider font-medium">Live Preview</p>
+        <div className="flex items-center gap-4 overflow-x-auto">
+          {items.filter(i => i.isVisible).map(item => (
+            <span key={item.id} className="text-sm text-foreground hover:text-gold cursor-pointer transition-colors whitespace-nowrap">{item.label}</span>
+          ))}
+        </div>
+      </div>
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {items.map(item => <SortableNavItem key={item.id} item={item} />)}
+            {items.length === 0 && <Card><CardContent className="p-8 text-center"><Menu className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No navigation items</p></CardContent></Card>}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      <Dialog open={showDialog} onOpenChange={(open) => { if (!open) setShowDialog(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="heading-serif text-lg">{editing ? 'Edit Nav Item' : 'New Nav Item'}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 gap-4 py-2">
+            <div><Label>Label <span className="text-destructive">*</span></Label><Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} className={`mt-1 ${icls}`} placeholder="Home" /></div>
+            <div><Label>Link / Page</Label><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} className={`mt-1 ${icls}`} placeholder="/about" /></div>
+            <div><Label>Icon (Lucide name)</Label><Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} className={`mt-1 ${icls}`} placeholder="e.g., Shirt, ShoppingBag" /></div>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2"><Switch checked={form.isVisible} onCheckedChange={(v) => setForm({ ...form, isVisible: v })} /><Label className="text-sm">Visible</Label></div>
+              <div className="flex items-center gap-2"><Switch checked={form.openInNewTab} onCheckedChange={(v) => setForm({ ...form, openInNewTab: v })} /><Label className="text-sm">New Tab</Label></div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className={goldBtn}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <><Save className="mr-1 h-4 w-4" /> Save</>}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── Media Library Section ───────────────────────────────────────────────────
+
+function MediaLibrarySection({ token }: { token: string | null }) {
+  const { toast } = useToast();
+  const [images, setImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newUrl, setNewUrl] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const fetchMedia = () => {
+    fetch('/api/admin/media', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setImages(d.images || []); setLoading(false); }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchMedia(); }, [token]);
+
+  const addImage = async () => {
+    if (!newUrl.trim()) return;
+    try {
+      await fetch('/api/admin/media', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ url: newUrl.trim() }) });
+      toast({ title: 'Image added!' });
+      setNewUrl(''); fetchMedia();
+    } catch { toast({ title: 'Failed to add image', variant: 'destructive' }); }
+  };
+
+  const removeImage = async (url: string) => {
+    await fetch('/api/admin/media', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ url }) });
+    toast({ title: 'Image removed' }); fetchMedia();
+  };
+
+  const copyUrl = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({ title: 'URL copied to clipboard!' });
+  };
+
+  if (loading) return <AdminSkeleton rows={3} />;
+  const filtered = searchQuery ? images.filter(img => img.toLowerCase().includes(searchQuery.toLowerCase())) : images;
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader icon={Camera} title="Media Library" badge={`${images.length} images`} />
+
+      <div className="flex gap-2 flex-col sm:flex-row">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search images by URL..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-9 ${icls}`} />
+        </div>
+        <div className="flex gap-2">
+          <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Paste image URL..." className={`${icls} max-w-sm`} onKeyDown={(e) => { if (e.key === 'Enter') addImage(); }} />
+          <Button onClick={addImage} size="sm" className={goldBtn}><Plus className="mr-1 h-3 w-3" /> Add</Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {filtered.map((img, idx) => (
+          <div key={idx} className="group relative rounded-lg bg-muted overflow-hidden border border-border hover:border-gold/50 transition-all hover:shadow-md aspect-square">
+            <img src={img} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setPreviewImage(img)} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+              <button onClick={() => copyUrl(img)} className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors" title="Copy URL"><Copy className="h-3.5 w-3.5" /></button>
+              <button onClick={() => removeImage(img)} className="p-2 bg-white/90 rounded-lg hover:bg-red-100 transition-colors" title="Remove"><Trash2 className="h-3.5 w-3.5 text-red-600" /></button>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="col-span-full"><Card><CardContent className="p-8 text-center"><Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No images found</p></CardContent></Card></div>}
+      </div>
+
+      <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) setPreviewImage(null); }}>
+        <DialogContent className="max-w-3xl">
+          {previewImage && (
+            <>
+              <DialogHeader><DialogTitle className="heading-serif text-lg">Image Preview</DialogTitle></DialogHeader>
+              <div className="rounded-lg bg-muted overflow-hidden border border-border">
+                <img src={previewImage} alt="Preview" className="w-full max-h-[60vh] object-contain" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Input value={previewImage} readOnly className={`text-xs font-mono ${icls}`} />
+                <Button size="sm" variant="outline" onClick={() => copyUrl(previewImage)} className="shrink-0"><Copy className="h-3 w-3 mr-1" /> Copy</Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
