@@ -2,14 +2,25 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Lock, Check, ShoppingBag, AlertCircle, ChevronRight, Package, MapPin, CheckCircle2 } from 'lucide-react';
+import { CreditCard, Lock, Check, ShoppingBag, AlertCircle, ChevronRight, Package, MapPin, CheckCircle2, Gift, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/hooks/use-toast';
 import { parseJsonField } from '@/types';
+
+const GIFT_WRAP_OPTIONS = [
+  { id: 'gold-box', label: 'Premium Gold Box', desc: 'Elegant matte gold box with satin ribbon', emoji: '🎁' },
+  { id: 'silver-bag', label: 'Silver Gift Bag', desc: 'Metallic silver bag with tissue paper', emoji: '✨' },
+  { id: 'black-luxury', label: 'Black Luxury Box', desc: 'Velvet-lined black box with wax seal', emoji: '🖤' },
+];
+
+const GIFT_WRAP_COST = 199;
 
 interface FormErrors {
   [key: string]: string;
@@ -50,6 +61,11 @@ export default function CheckoutPage() {
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
 
+  // Gift wrap state
+  const [giftWrapEnabled, setGiftWrapEnabled] = useState(false);
+  const [giftMessage, setGiftMessage] = useState('');
+  const [giftWrapOption, setGiftWrapOption] = useState('gold-box');
+
   const [shipping, setShipping] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -67,7 +83,8 @@ export default function CheckoutPage() {
   const discount = couponDiscount;
   const shippingCost = subtotal >= 2000 ? 0 : 149;
   const tax = Math.round(subtotal * 0.05);
-  const total = subtotal - discount + shippingCost + tax;
+  const giftWrapTotal = giftWrapEnabled ? GIFT_WRAP_COST : 0;
+  const total = subtotal - discount + shippingCost + tax + giftWrapTotal;
 
   const estimatedDelivery = useMemo(() => getEstimatedDeliveryDate(), []);
   const minDeliveryDate = useMemo(() => getMinDeliveryDate(), []);
@@ -148,6 +165,13 @@ export default function CheckoutPage() {
     setCouponApplied(false);
     setCouponError('');
     toast({ title: 'Coupon removed', description: 'The discount has been removed.' });
+  };
+
+  const handleGiftWrapToggle = (checked: boolean) => {
+    setGiftWrapEnabled(checked);
+    if (checked) {
+      toast({ title: 'Gift wrapping added', description: `₹${GIFT_WRAP_COST} has been added for premium gift wrapping.` });
+    }
   };
 
   const handleSubmitOrder = async () => {
@@ -622,6 +646,123 @@ export default function CheckoutPage() {
                 )}
               </div>
 
+              {/* Gift Wrapping Section */}
+              <div className="divider-gold mb-4" />
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center">
+                      <Gift className="h-4 w-4 text-gold" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Gift Wrapping</p>
+                      <p className="text-[10px] text-muted-foreground">Make it special for ₹{GIFT_WRAP_COST}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={giftWrapEnabled}
+                    onCheckedChange={handleGiftWrapToggle}
+                    className="data-[state=checked]:bg-gold"
+                  />
+                </div>
+
+                <AnimatePresence>
+                  {giftWrapEnabled && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      {/* Gift Wrap Options */}
+                      <div className="mb-4">
+                        <p className="text-xs tracking-wider uppercase text-muted-foreground mb-2.5">Choose Style</p>
+                        <RadioGroup value={giftWrapOption} onValueChange={setGiftWrapOption} className="space-y-2">
+                          {GIFT_WRAP_OPTIONS.map((opt) => (
+                            <label
+                              key={opt.id}
+                              htmlFor={opt.id}
+                              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                giftWrapOption === opt.id
+                                  ? 'border-gold bg-gold/5 shadow-sm'
+                                  : 'border-border hover:border-gold/40 hover:bg-muted/30'
+                              }`}
+                            >
+                              <RadioGroupItem value={opt.id} id={opt.id} className="border-gold data-[state=checked]:border-gold" />
+                              <span className="text-lg shrink-0">{opt.emoji}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium">{opt.label}</p>
+                                <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                              </div>
+                              {giftWrapOption === opt.id && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="w-5 h-5 rounded-full bg-gold flex items-center justify-center shrink-0"
+                                >
+                                  <Check className="h-3 w-3 text-background" strokeWidth={3} />
+                                </motion.div>
+                              )}
+                            </label>
+                          ))}
+                        </RadioGroup>
+                      </div>
+
+                      {/* Gift Message */}
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-xs tracking-wider uppercase">Gift Message</Label>
+                          <span className={`text-[10px] ${giftMessage.length > 180 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                            {giftMessage.length}/200
+                          </span>
+                        </div>
+                        <Textarea
+                          value={giftMessage}
+                          onChange={(e) => {
+                            if (e.target.value.length <= 200) setGiftMessage(e.target.value);
+                          }}
+                          placeholder="Write a heartfelt message for the recipient..."
+                          className="min-h-[72px] text-xs resize-none border-border focus:border-gold focus:ring-gold/20 focus:ring-2 transition-all"
+                          maxLength={200}
+                        />
+                      </div>
+
+                      {/* Gift Message Preview */}
+                      {giftMessage.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="mb-2"
+                        >
+                          <p className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Preview</p>
+                          <div className="relative bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/20 dark:via-orange-950/20 dark:to-yellow-950/20 border border-gold/30 rounded-lg p-4 overflow-hidden">
+                            {/* Decorative corner elements */}
+                            <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-gold/40 rounded-tl-sm" />
+                            <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-gold/40 rounded-tr-sm" />
+                            <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-gold/40 rounded-bl-sm" />
+                            <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-gold/40 rounded-br-sm" />
+                            <div className="flex items-start gap-2.5">
+                              <Gift className="h-5 w-5 text-gold shrink-0 mt-0.5" />
+                              <div>
+                                <p className="heading-serif text-xs text-foreground/80 italic leading-relaxed">
+                                  &ldquo;{giftMessage}&rdquo;
+                                </p>
+                                <p className="text-[9px] text-gold/70 mt-2 flex items-center gap-1">
+                                  <Sparkles className="h-2.5 w-2.5" />
+                                  Wrapped with {GIFT_WRAP_OPTIONS.find(o => o.id === giftWrapOption)?.label}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <div className="divider-gold mb-4" />
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between">
@@ -647,6 +788,15 @@ export default function CheckoutPage() {
                   <span className="text-muted-foreground">Tax (GST)</span>
                   <span>₹{tax.toLocaleString()}</span>
                 </div>
+                {giftWrapEnabled && (
+                  <div className="flex justify-between items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <Gift className="h-3.5 w-3.5 text-gold" />
+                      <span className="text-gold text-xs">Gift Wrapping</span>
+                    </div>
+                    <span className="text-xs">₹{GIFT_WRAP_COST}</span>
+                  </div>
+                )}
                 <div className="divider-gold" />
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
